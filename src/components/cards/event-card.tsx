@@ -7,8 +7,13 @@ import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+// 'available'/'full' describe open-registration events (used on Find, driven by
+// volunteer capacity). The remaining states describe a specific volunteer's
+// personal record for an event they've already engaged with (reused later on
+// the You page) — same component/look, different status set.
 export type EventStatus =
   | 'available'
+  | 'full'
   | 'registered'
   | 'pending'
   | 'verified'
@@ -23,6 +28,8 @@ export type EventCardProps = {
   time?: string;
   location: string;
   hours?: number;
+  volunteers?: number;
+  maxVolunteers?: number;
   status: EventStatus;
   onPress?: () => void;
 };
@@ -36,6 +43,14 @@ function StatusIndicator({ status }: { status: EventStatus }) {
         <View style={[styles.neutralPill, { backgroundColor: theme.primaryTint }]}>
           <ThemedText type="label" themeColor="primary">
             Available
+          </ThemedText>
+        </View>
+      );
+    case 'full':
+      return (
+        <View style={[styles.neutralPill, { backgroundColor: theme.backgroundSelected }]}>
+          <ThemedText type="label" themeColor="textSecondary">
+            Full
           </ThemedText>
         </View>
       );
@@ -79,6 +94,8 @@ export function EventCard({
   time,
   location,
   hours,
+  volunteers,
+  maxVolunteers,
   status,
   onPress,
 }: EventCardProps) {
@@ -102,6 +119,9 @@ export function EventCard({
           <MetaRow icon="calendar-outline" text={time ? `${date} · ${time}` : date} />
           <MetaRow icon="location-outline" text={location} />
           {hours !== undefined && <MetaRow icon="time-outline" text={`${hours} hrs`} />}
+          {volunteers !== undefined && maxVolunteers !== undefined && (
+            <MetaRow icon="people-outline" text={`${volunteers}/${maxVolunteers} volunteers`} />
+          )}
         </View>
       </ThemedView>
     </Pressable>

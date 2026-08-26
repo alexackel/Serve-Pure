@@ -15,6 +15,8 @@ const SAMPLE_EVENTS = [
     time: '9:00 AM',
     location: 'Riverside Park',
     hours: 3,
+    volunteers: 11,
+    maxVolunteers: 20,
     status: 'available' as const,
   },
   {
@@ -24,7 +26,9 @@ const SAMPLE_EVENTS = [
     time: '1:00 PM',
     location: 'Northside Food Bank',
     hours: 4,
-    status: 'registered' as const,
+    volunteers: 8,
+    maxVolunteers: 8,
+    status: 'full' as const,
   },
   {
     title: 'Animal Shelter Adoption Day',
@@ -32,7 +36,9 @@ const SAMPLE_EVENTS = [
     date: 'Aug 24',
     location: 'Furry Friends Rescue',
     hours: 5,
-    status: 'pending' as const,
+    volunteers: 4,
+    maxVolunteers: 12,
+    status: 'available' as const,
   },
   {
     title: 'Library Reading Buddies',
@@ -40,7 +46,9 @@ const SAMPLE_EVENTS = [
     date: 'Aug 18',
     location: 'Central Public Library',
     hours: 2,
-    status: 'verified' as const,
+    volunteers: 6,
+    maxVolunteers: 6,
+    status: 'full' as const,
   },
   {
     title: 'Trail Restoration Day',
@@ -48,7 +56,9 @@ const SAMPLE_EVENTS = [
     date: 'Aug 10',
     location: 'Blue Ridge Trailhead',
     hours: 2,
-    status: 'partial' as const,
+    volunteers: 11,
+    maxVolunteers: 13,
+    status: 'available' as const,
   },
   {
     title: 'Senior Center Tech Help',
@@ -56,7 +66,9 @@ const SAMPLE_EVENTS = [
     date: 'Aug 3',
     location: 'Maple Grove Senior Center',
     hours: 3,
-    status: 'no-show' as const,
+    volunteers: 3,
+    maxVolunteers: 10,
+    status: 'available' as const,
   },
   {
     title: 'Beach Cleanup',
@@ -64,7 +76,9 @@ const SAMPLE_EVENTS = [
     date: 'Jul 27',
     location: 'Sunset Beach',
     hours: 3,
-    status: 'appealed' as const,
+    volunteers: 25,
+    maxVolunteers: 25,
+    status: 'full' as const,
   },
 ];
 

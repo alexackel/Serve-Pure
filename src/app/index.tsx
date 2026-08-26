@@ -18,7 +18,7 @@ export default function HomeScreen() {
         </ThemedView>
 
         <ThemedView style={styles.statGrid}>
-          <StatCard label="Total Hours" value={58} icon="time-outline" accentColor="primary" />
+          <StatCard label="Total Hours" value={58} icon="ribbon-outline" accentColor="primary" />
           <StatCard
             label="Verified Hours"
             value={42}
