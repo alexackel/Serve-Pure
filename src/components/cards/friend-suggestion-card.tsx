@@ -34,22 +34,24 @@ export function FriendSuggestionCard({
           {name}
         </ThemedText>
 
-        {mutualCount !== undefined && mutualCount > 0 && (
-          <View style={styles.reasonRow}>
-            <Ionicons name="people-outline" size={12} color={theme.textSecondary} />
-            <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-              {mutualCount} mutual{mutualCount === 1 ? '' : 's'}
-            </ThemedText>
-          </View>
-        )}
-        {volunteeredWith && (
-          <View style={styles.reasonRow}>
-            <Ionicons name="heart-outline" size={12} color={theme.textSecondary} />
-            <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1} style={styles.reasonText}>
-              Collaborated
-            </ThemedText>
-          </View>
-        )}
+        <View style={styles.reasons}>
+          {mutualCount !== undefined && mutualCount > 0 && (
+            <View style={styles.reasonRow}>
+              <Ionicons name="people-outline" size={12} color={theme.textSecondary} />
+              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                {mutualCount} mutual{mutualCount === 1 ? '' : 's'}
+              </ThemedText>
+            </View>
+          )}
+          {volunteeredWith && (
+            <View style={styles.reasonRow}>
+              <Ionicons name="heart-outline" size={12} color={theme.textSecondary} />
+              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1} style={styles.reasonText}>
+                Collaborated
+              </ThemedText>
+            </View>
+          )}
+        </View>
 
         <Pressable onPress={onAddPress} style={[styles.addButton, { backgroundColor: theme.primaryTint }]}>
           <Ionicons name="person-add-outline" size={13} color={theme.primary} />
@@ -81,6 +83,12 @@ const styles = StyleSheet.create({
   },
   name: {
     textAlign: 'center',
+  },
+  reasons: {
+    width: '100%',
+    minHeight: 38,
+    gap: Spacing.half,
+    alignItems: 'center',
   },
   reasonRow: {
     flexDirection: 'row',
