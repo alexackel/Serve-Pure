@@ -14,8 +14,10 @@ export default function YouScreen() {
         <ThemedText type="body" themeColor="textSecondary" style={styles.text}>
           Your permanent record is coming soon.
         </ThemedText>
-        <ThemedView style={styles.statRow}>
+        <ThemedView style={styles.statGrid}>
+          <StatCard label="Total Hours" value={58} icon="ribbon-outline" accentColor="primary" />
           <StatCard label="Verified Hours" value={42} icon="checkmark-circle-outline" accentColor="success" />
+          <StatCard label="Pending Hours" value={16} icon="hourglass-outline" accentColor="warning" />
         </ThemedView>
       </SafeAreaView>
     </ThemedView>
@@ -37,8 +39,10 @@ const styles = StyleSheet.create({
   text: {
     textAlign: 'center',
   },
-  statRow: {
+  statGrid: {
     flexDirection: 'row',
+    gap: Spacing.three,
+    flexWrap: 'wrap',
     width: '100%',
     maxWidth: MaxContentWidth,
     marginTop: Spacing.three,
