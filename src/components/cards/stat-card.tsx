@@ -11,12 +11,33 @@ export type StatCardProps = {
   value: string | number;
   icon?: keyof typeof Ionicons.glyphMap;
   accentColor?: 'primary' | 'success' | 'warning';
+  variant?: 'default' | 'headline';
 };
 
-export function StatCard({ label, value, icon, accentColor = 'primary' }: StatCardProps) {
+export function StatCard({ label, value, icon, accentColor = 'primary', variant = 'default' }: StatCardProps) {
   const theme = useTheme();
   const iconColor = theme[accentColor];
   const iconBackground = accentColor === 'primary' ? theme.primaryTint : theme[`${accentColor}Background`];
+
+  if (variant === 'headline') {
+    return (
+      <ThemedView style={[styles.card, styles.headlineCard, { borderColor: theme.border }, CardShadow]}>
+        {icon && (
+          <View style={[styles.iconCircle, styles.headlineIconCircle, { backgroundColor: iconBackground }]}>
+            <Ionicons name={icon} size={22} color={iconColor} />
+          </View>
+        )}
+        <View style={styles.headlineTextRow}>
+          <ThemedText type="h1" style={styles.headlineValue}>
+            {value}
+          </ThemedText>
+          <ThemedText type="h2" themeColor="textSecondary" style={styles.headlineLabel}>
+            {label}
+          </ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
@@ -48,5 +69,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.one,
+  },
+  headlineCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    width: '100%',
+    paddingVertical: Spacing.three,
+  },
+  headlineIconCircle: {
+    width: 44,
+    height: 44,
+    marginBottom: 0,
+  },
+  headlineTextRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.three,
+  },
+  headlineValue: {
+    fontSize: 32,
+    lineHeight: 38,
+  },
+  headlineLabel: {
+    fontSize: 22,
+    lineHeight: 28,
   },
 });

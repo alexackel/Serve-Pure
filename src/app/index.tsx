@@ -17,10 +17,38 @@ const SAMPLE_SUGGESTED_FRIENDS = [
 ];
 
 const SAMPLE_ACTIVITY = [
-  { name: 'Jordan Ruiz', organization: 'GreenFuture Coalition', hours: 3, timeAgo: '2h ago', hasPhoto: true },
-  { name: 'Priya Nair', organization: 'Northside Food Bank', hours: 4, timeAgo: '5h ago', hasPhoto: false },
-  { name: 'Casey Lin', organization: 'Coastal Guardians', hours: 3, timeAgo: 'Yesterday', hasPhoto: true },
-  { name: 'Morgan Diaz', organization: 'Central Public Library', hours: 2, timeAgo: '2d ago', hasPhoto: false },
+  {
+    name: 'Jordan Ruiz',
+    organization: 'GreenFuture Coalition',
+    hours: 3,
+    timeAgo: '2h ago',
+    hasPhoto: true,
+    likes: 14,
+  },
+  {
+    name: 'Priya Nair',
+    organization: 'Northside Food Bank',
+    hours: 4,
+    timeAgo: '5h ago',
+    hasPhoto: false,
+    likes: 5,
+  },
+  {
+    name: 'Casey Lin',
+    organization: 'Coastal Guardians',
+    hours: 3,
+    timeAgo: 'Yesterday',
+    hasPhoto: true,
+    likes: 21,
+  },
+  {
+    name: 'Morgan Diaz',
+    organization: 'Central Public Library',
+    hours: 2,
+    timeAgo: '2d ago',
+    hasPhoto: false,
+    likes: 3,
+  },
 ];
 
 export default function HomeScreen() {

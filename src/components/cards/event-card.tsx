@@ -105,9 +105,14 @@ export function EventCard({
     <Pressable onPress={onPress} disabled={!onPress}>
       <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
         <View style={styles.header}>
-          <ThemedText type="caption" themeColor="textSecondary">
-            {organization}
-          </ThemedText>
+          <View style={styles.orgRow}>
+            <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
+              <Ionicons name="business-outline" size={18} color={theme.primary} />
+            </View>
+            <ThemedText type="caption" themeColor="textSecondary">
+              {organization}
+            </ThemedText>
+          </View>
           <StatusIndicator status={status} />
         </View>
 
@@ -139,6 +144,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  orgRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     marginBottom: Spacing.one,
