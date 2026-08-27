@@ -1,12 +1,11 @@
-import { Platform, ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { ActivityPostCard, FriendSuggestionCard } from '@/components/cards';
 import { HomeHeader } from '@/components/home-header';
+import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
 
 const SAMPLE_SUGGESTED_FRIENDS = [
   { name: 'Jordan Ruiz', mutualCount: 4, volunteeredWith: 'GreenFuture Coalition' },
@@ -52,69 +51,33 @@ const SAMPLE_ACTIVITY = [
 ];
 
 export default function HomeScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
-
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: insets.bottom,
-    },
-  });
-
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <HomeHeader />
+    <ScreenScrollView containerStyle={styles.container}>
+      <HomeHeader />
 
-        <ThemedView style={styles.section}>
-          <ThemedText type="h3">Suggested Friends</ThemedText>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestedRow}>
-            {SAMPLE_SUGGESTED_FRIENDS.map((friend) => (
-              <FriendSuggestionCard key={friend.name} {...friend} />
-            ))}
-          </ScrollView>
-        </ThemedView>
+      <ThemedView style={styles.section}>
+        <ThemedText type="h3">Suggested Friends</ThemedText>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestedRow}>
+          {SAMPLE_SUGGESTED_FRIENDS.map((friend) => (
+            <FriendSuggestionCard key={friend.name} {...friend} />
+          ))}
+        </ScrollView>
+      </ThemedView>
 
-        <ThemedView style={styles.section}>
-          <ThemedText type="h3">Friends Activity</ThemedText>
-          <ThemedView style={styles.activityList}>
-            {SAMPLE_ACTIVITY.map((post) => (
-              <ActivityPostCard key={`${post.name}-${post.timeAgo}`} {...post} />
-            ))}
-          </ThemedView>
+      <ThemedView style={styles.section}>
+        <ThemedText type="h3">Friends Activity</ThemedText>
+        <ThemedView style={styles.activityList}>
+          {SAMPLE_ACTIVITY.map((post) => (
+            <ActivityPostCard key={`${post.name}-${post.timeAgo}`} {...post} />
+          ))}
         </ThemedView>
       </ThemedView>
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
   container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-    width: '100%',
-    paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
   section: {

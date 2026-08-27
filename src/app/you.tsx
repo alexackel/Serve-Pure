@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { RecordCard, StatCard } from '@/components/cards';
+import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, BottomTabInset, CardShadow, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const STATS = {
@@ -166,90 +166,51 @@ function TimeRangeSelector() {
 }
 
 export default function YouScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
   const theme = useTheme();
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: insets.bottom,
-    },
-  });
-
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedText type="h1" style={styles.pageTitle}>
-          You
-        </ThemedText>
+    <ScreenScrollView containerStyle={styles.container}>
+      <ThemedText type="h1" style={styles.pageTitle}>
+        You
+      </ThemedText>
 
-        <ThemedView style={styles.statsSection}>
-          <TimeRangeSelector />
+      <ThemedView style={styles.statsSection}>
+        <TimeRangeSelector />
 
-          <StatCard
-            label="Total Hours"
-            value={STATS.total}
-            icon="ribbon-outline"
-            accentColor="primary"
-            variant="headline"
-          />
-          <ThemedView style={styles.statGrid}>
-            <StatCard label="Verified" value={STATS.verified} icon="checkmark-circle-outline" accentColor="success" />
-            <StatCard label="Pending" value={STATS.pending} icon="hourglass-outline" accentColor="warning" />
-            <StatCard
-              label="Self-Reported"
-              value={STATS.selfReported}
-              icon="create-outline"
-              accentColor="warning"
-            />
-          </ThemedView>
-        </ThemedView>
-
-        <ThemedView style={styles.section}>
-          <View style={styles.historyHeader}>
-            <ThemedText type="h3">Your Volunteer History</ThemedText>
-            <Pressable style={[styles.exportButton, { borderColor: theme.border }]}>
-              <Ionicons name="download-outline" size={14} color={theme.text} />
-              <ThemedText type="label">Export</ThemedText>
-            </Pressable>
-          </View>
-          <ThemedView style={styles.recordList}>
-            {SAMPLE_RECORDS.map((record) => (
-              <RecordCard key={`${record.organization}-${record.date}`} {...record} />
-            ))}
-          </ThemedView>
+        <StatCard
+          label="Total Hours"
+          value={STATS.total}
+          icon="ribbon-outline"
+          accentColor="primary"
+          variant="headline"
+        />
+        <ThemedView style={styles.statGrid}>
+          <StatCard label="Verified" value={STATS.verified} icon="checkmark-circle-outline" accentColor="success" />
+          <StatCard label="Pending" value={STATS.pending} icon="hourglass-outline" accentColor="warning" />
+          <StatCard label="Self-Reported" value={STATS.selfReported} icon="create-outline" accentColor="warning" />
         </ThemedView>
       </ThemedView>
-    </ScrollView>
+
+      <ThemedView style={styles.section}>
+        <View style={styles.historyHeader}>
+          <ThemedText type="h3">Your Volunteer History</ThemedText>
+          <Pressable style={[styles.exportButton, { borderColor: theme.border }]}>
+            <Ionicons name="download-outline" size={14} color={theme.text} />
+            <ThemedText type="label">Export</ThemedText>
+          </Pressable>
+        </View>
+        <ThemedView style={styles.recordList}>
+          {SAMPLE_RECORDS.map((record) => (
+            <RecordCard key={`${record.organization}-${record.date}`} {...record} />
+          ))}
+        </ThemedView>
+      </ThemedView>
+    </ScreenScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
   container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-    width: '100%',
-    paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
   pageTitle: {

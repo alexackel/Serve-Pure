@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { PostActions, PostPhoto } from '@/components/cards/post-card-shared';
 import { VerificationBadge, VerificationStatus } from '@/components/cards/verification-badge';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -24,20 +25,6 @@ export type RecordCardProps = {
   onPress?: () => void;
 };
 
-function ActionIcon({ icon, count }: { icon: keyof typeof Ionicons.glyphMap; count?: number }) {
-  const theme = useTheme();
-  return (
-    <Pressable style={styles.actionButton}>
-      <Ionicons name={icon} size={19} color={theme.textSecondary} />
-      {count !== undefined && (
-        <ThemedText type="caption" themeColor="textSecondary">
-          {count}
-        </ThemedText>
-      )}
-    </Pressable>
-  );
-}
-
 export function RecordCard({ organization, hours, date, status, hasPhoto, likes, onPress }: RecordCardProps) {
   const theme = useTheme();
 
@@ -60,17 +47,9 @@ export function RecordCard({ organization, hours, date, status, hasPhoto, likes,
           You volunteered at <ThemedText type="bodyBold">{organization}</ThemedText> for {hours} hrs
         </ThemedText>
 
-        {hasPhoto && (
-          <View style={[styles.photo, { backgroundColor: theme.backgroundSelected }]}>
-            <Ionicons name="image-outline" size={28} color={theme.textSecondary} />
-          </View>
-        )}
+        {hasPhoto && <PostPhoto />}
 
-        <View style={styles.actions}>
-          <ActionIcon icon="heart-outline" count={likes} />
-          <ActionIcon icon="chatbubble-outline" />
-          <ActionIcon icon="share-outline" />
-        </View>
+        <PostActions likes={likes} />
       </ThemedView>
     </Pressable>
   );
@@ -100,22 +79,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sentence: {},
-  photo: {
-    height: 160,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.four,
-    paddingTop: Spacing.two,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.one,
-  },
 });

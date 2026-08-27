@@ -1,11 +1,10 @@
-import { Platform, ScrollView, StyleSheet } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet } from 'react-native';
 
 import { EventCard } from '@/components/cards';
+import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
 
 const SAMPLE_EVENTS = [
   {
@@ -83,59 +82,21 @@ const SAMPLE_EVENTS = [
 ];
 
 export default function FindScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
-
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: insets.bottom,
-    },
-  });
-
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedText type="h1" style={styles.pageTitle}>
-          Find
-        </ThemedText>
-        <ThemedView style={styles.list}>
-          {SAMPLE_EVENTS.map((event) => (
-            <EventCard key={event.title} {...event} />
-          ))}
-        </ThemedView>
+    <ScreenScrollView>
+      <ThemedText type="h1" style={styles.pageTitle}>
+        Find
+      </ThemedText>
+      <ThemedView style={styles.list}>
+        {SAMPLE_EVENTS.map((event) => (
+          <EventCard key={event.title} {...event} />
+        ))}
       </ThemedView>
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-    width: '100%',
-    paddingHorizontal: Spacing.four,
-  },
   pageTitle: {
     marginBottom: Spacing.three,
   },

@@ -6,15 +6,20 @@ import { useTheme } from '@/hooks/use-theme';
 
 type IconButtonProps = {
   icon: keyof typeof Ionicons.glyphMap;
+  accessibilityLabel: string;
   hasUnread?: boolean;
   onPress?: () => void;
 };
 
-function IconButton({ icon, hasUnread, onPress }: IconButtonProps) {
+function IconButton({ icon, accessibilityLabel, hasUnread, onPress }: IconButtonProps) {
   const theme = useTheme();
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={hasUnread ? `${accessibilityLabel}, unread` : accessibilityLabel}
+      style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}>
       <Ionicons name={icon} size={22} color={theme.text} />
       {hasUnread && (
         <View style={[styles.unreadDot, { backgroundColor: theme.primary, borderColor: theme.background }]} />
@@ -38,8 +43,8 @@ export function HomeHeader() {
       </View>
 
       <View style={styles.icons}>
-        <IconButton icon="notifications-outline" hasUnread />
-        <IconButton icon="chatbubble-outline" hasUnread />
+        <IconButton icon="notifications-outline" accessibilityLabel="Notifications" hasUnread />
+        <IconButton icon="chatbubble-outline" accessibilityLabel="Messages" hasUnread />
       </View>
     </View>
   );
