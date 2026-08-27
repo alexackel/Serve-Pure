@@ -1,4 +1,7 @@
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
+
+import { useFocusEffect } from 'expo-router';
 
 import { ActivityPostCard, FriendSuggestionCard } from '@/components/cards';
 import { HomeHeader } from '@/components/home-header';
@@ -51,9 +54,17 @@ const SAMPLE_ACTIVITY = [
 ];
 
 export default function HomeScreen() {
+  const [searchValue, setSearchValue] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => setSearchValue('');
+    }, []),
+  );
+
   return (
     <ScreenScrollView containerStyle={styles.container}>
-      <HomeHeader />
+      <HomeHeader searchValue={searchValue} onSearchChange={setSearchValue} />
 
       <ThemedView style={styles.section}>
         <ThemedText type="h3">Suggested Friends</ThemedText>

@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { SearchBar } from './search-bar';
+
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type IconButtonProps = {
@@ -28,19 +30,15 @@ function IconButton({ icon, accessibilityLabel, hasUnread, onPress }: IconButton
   );
 }
 
-export function HomeHeader() {
-  const theme = useTheme();
+type HomeHeaderProps = {
+  searchValue: string;
+  onSearchChange: (value: string) => void;
+};
 
+export function HomeHeader({ searchValue, onSearchChange }: HomeHeaderProps) {
   return (
     <View style={styles.row}>
-      <View style={[styles.searchBar, { backgroundColor: theme.backgroundElement }]}>
-        <Ionicons name="search-outline" size={16} color={theme.textSecondary} />
-        <TextInput
-          placeholder="Search friends"
-          placeholderTextColor={theme.textSecondary}
-          style={[styles.searchInput, { color: theme.text }]}
-        />
-      </View>
+      <SearchBar placeholder="Search friends" value={searchValue} onChangeText={onSearchChange} />
 
       <View style={styles.icons}>
         <IconButton icon="notifications-outline" accessibilityLabel="Notifications" hasUnread />
@@ -55,20 +53,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    padding: 0,
   },
   icons: {
     flexDirection: 'row',
