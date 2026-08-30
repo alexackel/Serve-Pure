@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
@@ -13,13 +13,6 @@ import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
-
-const STATS = {
-  total: 58,
-  verified: 34,
-  pending: 8,
-  selfReported: 16,
-};
 
 const HISTORY_RECORDS = [
   {
@@ -88,7 +81,18 @@ const HISTORY_RECORDS = [
   },
 ];
 
-const TIME_RANGES = ['All Time', 'This Year', 'This Month', 'This Week'];
+const TIME_RANGES = ['All Time', 'Last 365 Days', 'Last 30 Days', 'Last 7 Days'] as const;
+
+const ALL_TIME_LABEL = 'All Time';
+const CUSTOM_RANGE_LABEL = 'Custom Range';
+
+type TimeRangeKey = (typeof TIME_RANGES)[number] | typeof CUSTOM_RANGE_LABEL;
+
+const RANGE_DAYS: Record<Exclude<(typeof TIME_RANGES)[number], typeof ALL_TIME_LABEL>, number> = {
+  'Last 365 Days': 365,
+  'Last 30 Days': 30,
+  'Last 7 Days': 7,
+};
 
 const YOU_TABS = [
   { key: 'upcoming', label: 'Upcoming' },
@@ -107,23 +111,147 @@ type HistoryFilterKey = (typeof HISTORY_FILTERS)[number]['key'];
 
 const ALL_HISTORY_FILTERS = new Set<HistoryFilterKey>(HISTORY_FILTERS.map((filter) => filter.key));
 
-function TimeRangeSelector() {
+type HistoryRecord = (typeof HISTORY_RECORDS)[number];
+
+type CustomRange = { start: Date; end: Date };
+
+function parseRecordDate(dateLabel: string, now: Date) {
+  const parsed = new Date(`${dateLabel}, ${now.getFullYear()}`);
+  if (parsed.getTime() > now.getTime()) {
+    parsed.setFullYear(parsed.getFullYear() - 1);
+  }
+  return parsed;
+}
+
+function parseDateInput(text: string): Date | null {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text.trim());
+  if (!match) {
+    return null;
+  }
+
+  const month = Number(match[1]);
+  const day = Number(match[2]);
+  const year = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+
+  return date;
+}
+
+function formatDateInput(date: Date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${month}/${day}/${date.getFullYear()}`;
+}
+
+function formatShortDate(date: Date) {
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function startOfDay(date: Date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function endOfDay(date: Date) {
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+function filterRecordsByRange(records: HistoryRecord[], range: TimeRangeKey, customRange: CustomRange | null) {
+  if (range === ALL_TIME_LABEL) {
+    return records;
+  }
+
+  const now = new Date();
+
+  if (range === CUSTOM_RANGE_LABEL) {
+    if (!customRange) {
+      return records;
+    }
+
+    const start = startOfDay(customRange.start);
+    const end = endOfDay(customRange.end);
+
+    return records.filter((record) => {
+      const recordDate = parseRecordDate(record.date, now);
+      return recordDate >= start && recordDate <= end;
+    });
+  }
+
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - RANGE_DAYS[range]);
+
+  return records.filter((record) => parseRecordDate(record.date, now) >= cutoff);
+}
+
+function sumHours(records: HistoryRecord[]) {
+  return records.reduce((sum, record) => sum + record.hours, 0);
+}
+
+function sumHoursByStatus(records: HistoryRecord[], status: HistoryFilterKey) {
+  return sumHours(records.filter((record) => record.status === status));
+}
+
+function TimeRangeSelector({
+  selected,
+  onSelect,
+  customRange,
+  onApplyCustomRange,
+}: {
+  selected: TimeRangeKey;
+  onSelect: (range: TimeRangeKey) => void;
+  customRange: CustomRange | null;
+  onApplyCustomRange: (range: CustomRange) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
-  const [selected, setSelected] = useState(TIME_RANGES[0]);
   const [showCustom, setShowCustom] = useState(false);
+  const [startText, setStartText] = useState(customRange ? formatDateInput(customRange.start) : '');
+  const [endText, setEndText] = useState(customRange ? formatDateInput(customRange.end) : '');
+  const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
 
   const close = () => {
     setExpanded(false);
     setShowCustom(false);
+    setError(null);
   };
+
+  const applyCustomRange = () => {
+    const start = parseDateInput(startText);
+    const end = parseDateInput(endText);
+
+    if (!start || !end) {
+      setError('Enter valid dates as MM/DD/YYYY.');
+      return;
+    }
+
+    if (start > end) {
+      setError('Start date must be before end date.');
+      return;
+    }
+
+    onApplyCustomRange({ start, end });
+    onSelect(CUSTOM_RANGE_LABEL);
+    close();
+  };
+
+  const buttonLabel =
+    selected === CUSTOM_RANGE_LABEL && customRange
+      ? `${formatShortDate(customRange.start)} – ${formatShortDate(customRange.end)}`
+      : selected;
 
   return (
     <View style={styles.rangeContainer}>
       <Pressable
         onPress={() => setExpanded((current) => !current)}
         style={[styles.rangeButton, { backgroundColor: theme.backgroundElement }]}>
-        <ThemedText type="bodyBold">{selected}</ThemedText>
+        <ThemedText type="bodyBold">{buttonLabel}</ThemedText>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={theme.textSecondary} />
       </Pressable>
 
@@ -133,7 +261,7 @@ function TimeRangeSelector() {
             <Pressable
               key={range}
               onPress={() => {
-                setSelected(range);
+                onSelect(range);
                 close();
               }}
               style={styles.rangeOption}>
@@ -147,13 +275,13 @@ function TimeRangeSelector() {
           <View style={[styles.rangeDivider, { backgroundColor: theme.border }]} />
 
           <Pressable onPress={() => setShowCustom((current) => !current)} style={styles.rangeOption}>
-            <ThemedText type="body" themeColor={showCustom || selected === 'Custom Range' ? 'primary' : 'text'}>
-              Custom Range
+            <ThemedText type="body" themeColor={showCustom || selected === CUSTOM_RANGE_LABEL ? 'primary' : 'text'}>
+              {CUSTOM_RANGE_LABEL}
             </ThemedText>
             <Ionicons
               name="calendar-outline"
               size={16}
-              color={showCustom || selected === 'Custom Range' ? theme.primary : theme.textSecondary}
+              color={showCustom || selected === CUSTOM_RANGE_LABEL ? theme.primary : theme.textSecondary}
             />
           </Pressable>
 
@@ -163,18 +291,36 @@ function TimeRangeSelector() {
                 <ThemedText type="caption" themeColor="textSecondary">
                   Start date
                 </ThemedText>
+                <TextInput
+                  value={startText}
+                  onChangeText={setStartText}
+                  placeholder="MM/DD/YYYY"
+                  placeholderTextColor={theme.textSecondary}
+                  keyboardType="numbers-and-punctuation"
+                  style={[styles.customInput, { color: theme.text }]}
+                />
               </View>
               <View style={[styles.customField, { borderColor: theme.border }]}>
                 <ThemedText type="caption" themeColor="textSecondary">
                   End date
                 </ThemedText>
+                <TextInput
+                  value={endText}
+                  onChangeText={setEndText}
+                  placeholder="MM/DD/YYYY"
+                  placeholderTextColor={theme.textSecondary}
+                  keyboardType="numbers-and-punctuation"
+                  style={[styles.customInput, { color: theme.text }]}
+                />
               </View>
-              <Pressable
-                onPress={() => {
-                  setSelected('Custom Range');
-                  close();
-                }}
-                style={[styles.applyButton, { backgroundColor: theme.primary }]}>
+
+              {error && (
+                <ThemedText type="caption" themeColor="error">
+                  {error}
+                </ThemedText>
+              )}
+
+              <Pressable onPress={applyCustomRange} style={[styles.applyButton, { backgroundColor: theme.primary }]}>
                 <ThemedText type="bodyBold" themeColor="background">
                   Apply
                 </ThemedText>
@@ -244,7 +390,7 @@ function HistoryFilterChips({
   );
 }
 
-function HistoryTab() {
+function HistoryTab({ records }: { records: HistoryRecord[] }) {
   const [activeFilters, setActiveFilters] = useState<Set<HistoryFilterKey>>(ALL_HISTORY_FILTERS);
 
   const toggleFilter = (key: HistoryFilterKey) => {
@@ -259,7 +405,7 @@ function HistoryTab() {
     });
   };
 
-  const visibleRecords = HISTORY_RECORDS.filter((record) => activeFilters.has(record.status));
+  const visibleRecords = records.filter((record) => activeFilters.has(record.status));
 
   return (
     <ThemedView style={styles.section}>
@@ -287,12 +433,20 @@ function ExportHistoryButton() {
 
 export default function YouScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
+  const [timeRange, setTimeRange] = useState<TimeRangeKey>(TIME_RANGES[0]);
+  const [customRange, setCustomRange] = useState<CustomRange | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       return () => setActiveTab('upcoming');
     }, []),
   );
+
+  const rangeRecords = filterRecordsByRange(HISTORY_RECORDS, timeRange, customRange);
+  const totalHours = sumHours(rangeRecords);
+  const verifiedHours = sumHoursByStatus(rangeRecords, 'verified');
+  const pendingHours = sumHoursByStatus(rangeRecords, 'pending');
+  const selfReportedHours = sumHoursByStatus(rangeRecords, 'self-reported');
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -301,19 +455,29 @@ export default function YouScreen() {
       </ThemedText>
 
       <ThemedView style={styles.statsSection}>
-        <TimeRangeSelector />
+        <TimeRangeSelector
+          selected={timeRange}
+          onSelect={setTimeRange}
+          customRange={customRange}
+          onApplyCustomRange={setCustomRange}
+        />
 
         <StatCard
           label="Total Hours"
-          value={STATS.total}
+          value={totalHours}
           icon="ribbon-outline"
           accentColor="primary"
           variant="headline"
         />
         <ThemedView style={styles.statGrid}>
-          <StatCard label="Verified" value={STATS.verified} icon="checkmark-circle-outline" accentColor="success" />
-          <StatCard label="Pending" value={STATS.pending} icon="hourglass-outline" accentColor="warning" />
-          <StatCard label="Self-Reported" value={STATS.selfReported} icon="create-outline" accentColor="warning" />
+          <StatCard label="Verified" value={verifiedHours} icon="checkmark-circle-outline" accentColor="success" />
+          <StatCard label="Pending" value={pendingHours} icon="hourglass-outline" accentColor="warning" />
+          <StatCard
+            label="Self-Reported"
+            value={selfReportedHours}
+            icon="create-outline"
+            accentColor="warning"
+          />
         </ThemedView>
 
         <ExportHistoryButton />
@@ -322,7 +486,7 @@ export default function YouScreen() {
       <SegmentedTabs tabs={YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'upcoming' && <UpcomingTab />}
-      {activeTab === 'history' && <HistoryTab />}
+      {activeTab === 'history' && <HistoryTab records={rangeRecords} />}
     </ScreenScrollView>
   );
 }
@@ -389,6 +553,11 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.sm,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
+    gap: Spacing.one,
+  },
+  customInput: {
+    padding: 0,
+    fontSize: Platform.OS === 'web' ? 16 : 14,
   },
   applyButton: {
     borderRadius: BorderRadius.pill,
