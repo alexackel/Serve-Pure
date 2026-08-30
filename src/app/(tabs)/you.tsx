@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { EventCard, RecordCard, StatCard } from '@/components/cards';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -10,6 +10,8 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { useRegistrations } from '@/context/registrations-context';
+import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
 
 const STATS = {
@@ -18,36 +20,6 @@ const STATS = {
   pending: 8,
   selfReported: 16,
 };
-
-const UPCOMING_EVENTS = [
-  {
-    title: 'Beach Cleanup',
-    organization: 'Coastal Guardians',
-    date: 'Sep 5',
-    time: '9:00 AM',
-    location: 'Sunset Beach',
-    hours: 3,
-    status: 'registered' as const,
-  },
-  {
-    title: 'Weekend Food Drive',
-    organization: 'Northside Food Bank',
-    date: 'Sep 8',
-    time: '1:00 PM',
-    location: 'Northside Food Bank',
-    hours: 4,
-    status: 'registered' as const,
-  },
-  {
-    title: 'Trail Restoration Day',
-    organization: 'Parks Conservancy',
-    date: 'Sep 12',
-    time: '8:30 AM',
-    location: 'Blue Ridge Trailhead',
-    hours: 2,
-    status: 'registered' as const,
-  },
-];
 
 const HISTORY_RECORDS = [
   {
@@ -216,12 +188,21 @@ function TimeRangeSelector() {
 }
 
 function UpcomingTab() {
+  const { isRegistered } = useRegistrations();
+  const upcomingEvents = MOCK_EVENTS.filter((event) => isRegistered(event.id));
+
   return (
     <ThemedView style={styles.section}>
       <ThemedText type="h3">Upcoming Events</ThemedText>
       <ThemedView style={styles.list}>
-        {UPCOMING_EVENTS.map((event) => (
-          <EventCard key={`${event.organization}-${event.date}`} {...event} />
+        {upcomingEvents.map((event) => (
+          <EventCard
+            key={event.id}
+            {...event}
+            time={event.startTime}
+            status="registered"
+            onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+          />
         ))}
       </ThemedView>
     </ThemedView>

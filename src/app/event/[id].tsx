@@ -9,6 +9,7 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -62,9 +63,8 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
   const event = MOCK_EVENTS.find((item) => item.id === id);
+  const { isRegistered, register, unregister } = useRegistrations();
 
-  const [signedUp, setSignedUp] = useState(false);
-  const [volunteerCount, setVolunteerCount] = useState(event?.volunteers);
   const [confirmingUnregister, setConfirmingUnregister] = useState(false);
 
   if (!event) {
@@ -76,6 +76,8 @@ export default function EventDetailScreen() {
     );
   }
 
+  const signedUp = isRegistered(event.id);
+  const volunteerCount = event.volunteers === undefined ? undefined : event.volunteers + (signedUp ? 1 : 0);
   const hasCapacity = volunteerCount !== undefined && event.maxVolunteers !== undefined;
   const isFull = hasCapacity && volunteerCount! >= event.maxVolunteers!;
 
@@ -84,13 +86,11 @@ export default function EventDetailScreen() {
       setConfirmingUnregister(true);
       return;
     }
-    setSignedUp(true);
-    setVolunteerCount((count) => (count ?? 0) + 1);
+    register(event.id);
   };
 
   const handleConfirmUnregister = () => {
-    setSignedUp(false);
-    setVolunteerCount((count) => Math.max((count ?? 1) - 1, 0));
+    unregister(event.id);
     setConfirmingUnregister(false);
   };
 

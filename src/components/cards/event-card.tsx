@@ -55,13 +55,7 @@ function StatusIndicator({ status }: { status: EventStatus }) {
         </View>
       );
     case 'registered':
-      return (
-        <View style={[styles.neutralPill, { backgroundColor: theme.backgroundSelected }]}>
-          <ThemedText type="label" themeColor="textSecondary">
-            Registered
-          </ThemedText>
-        </View>
-      );
+      return <VerificationBadge status="registered" />;
     case 'pending':
       return <VerificationBadge status="pending" label="Pending" />;
     case 'verified':

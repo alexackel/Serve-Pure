@@ -10,6 +10,7 @@ import { useTheme } from '@/hooks/use-theme';
 
 const statusLabels: Record<VerificationStatus, string> = {
   verified: 'Verified',
+  registered: 'Registered',
   pending: 'Pending',
   'self-reported': 'Self-Reported',
   warning: 'Warning',

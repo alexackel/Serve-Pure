@@ -9,10 +9,12 @@ import { SearchBar } from '@/components/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 
 export default function FindScreen() {
   const [searchValue, setSearchValue] = useState('');
+  const { isRegistered } = useRegistrations();
 
   useFocusEffect(
     useCallback(() => {
@@ -36,6 +38,7 @@ export default function FindScreen() {
           <EventCard
             key={event.id}
             {...event}
+            status={isRegistered(event.id) ? 'registered' : event.status}
             onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
           />
         ))}

@@ -4,7 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-export type VerificationStatus = 'verified' | 'pending' | 'self-reported' | 'warning';
+export type VerificationStatus = 'verified' | 'registered' | 'pending' | 'self-reported' | 'warning';
 
 export type VerificationBadgeProps = {
   status: VerificationStatus;
@@ -14,6 +14,7 @@ export type VerificationBadgeProps = {
 
 const defaultLabels: Record<VerificationStatus, string> = {
   verified: 'Verified',
+  registered: 'Registered',
   pending: 'Pending',
   'self-reported': 'Self-Reported',
   warning: 'Warning',
@@ -23,7 +24,11 @@ export function VerificationBadge({ status, label, size = 'md' }: VerificationBa
   const theme = useTheme();
 
   const colorKey =
-    status === 'verified' ? 'success' : status === 'pending' || status === 'self-reported' ? 'warning' : 'error';
+    status === 'verified' || status === 'registered'
+      ? 'success'
+      : status === 'pending' || status === 'self-reported'
+        ? 'warning'
+        : 'error';
   const dotColor = theme[colorKey];
   const backgroundColor = theme[`${colorKey}Background`];
 
