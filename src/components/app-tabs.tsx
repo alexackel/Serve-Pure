@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import type { Href } from 'expo-router';
 import { Tabs, TabList, TabTrigger, TabSlot, TabTriggerSlotProps, TabListProps } from 'expo-router/ui';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -10,14 +11,17 @@ import { useTheme } from '@/hooks/use-theme';
 
 type TabDef = {
   name: string;
-  href: '/' | '/find' | '/map' | '/groups' | '/you';
+  // The home tab's '/' resolves to the (tabs) group's pathless index route;
+  // expo-router's typed-routes generator doesn't always include that bare-'/'
+  // alias, so this field uses the broader Href type instead of a route literal.
+  href: Href;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
 };
 
 const TABS: TabDef[] = [
-  { name: 'home', href: '/', label: 'Home', icon: 'home-outline', activeIcon: 'home' },
+  { name: 'home', href: '/' as Href, label: 'Home', icon: 'home-outline', activeIcon: 'home' },
   { name: 'find', href: '/find', label: 'Find', icon: 'search-outline', activeIcon: 'search' },
   { name: 'map', href: '/map', label: 'Map', icon: 'map-outline', activeIcon: 'map' },
   { name: 'groups', href: '/groups', label: 'Groups', icon: 'people-outline', activeIcon: 'people' },
