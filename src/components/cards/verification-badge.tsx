@@ -4,7 +4,15 @@ import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-export type VerificationStatus = 'verified' | 'registered' | 'pending' | 'self-reported' | 'warning';
+export type VerificationStatus =
+  | 'verified'
+  | 'registered'
+  | 'pending'
+  | 'self-reported'
+  | 'no-show'
+  | 'appealed'
+  | 'cancelled'
+  | 'warning';
 
 export type VerificationBadgeProps = {
   status: VerificationStatus;
@@ -17,6 +25,9 @@ const defaultLabels: Record<VerificationStatus, string> = {
   registered: 'Registered',
   pending: 'Pending',
   'self-reported': 'Self-Reported',
+  'no-show': 'No-Show',
+  appealed: 'Appealed',
+  cancelled: 'Cancelled',
   warning: 'Warning',
 };
 

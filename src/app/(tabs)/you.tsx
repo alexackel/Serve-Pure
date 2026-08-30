@@ -10,76 +10,11 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
-
-const HISTORY_RECORDS = [
-  {
-    organization: 'GreenFuture Coalition',
-    hours: 3,
-    date: 'Aug 24',
-    status: 'verified' as const,
-    hasPhoto: true,
-    likes: 12,
-  },
-  {
-    organization: 'Northside Food Bank',
-    hours: 4,
-    date: 'Aug 20',
-    status: 'verified' as const,
-    hasPhoto: false,
-    likes: 6,
-  },
-  {
-    organization: 'Central Public Library',
-    hours: 2,
-    date: 'Aug 18',
-    status: 'pending' as const,
-    hasPhoto: false,
-    likes: 2,
-  },
-  {
-    organization: 'Riverside Youth Center',
-    hours: 5,
-    date: 'Aug 12',
-    status: 'self-reported' as const,
-    hasPhoto: true,
-    likes: 9,
-  },
-  {
-    organization: 'Coastal Guardians',
-    hours: 3,
-    date: 'Aug 6',
-    status: 'verified' as const,
-    hasPhoto: true,
-    likes: 15,
-  },
-  {
-    organization: 'Maple Grove Senior Center',
-    hours: 3,
-    date: 'Jul 30',
-    status: 'pending' as const,
-    hasPhoto: false,
-    likes: 1,
-  },
-  {
-    organization: 'Blue Ridge Trail Alliance',
-    hours: 4,
-    date: 'Jul 22',
-    status: 'self-reported' as const,
-    hasPhoto: false,
-    likes: 3,
-  },
-  {
-    organization: 'Furry Friends Rescue',
-    hours: 5,
-    date: 'Jul 14',
-    status: 'verified' as const,
-    hasPhoto: true,
-    likes: 18,
-  },
-];
+import { endOfDay, formatDateInput, formatShortDate, parseDateInput, parseRecordDate, startOfDay } from '@/utils/dates';
 
 const TIME_RANGES = ['All Time', 'Last 365 Days', 'Last 30 Days', 'Last 7 Days'] as const;
 
@@ -105,63 +40,16 @@ const HISTORY_FILTERS = [
   { key: 'verified', label: 'Verified' },
   { key: 'pending', label: 'Pending' },
   { key: 'self-reported', label: 'Self-Reported' },
+  { key: 'no-show', label: 'No-Show' },
+  { key: 'appealed', label: 'Appealed' },
+  { key: 'cancelled', label: 'Cancelled' },
 ] as const;
 
 type HistoryFilterKey = (typeof HISTORY_FILTERS)[number]['key'];
 
 const ALL_HISTORY_FILTERS = new Set<HistoryFilterKey>(HISTORY_FILTERS.map((filter) => filter.key));
 
-type HistoryRecord = (typeof HISTORY_RECORDS)[number];
-
 type CustomRange = { start: Date; end: Date };
-
-function parseRecordDate(dateLabel: string, now: Date) {
-  const parsed = new Date(`${dateLabel}, ${now.getFullYear()}`);
-  if (parsed.getTime() > now.getTime()) {
-    parsed.setFullYear(parsed.getFullYear() - 1);
-  }
-  return parsed;
-}
-
-function parseDateInput(text: string): Date | null {
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text.trim());
-  if (!match) {
-    return null;
-  }
-
-  const month = Number(match[1]);
-  const day = Number(match[2]);
-  const year = Number(match[3]);
-  const date = new Date(year, month - 1, day);
-
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-    return null;
-  }
-
-  return date;
-}
-
-function formatDateInput(date: Date) {
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${month}/${day}/${date.getFullYear()}`;
-}
-
-function formatShortDate(date: Date) {
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function startOfDay(date: Date) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  return start;
-}
-
-function endOfDay(date: Date) {
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
-  return end;
-}
 
 function filterRecordsByRange(records: HistoryRecord[], range: TimeRangeKey, customRange: CustomRange | null) {
   if (range === ALL_TIME_LABEL) {
@@ -191,7 +79,7 @@ function filterRecordsByRange(records: HistoryRecord[], range: TimeRangeKey, cus
 }
 
 function sumHours(records: HistoryRecord[]) {
-  return records.reduce((sum, record) => sum + record.hours, 0);
+  return records.reduce((sum, record) => sum + (record.hours ?? 0), 0);
 }
 
 function sumHoursByStatus(records: HistoryRecord[], status: HistoryFilterKey) {
@@ -368,7 +256,12 @@ function HistoryFilterChips({
     <View style={styles.filterRow}>
       {HISTORY_FILTERS.map((filter) => {
         const isActive = active.has(filter.key);
-        const dotColor = filter.key === 'verified' ? theme.success : theme.warning;
+        const dotColor =
+          filter.key === 'verified'
+            ? theme.success
+            : filter.key === 'pending' || filter.key === 'self-reported'
+              ? theme.warning
+              : theme.error;
 
         return (
           <Pressable
@@ -412,8 +305,8 @@ function HistoryTab({ records }: { records: HistoryRecord[] }) {
       <ThemedText type="h3">Your Volunteer History</ThemedText>
       <HistoryFilterChips active={activeFilters} onToggle={toggleFilter} />
       <ThemedView style={styles.list}>
-        {visibleRecords.map((record) => (
-          <RecordCard key={`${record.organization}-${record.date}`} {...record} />
+        {visibleRecords.map(({ id, ...record }) => (
+          <RecordCard key={id} {...record} />
         ))}
       </ThemedView>
     </ThemedView>
@@ -435,6 +328,8 @@ export default function YouScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
   const [timeRange, setTimeRange] = useState<TimeRangeKey>(TIME_RANGES[0]);
   const [customRange, setCustomRange] = useState<CustomRange | null>(null);
+  const { records: historyRecords, reliabilityScore } = useHistory();
+  const theme = useTheme();
 
   useFocusEffect(
     useCallback(() => {
@@ -442,7 +337,7 @@ export default function YouScreen() {
     }, []),
   );
 
-  const rangeRecords = filterRecordsByRange(HISTORY_RECORDS, timeRange, customRange);
+  const rangeRecords = filterRecordsByRange(historyRecords, timeRange, customRange);
   const totalHours = sumHours(rangeRecords);
   const verifiedHours = sumHoursByStatus(rangeRecords, 'verified');
   const pendingHours = sumHoursByStatus(rangeRecords, 'pending');
@@ -450,9 +345,18 @@ export default function YouScreen() {
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
-      <ThemedText type="h1" style={styles.pageTitle}>
-        You
-      </ThemedText>
+      <View style={styles.titleRow}>
+        <ThemedText type="h1" style={styles.pageTitle}>
+          You
+        </ThemedText>
+        <View style={styles.reliabilityBadge}>
+          <Ionicons name="star" size={16} color={theme.warning} />
+          <ThemedText type="bodyBold">{reliabilityScore.toFixed(1)}</ThemedText>
+          <ThemedText type="caption" themeColor="textSecondary">
+            Reliability
+          </ThemedText>
+        </View>
+      </View>
 
       <ThemedView style={styles.statsSection}>
         <TimeRangeSelector
@@ -495,8 +399,19 @@ const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
   },
-  pageTitle: {
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: Spacing.one,
+  },
+  pageTitle: {
+    marginBottom: 0,
+  },
+  reliabilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
   statsSection: {
     gap: Spacing.three,

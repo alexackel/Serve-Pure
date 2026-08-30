@@ -13,20 +13,24 @@ const statusLabels: Record<VerificationStatus, string> = {
   registered: 'Registered',
   pending: 'Pending',
   'self-reported': 'Self-Reported',
+  'no-show': 'No-Show',
+  appealed: 'Appealed',
+  cancelled: 'Cancelled',
   warning: 'Warning',
 };
 
 export type RecordCardProps = {
   organization: string;
-  hours: number;
+  hours?: number;
   date: string;
   status: VerificationStatus;
   hasPhoto?: boolean;
   likes?: number;
+  note?: string;
   onPress?: () => void;
 };
 
-export function RecordCard({ organization, hours, date, status, hasPhoto, likes, onPress }: RecordCardProps) {
+export function RecordCard({ organization, hours, date, status, hasPhoto, likes, note, onPress }: RecordCardProps) {
   const theme = useTheme();
 
   return (
@@ -44,9 +48,23 @@ export function RecordCard({ organization, hours, date, status, hasPhoto, likes,
           </ThemedText>
         </View>
 
-        <ThemedText type="body" style={styles.sentence}>
-          You volunteered at <ThemedText type="bodyBold">{organization}</ThemedText> for {hours} hrs
-        </ThemedText>
+        {status === 'no-show' ? (
+          <ThemedText type="body" style={styles.sentence}>
+            You did not check in at <ThemedText type="bodyBold">{organization}</ThemedText>
+          </ThemedText>
+        ) : status === 'appealed' ? (
+          <ThemedText type="body" style={styles.sentence}>
+            Your attendance at <ThemedText type="bodyBold">{organization}</ThemedText> is under appeal
+          </ThemedText>
+        ) : status === 'cancelled' ? (
+          <ThemedText type="body" style={styles.sentence}>
+            {note}
+          </ThemedText>
+        ) : (
+          <ThemedText type="body" style={styles.sentence}>
+            You volunteered at <ThemedText type="bodyBold">{organization}</ThemedText> for {hours} hrs
+          </ThemedText>
+        )}
 
         {hasPhoto && <PostPhoto />}
 

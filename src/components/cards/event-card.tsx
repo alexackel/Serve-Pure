@@ -63,9 +63,9 @@ function StatusIndicator({ status }: { status: EventStatus }) {
     case 'partial':
       return <VerificationBadge status="warning" label="Partial" />;
     case 'no-show':
-      return <VerificationBadge status="warning" label="No-show" />;
+      return <VerificationBadge status="no-show" />;
     case 'appealed':
-      return <VerificationBadge status="warning" label="Appealed" />;
+      return <VerificationBadge status="appealed" />;
   }
 }
 

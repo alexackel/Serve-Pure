@@ -9,9 +9,11 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
+import { parseEventDateTime } from '@/utils/dates';
 
 function BackButton() {
   const theme = useTheme();
@@ -64,6 +66,7 @@ export default function EventDetailScreen() {
   const theme = useTheme();
   const event = MOCK_EVENTS.find((item) => item.id === id);
   const { isRegistered, register, unregister } = useRegistrations();
+  const { addCancellationRecord } = useHistory();
 
   const [confirmingUnregister, setConfirmingUnregister] = useState(false);
 
@@ -81,6 +84,11 @@ export default function EventDetailScreen() {
   const hasCapacity = volunteerCount !== undefined && event.maxVolunteers !== undefined;
   const isFull = hasCapacity && volunteerCount! >= event.maxVolunteers!;
 
+  const now = new Date();
+  const eventStart = parseEventDateTime(event.date, event.startTime, now);
+  const hoursUntilEvent = (eventStart.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const isLateCancellation = signedUp && hoursUntilEvent >= 0 && hoursUntilEvent < 24;
+
   const handleSignUpPress = () => {
     if (signedUp) {
       setConfirmingUnregister(true);
@@ -90,6 +98,11 @@ export default function EventDetailScreen() {
   };
 
   const handleConfirmUnregister = () => {
+    if (isLateCancellation) {
+      const cancelTime = new Date();
+      const timeLabel = cancelTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      addCancellationRecord(event.organization, timeLabel);
+    }
     unregister(event.id);
     setConfirmingUnregister(false);
   };
@@ -192,6 +205,15 @@ export default function EventDetailScreen() {
 
       {confirmingUnregister ? (
         <View style={styles.confirmBlock}>
+          {isLateCancellation && (
+            <View style={[styles.warningBanner, { backgroundColor: theme.errorBackground }]}>
+              <Ionicons name="warning-outline" size={16} color={theme.error} />
+              <ThemedText type="body" themeColor="error" style={styles.warningText}>
+                This event starts in less than 24 hours. Cancelling now will negatively affect your reliability
+                score.
+              </ThemedText>
+            </View>
+          )}
           <ThemedText type="body">Are you sure you want to unregister from this event?</ThemedText>
           <View style={styles.confirmActions}>
             <Pressable
@@ -293,6 +315,16 @@ const styles = StyleSheet.create({
   },
   confirmBlock: {
     gap: Spacing.three,
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: BorderRadius.md,
+  },
+  warningText: {
+    flex: 1,
   },
   confirmActions: {
     flexDirection: 'row',

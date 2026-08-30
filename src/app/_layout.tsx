@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { HistoryProvider } from '@/context/history-context';
 import { RegistrationsProvider } from '@/context/registrations-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -12,11 +13,13 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <RegistrationsProvider>
-        <AnimatedSplashOverlay />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="event/[id]" />
-        </Stack>
+        <HistoryProvider>
+          <AnimatedSplashOverlay />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="event/[id]" />
+          </Stack>
+        </HistoryProvider>
       </RegistrationsProvider>
     </ThemeProvider>
   );
