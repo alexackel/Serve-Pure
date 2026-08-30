@@ -46,8 +46,10 @@ export function StatCard({ label, value, icon, accentColor = 'primary', variant 
           <Ionicons name={icon} size={18} color={iconColor} />
         </View>
       )}
-      <ThemedText type="statValue">{value}</ThemedText>
-      <ThemedText type="caption" themeColor="textSecondary">
+      <ThemedText type="statValue" style={styles.centerText}>
+        {value}
+      </ThemedText>
+      <ThemedText type="caption" themeColor="textSecondary" style={styles.centerText}>
         {label}
       </ThemedText>
     </ThemedView>
@@ -58,9 +60,14 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    padding: Spacing.four,
+    paddingVertical: Spacing.four,
+    paddingHorizontal: Spacing.one,
     gap: Spacing.one,
     flex: 1,
+    alignItems: 'center',
+  },
+  centerText: {
+    textAlign: 'center',
   },
   iconCircle: {
     width: 32,
@@ -76,6 +83,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     width: '100%',
     paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.four,
   },
   headlineIconCircle: {
     width: 44,

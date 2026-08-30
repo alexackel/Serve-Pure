@@ -63,7 +63,7 @@ function StatusIndicator({ status }: { status: EventStatus }) {
         </View>
       );
     case 'pending':
-      return <VerificationBadge status="pending" label="Pending Verification" />;
+      return <VerificationBadge status="pending" label="Pending" />;
     case 'verified':
       return <VerificationBadge status="verified" />;
     case 'partial':
@@ -109,7 +109,7 @@ export function EventCard({
             <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
               <Ionicons name="business-outline" size={18} color={theme.primary} />
             </View>
-            <ThemedText type="caption" themeColor="textSecondary">
+            <ThemedText type="caption" themeColor="textSecondary" style={styles.orgText} numberOfLines={1}>
               {organization}
             </ThemedText>
           </View>
@@ -144,11 +144,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    rowGap: Spacing.one,
   },
   orgRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  orgText: {
+    flexShrink: 1,
   },
   avatar: {
     width: 32,

@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { RecordCard, StatCard } from '@/components/cards';
+import { useFocusEffect } from 'expo-router';
+
+import { EventCard, RecordCard, StatCard } from '@/components/cards';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
+import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
@@ -16,7 +19,37 @@ const STATS = {
   selfReported: 16,
 };
 
-const SAMPLE_RECORDS = [
+const UPCOMING_EVENTS = [
+  {
+    title: 'Beach Cleanup',
+    organization: 'Coastal Guardians',
+    date: 'Sep 5',
+    time: '9:00 AM',
+    location: 'Sunset Beach',
+    hours: 3,
+    status: 'registered' as const,
+  },
+  {
+    title: 'Weekend Food Drive',
+    organization: 'Northside Food Bank',
+    date: 'Sep 8',
+    time: '1:00 PM',
+    location: 'Northside Food Bank',
+    hours: 4,
+    status: 'registered' as const,
+  },
+  {
+    title: 'Trail Restoration Day',
+    organization: 'Parks Conservancy',
+    date: 'Sep 12',
+    time: '8:30 AM',
+    location: 'Blue Ridge Trailhead',
+    hours: 2,
+    status: 'registered' as const,
+  },
+];
+
+const HISTORY_RECORDS = [
   {
     organization: 'GreenFuture Coalition',
     hours: 3,
@@ -84,6 +117,23 @@ const SAMPLE_RECORDS = [
 ];
 
 const TIME_RANGES = ['All Time', 'This Year', 'This Month', 'This Week'];
+
+const YOU_TABS = [
+  { key: 'upcoming', label: 'Upcoming' },
+  { key: 'history', label: 'History' },
+] as const;
+
+type TabKey = (typeof YOU_TABS)[number]['key'];
+
+const HISTORY_FILTERS = [
+  { key: 'verified', label: 'Verified' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'self-reported', label: 'Self-Reported' },
+] as const;
+
+type HistoryFilterKey = (typeof HISTORY_FILTERS)[number]['key'];
+
+const ALL_HISTORY_FILTERS = new Set<HistoryFilterKey>(HISTORY_FILTERS.map((filter) => filter.key));
 
 function TimeRangeSelector() {
   const [expanded, setExpanded] = useState(false);
@@ -165,8 +215,103 @@ function TimeRangeSelector() {
   );
 }
 
-export default function YouScreen() {
+function UpcomingTab() {
+  return (
+    <ThemedView style={styles.section}>
+      <ThemedText type="h3">Upcoming Events</ThemedText>
+      <ThemedView style={styles.list}>
+        {UPCOMING_EVENTS.map((event) => (
+          <EventCard key={`${event.organization}-${event.date}`} {...event} />
+        ))}
+      </ThemedView>
+    </ThemedView>
+  );
+}
+
+function HistoryFilterChips({
+  active,
+  onToggle,
+}: {
+  active: Set<HistoryFilterKey>;
+  onToggle: (key: HistoryFilterKey) => void;
+}) {
   const theme = useTheme();
+
+  return (
+    <View style={styles.filterRow}>
+      {HISTORY_FILTERS.map((filter) => {
+        const isActive = active.has(filter.key);
+        const dotColor = filter.key === 'verified' ? theme.success : theme.warning;
+
+        return (
+          <Pressable
+            key={filter.key}
+            onPress={() => onToggle(filter.key)}
+            style={[
+              styles.filterChip,
+              { borderColor: isActive ? theme.primary : theme.border },
+              isActive && { backgroundColor: theme.primaryTint },
+            ]}>
+            <View style={[styles.filterDot, { backgroundColor: dotColor }]} />
+            <ThemedText type="label" themeColor={isActive ? 'primary' : 'textSecondary'}>
+              {filter.label}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function HistoryTab() {
+  const [activeFilters, setActiveFilters] = useState<Set<HistoryFilterKey>>(ALL_HISTORY_FILTERS);
+
+  const toggleFilter = (key: HistoryFilterKey) => {
+    setActiveFilters((current) => {
+      const next = new Set(current);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const visibleRecords = HISTORY_RECORDS.filter((record) => activeFilters.has(record.status));
+
+  return (
+    <ThemedView style={styles.section}>
+      <ThemedText type="h3">Your Volunteer History</ThemedText>
+      <HistoryFilterChips active={activeFilters} onToggle={toggleFilter} />
+      <ThemedView style={styles.list}>
+        {visibleRecords.map((record) => (
+          <RecordCard key={`${record.organization}-${record.date}`} {...record} />
+        ))}
+      </ThemedView>
+    </ThemedView>
+  );
+}
+
+function ExportHistoryButton() {
+  const theme = useTheme();
+
+  return (
+    <Pressable style={[styles.exportButton, { borderColor: theme.border }]}>
+      <Ionicons name="download-outline" size={14} color={theme.text} />
+      <ThemedText type="label">Export History</ThemedText>
+    </Pressable>
+  );
+}
+
+export default function YouScreen() {
+  const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => setActiveTab('upcoming');
+    }, []),
+  );
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -189,22 +334,14 @@ export default function YouScreen() {
           <StatCard label="Pending" value={STATS.pending} icon="hourglass-outline" accentColor="warning" />
           <StatCard label="Self-Reported" value={STATS.selfReported} icon="create-outline" accentColor="warning" />
         </ThemedView>
+
+        <ExportHistoryButton />
       </ThemedView>
 
-      <ThemedView style={styles.section}>
-        <View style={styles.historyHeader}>
-          <ThemedText type="h3">Your Volunteer History</ThemedText>
-          <Pressable style={[styles.exportButton, { borderColor: theme.border }]}>
-            <Ionicons name="download-outline" size={14} color={theme.text} />
-            <ThemedText type="label">Export</ThemedText>
-          </Pressable>
-        </View>
-        <ThemedView style={styles.recordList}>
-          {SAMPLE_RECORDS.map((record) => (
-            <RecordCard key={`${record.organization}-${record.date}`} {...record} />
-          ))}
-        </ThemedView>
-      </ThemedView>
+      <SegmentedTabs tabs={YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
+
+      {activeTab === 'upcoming' && <UpcomingTab />}
+      {activeTab === 'history' && <HistoryTab />}
     </ScreenScrollView>
   );
 }
@@ -286,12 +423,22 @@ const styles = StyleSheet.create({
   section: {
     gap: Spacing.three,
   },
-  historyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   exportButton: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
@@ -300,7 +447,12 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
   },
-  recordList: {
+  filterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  list: {
     gap: Spacing.three,
   },
 });
