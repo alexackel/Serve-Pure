@@ -1,20 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { useFocusEffect } from 'expo-router';
 import { useTabTrigger } from 'expo-router/ui';
 
-import { EventCard, OrgHistoryRow, VerificationBadge } from '@/components/cards';
+import { EventCard, VerificationBadge } from '@/components/cards';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { type HistoryStatus } from '@/context/history-context';
+import { type NewEventDraft, useOrgHistory } from '@/context/org-history-context';
 import { useOrganization } from '@/context/organization-context';
-import { MOCK_EVENTS } from '@/data/mock-events';
-import { MOCK_ORG_HISTORY, type OrgHistoryRecord } from '@/data/mock-org-history';
+import type { EventDetail } from '@/data/mock-events';
+import type { OrgHistoryRecord } from '@/data/mock-org-history';
 import { useTheme } from '@/hooks/use-theme';
 import { parseEventDateTime } from '@/utils/dates';
 
@@ -44,11 +45,11 @@ const NEEDS_ACTION_STATUSES = new Set<HistoryStatus>(['pending', 'self-uploaded'
 type EventGroup = {
   eventId: string;
   eventTitle: string;
-  event?: (typeof MOCK_EVENTS)[number];
+  event?: EventDetail;
   records: OrgHistoryRecord[];
 };
 
-function buildEventGroups(records: OrgHistoryRecord[]): EventGroup[] {
+function buildEventGroups(records: OrgHistoryRecord[], events: EventDetail[]): EventGroup[] {
   const groups = new Map<string, EventGroup>();
 
   for (const record of records) {
@@ -62,7 +63,7 @@ function buildEventGroups(records: OrgHistoryRecord[]): EventGroup[] {
       groups.set(record.eventId, {
         eventId: record.eventId,
         eventTitle: record.eventTitle,
-        event: MOCK_EVENTS.find((event) => event.id === record.eventId),
+        event: events.find((event) => event.id === record.eventId),
         records: [record],
       });
     }
@@ -94,16 +95,358 @@ function SwitchToPersonalButton() {
   );
 }
 
-function ApproveTab({
-  records,
-  onApprove,
-  onReject,
+function VolunteerAvatar() {
+  const theme = useTheme();
+  return (
+    <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
+      <Ionicons name="person" size={18} color={theme.primary} />
+    </View>
+  );
+}
+
+function MetaRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const theme = useTheme();
+  return (
+    <View style={styles.metaRow}>
+      <Ionicons name={icon} size={14} color={theme.textSecondary} />
+      <ThemedText type="caption" themeColor="textSecondary">
+        {text}
+      </ThemedText>
+    </View>
+  );
+}
+
+function EventPicker({ events, onSelect }: { events: EventDetail[]; onSelect: (event: EventDetail) => void }) {
+  const theme = useTheme();
+
+  if (events.length === 0) {
+    return (
+      <View style={[styles.panel, { borderColor: theme.border }]}>
+        <ThemedText type="caption" themeColor="textSecondary">
+          You haven&apos;t posted any events yet — try Create New Event instead.
+        </ThemedText>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.panel, { borderColor: theme.border }]}>
+      <ThemedText type="label" themeColor="textSecondary">
+        Link these hours to:
+      </ThemedText>
+      {events.map((event) => (
+        <Pressable
+          key={event.id}
+          onPress={() => onSelect(event)}
+          style={[styles.pickerRow, { borderColor: theme.border }]}>
+          <View style={styles.pickerRowInfo}>
+            <ThemedText type="bodyBold" numberOfLines={1}>
+              {event.title}
+            </ThemedText>
+            <ThemedText type="caption" themeColor="textSecondary">
+              {event.date}
+            </ThemedText>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function FormField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType,
+  multiline,
 }: {
-  records: OrgHistoryRecord[];
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  keyboardType?: 'default' | 'numeric';
+  multiline?: boolean;
 }) {
   const theme = useTheme();
+  return (
+    <View style={styles.field}>
+      <ThemedText type="caption" themeColor="textSecondary">
+        {label}
+      </ThemedText>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={theme.textSecondary}
+        keyboardType={keyboardType}
+        multiline={multiline}
+        style={[
+          styles.input,
+          { color: theme.text, borderColor: theme.border },
+          multiline && styles.inputMultiline,
+        ]}
+      />
+    </View>
+  );
+}
+
+function CreateEventForm({
+  record,
+  onCreate,
+  onCancel,
+}: {
+  record: OrgHistoryRecord;
+  onCreate: (draft: NewEventDraft) => void;
+  onCancel: () => void;
+}) {
+  const theme = useTheme();
+  const [title, setTitle] = useState(record.eventTitle);
+  const [date, setDate] = useState(record.date);
+  const [hours, setHours] = useState(record.hours !== undefined ? String(record.hours) : '');
+  const [location, setLocation] = useState('');
+  const [description, setDescription] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreate = () => {
+    if (!title.trim() || !date.trim() || !location.trim()) {
+      setError('Title, date, and location are required.');
+      return;
+    }
+
+    const parsedHours = hours.trim() ? Number(hours) : undefined;
+    if (hours.trim() && (Number.isNaN(parsedHours) || (parsedHours as number) < 0)) {
+      setError('Enter a valid number of hours.');
+      return;
+    }
+
+    onCreate({
+      title: title.trim(),
+      date: date.trim(),
+      hours: parsedHours,
+      location: location.trim(),
+      description: description.trim() || undefined,
+    });
+  };
+
+  return (
+    <View style={[styles.panel, { borderColor: theme.border }]}>
+      <ThemedText type="label" themeColor="textSecondary">
+        New event details
+      </ThemedText>
+      <FormField label="Title" value={title} onChangeText={setTitle} />
+      <FormField label="Date" value={date} onChangeText={setDate} placeholder="e.g. Aug 5" />
+      <FormField label="Hours" value={hours} onChangeText={setHours} placeholder="Optional" keyboardType="numeric" />
+      <FormField label="Location" value={location} onChangeText={setLocation} placeholder="Required" />
+      <FormField
+        label="Description"
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Optional"
+        multiline
+      />
+      {error && (
+        <ThemedText type="caption" themeColor="error">
+          {error}
+        </ThemedText>
+      )}
+      <View style={styles.panelActions}>
+        <Pressable onPress={onCancel} style={[styles.actionButton, { borderColor: theme.border }]}>
+          <ThemedText type="bodyBold">Cancel</ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={handleCreate}
+          style={[styles.actionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
+          <ThemedText type="bodyBold" themeColor="background">
+            Create &amp; Verify
+          </ThemedText>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function SelfUploadedActions({
+  record,
+  orgEvents,
+  onApprove,
+  onReject,
+  onLinkToEvent,
+  onCreateEvent,
+}: {
+  record: OrgHistoryRecord;
+  orgEvents: EventDetail[];
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onLinkToEvent: (id: string, event: EventDetail) => void;
+  onCreateEvent: (id: string, draft: NewEventDraft) => void;
+}) {
+  const theme = useTheme();
+  const [panel, setPanel] = useState<'none' | 'add' | 'create'>('none');
+  const closePanel = () => setPanel('none');
+
+  return (
+    <View style={styles.selfUploadedActions}>
+      <View style={styles.primaryActionsRow}>
+        <Pressable
+          onPress={() => setPanel(panel === 'add' ? 'none' : 'add')}
+          style={[styles.actionButtonSmall, { borderColor: panel === 'add' ? theme.primary : theme.border }]}>
+          <ThemedText type="label" themeColor={panel === 'add' ? 'primary' : 'text'}>
+            Add to Event
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={() => setPanel(panel === 'create' ? 'none' : 'create')}
+          style={[styles.actionButtonSmall, { borderColor: panel === 'create' ? theme.primary : theme.border }]}>
+          <ThemedText type="label" themeColor={panel === 'create' ? 'primary' : 'text'}>
+            Create New Event
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={() => onApprove(record.id)}
+          style={[styles.actionButtonSmall, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
+          <ThemedText type="label" themeColor="background">
+            Approve
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      <Pressable onPress={() => onReject(record.id)} hitSlop={4} style={styles.rejectLink}>
+        <ThemedText type="label" themeColor="error">
+          Reject report
+        </ThemedText>
+      </Pressable>
+
+      {panel === 'add' && (
+        <EventPicker
+          events={orgEvents}
+          onSelect={(event) => {
+            onLinkToEvent(record.id, event);
+            closePanel();
+          }}
+        />
+      )}
+      {panel === 'create' && (
+        <CreateEventForm
+          record={record}
+          onCancel={closePanel}
+          onCreate={(draft) => {
+            onCreateEvent(record.id, draft);
+            closePanel();
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
+function ApprovalCard({
+  record,
+  event,
+  orgEvents,
+  onApprove,
+  onReject,
+  onLinkToEvent,
+  onCreateEvent,
+}: {
+  record: OrgHistoryRecord;
+  event?: EventDetail;
+  orgEvents: EventDetail[];
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onLinkToEvent: (id: string, event: EventDetail) => void;
+  onCreateEvent: (id: string, draft: NewEventDraft) => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <ThemedView type="backgroundElement" style={[styles.approveCard, CardShadow]}>
+      <View style={styles.approveHeader}>
+        <VolunteerAvatar />
+        <View style={styles.approveHeaderInfo}>
+          <ThemedText type="bodyBold" numberOfLines={1}>
+            {record.volunteerName}
+          </ThemedText>
+          <ThemedText type="caption" themeColor="textSecondary">
+            {record.date}
+            {record.hours !== undefined ? ` · ${record.hours} hrs` : ''}
+          </ThemedText>
+        </View>
+        <VerificationBadge status={record.status} />
+      </View>
+
+      <View style={styles.eventDetails}>
+        <ThemedText type="bodyBold">{event ? event.title : record.eventTitle}</ThemedText>
+        {event ? (
+          <View style={styles.metaList}>
+            <MetaRow
+              icon="calendar-outline"
+              text={event.startTime ? `${event.date} · ${event.startTime}` : event.date}
+            />
+            <MetaRow icon="location-outline" text={event.location} />
+            {event.hours !== undefined && <MetaRow icon="time-outline" text={`${event.hours} hrs`} />}
+          </View>
+        ) : (
+          <View style={styles.metaList}>
+            <MetaRow icon="calendar-outline" text={record.date} />
+            <MetaRow icon="alert-circle-outline" text="Not linked to one of your posted events" />
+          </View>
+        )}
+        {record.note && (
+          <View style={[styles.noteBox, { backgroundColor: theme.background, borderColor: theme.border }]}>
+            <Ionicons name="chatbox-ellipses-outline" size={14} color={theme.textSecondary} />
+            <ThemedText type="caption" themeColor="textSecondary" style={styles.noteText}>
+              {record.note}
+            </ThemedText>
+          </View>
+        )}
+      </View>
+
+      {record.status === 'self-uploaded' ? (
+        <SelfUploadedActions
+          record={record}
+          orgEvents={orgEvents}
+          onApprove={onApprove}
+          onReject={onReject}
+          onLinkToEvent={onLinkToEvent}
+          onCreateEvent={onCreateEvent}
+        />
+      ) : (
+        <View style={styles.approveActions}>
+          <Pressable
+            onPress={() => onReject(record.id)}
+            style={[styles.actionButton, { borderColor: theme.border }]}>
+            <ThemedText type="bodyBold">Reject</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => onApprove(record.id)}
+            style={[styles.actionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
+            <ThemedText type="bodyBold" themeColor="background">
+              Approve
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}
+    </ThemedView>
+  );
+}
+
+function ApproveTab({
+  records,
+  orgEvents,
+  onApprove,
+  onReject,
+  onLinkToEvent,
+  onCreateEvent,
+}: {
+  records: OrgHistoryRecord[];
+  orgEvents: EventDetail[];
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onLinkToEvent: (id: string, event: EventDetail) => void;
+  onCreateEvent: (id: string, draft: NewEventDraft) => void;
+}) {
   const pending = records.filter((record) => NEEDS_ACTION_STATUSES.has(record.status));
 
   return (
@@ -116,29 +459,16 @@ function ApproveTab({
       ) : (
         <ThemedView style={styles.list}>
           {pending.map((record) => (
-            <ThemedView key={record.id} type="backgroundElement" style={styles.approveCard}>
-              <OrgHistoryRow
-                volunteerName={record.volunteerName}
-                eventTitle={record.eventTitle}
-                date={record.date}
-                hours={record.hours}
-                status={record.status}
-              />
-              <View style={styles.approveActions}>
-                <Pressable
-                  onPress={() => onReject(record.id)}
-                  style={[styles.actionButton, { borderColor: theme.border }]}>
-                  <ThemedText type="bodyBold">Reject</ThemedText>
-                </Pressable>
-                <Pressable
-                  onPress={() => onApprove(record.id)}
-                  style={[styles.actionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-                  <ThemedText type="bodyBold" themeColor="background">
-                    Approve
-                  </ThemedText>
-                </Pressable>
-              </View>
-            </ThemedView>
+            <ApprovalCard
+              key={record.id}
+              record={record}
+              event={orgEvents.find((event) => event.id === record.eventId)}
+              orgEvents={orgEvents}
+              onApprove={onApprove}
+              onReject={onReject}
+              onLinkToEvent={onLinkToEvent}
+              onCreateEvent={onCreateEvent}
+            />
           ))}
         </ThemedView>
       )}
@@ -197,7 +527,7 @@ function RosterRow({ volunteerName, hours, status }: { volunteerName: string; ho
   );
 }
 
-function HistoryTab({ records }: { records: OrgHistoryRecord[] }) {
+function HistoryTab({ records, events }: { records: OrgHistoryRecord[]; events: EventDetail[] }) {
   const [activeFilters, setActiveFilters] = useState<Set<HistoryFilterKey>>(ALL_HISTORY_FILTERS);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
@@ -213,7 +543,7 @@ function HistoryTab({ records }: { records: OrgHistoryRecord[] }) {
     });
   };
 
-  const groups = buildEventGroups(records);
+  const groups = buildEventGroups(records, events);
 
   return (
     <ThemedView style={styles.section}>
@@ -267,8 +597,9 @@ function HistoryTab({ records }: { records: OrgHistoryRecord[] }) {
 
 export default function OrgYouScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('approve');
-  const [records, setRecords] = useState<OrgHistoryRecord[]>(MOCK_ORG_HISTORY);
   const { activeOrganization } = useOrganization();
+  const { records, getOrgEvents, approveRecord, rejectRecord, linkRecordToEvent, createEventFromRecord } =
+    useOrgHistory();
 
   useFocusEffect(
     useCallback(() => {
@@ -276,13 +607,9 @@ export default function OrgYouScreen() {
     }, []),
   );
 
-  const updateStatus = (id: string, status: HistoryStatus) => {
-    setRecords((current) => current.map((record) => (record.id === id ? { ...record, status } : record)));
-  };
+  const orgEvents = getOrgEvents(activeOrganization.id);
 
-  const handleApprove = (id: string) => updateStatus(id, 'verified');
-
-  const handleReject = (id: string) => updateStatus(id, 'no-show');
+  const handleCreateEvent = (id: string, draft: NewEventDraft) => createEventFromRecord(id, activeOrganization, draft);
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -290,13 +617,23 @@ export default function OrgYouScreen() {
         <ThemedText type="h1" style={styles.pageTitle}>
           {activeOrganization.name}
         </ThemedText>
-        <SwitchToPersonalButton />
       </View>
+
+      <SwitchToPersonalButton />
 
       <SegmentedTabs tabs={ORG_YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
 
-      {activeTab === 'approve' && <ApproveTab records={records} onApprove={handleApprove} onReject={handleReject} />}
-      {activeTab === 'history' && <HistoryTab records={records} />}
+      {activeTab === 'approve' && (
+        <ApproveTab
+          records={records}
+          orgEvents={orgEvents}
+          onApprove={approveRecord}
+          onReject={rejectRecord}
+          onLinkToEvent={linkRecordToEvent}
+          onCreateEvent={handleCreateEvent}
+        />
+      )}
+      {activeTab === 'history' && <HistoryTab records={records} events={orgEvents} />}
     </ScreenScrollView>
   );
 }
@@ -320,6 +657,7 @@ const styles = StyleSheet.create({
   },
   switchButton: {
     flexDirection: 'row',
+    alignSelf: 'flex-start',
     alignItems: 'center',
     gap: Spacing.one,
     paddingHorizontal: Spacing.three,
@@ -335,8 +673,47 @@ const styles = StyleSheet.create({
   },
   approveCard: {
     borderRadius: BorderRadius.lg,
-    padding: Spacing.two,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  approveHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.two,
+  },
+  approveHeaderInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eventDetails: {
+    gap: Spacing.one,
+  },
+  metaList: {
+    gap: Spacing.one,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  noteBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.one,
+    padding: Spacing.two,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginTop: Spacing.one,
+  },
+  noteText: {
+    flex: 1,
   },
   approveActions: {
     flexDirection: 'row',
@@ -348,6 +725,62 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
+  },
+  selfUploadedActions: {
+    gap: Spacing.two,
+  },
+  primaryActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
+  actionButtonSmall: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+  },
+  rejectLink: {
+    alignSelf: 'flex-start',
+  },
+  panel: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    borderTopWidth: 1,
+  },
+  pickerRowInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  field: {
+    gap: Spacing.one,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: Platform.OS === 'web' ? 16 : 14,
+  },
+  inputMultiline: {
+    minHeight: 72,
+    textAlignVertical: 'top',
+  },
+  panelActions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginTop: Spacing.one,
   },
   filterRow: {
     flexDirection: 'row',

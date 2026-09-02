@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useHistory } from '@/context/history-context';
+import { useOrgHistory } from '@/context/org-history-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
@@ -64,7 +65,8 @@ function LinkRow({ icon, text, url }: { icon: keyof typeof Ionicons.glyphMap; te
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
-  const event = MOCK_EVENTS.find((item) => item.id === id);
+  const { customEvents } = useOrgHistory();
+  const event = MOCK_EVENTS.find((item) => item.id === id) ?? customEvents.find((item) => item.id === id);
   const { isRegistered, register, unregister } = useRegistrations();
   const { addCancellationRecord } = useHistory();
 

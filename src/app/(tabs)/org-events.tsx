@@ -7,15 +7,16 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useOrgHistory } from '@/context/org-history-context';
 import { useOrganization } from '@/context/organization-context';
-import { MOCK_EVENTS } from '@/data/mock-events';
 import { parseEventDateTime } from '@/utils/dates';
 
 export default function OrgEventsScreen() {
   const { activeOrganization } = useOrganization();
+  const { getOrgEvents } = useOrgHistory();
 
   const now = new Date();
-  const orgEvents = MOCK_EVENTS.filter((event) => event.organizationId === activeOrganization.id);
+  const orgEvents = getOrgEvents(activeOrganization.id);
   const upcomingEvents = orgEvents.filter((event) => parseEventDateTime(event.date, event.startTime, now) >= now);
   const pastEvents = orgEvents.filter((event) => parseEventDateTime(event.date, event.startTime, now) < now);
 

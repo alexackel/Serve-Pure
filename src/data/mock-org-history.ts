@@ -8,6 +8,9 @@ export type OrgHistoryRecord = {
   date: string;
   status: HistoryStatus;
   hours?: number;
+  // Only meaningful for 'self-uploaded' records — the volunteer's own
+  // description of what they did, shown to the org during review.
+  note?: string;
 };
 
 export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
@@ -37,6 +40,7 @@ export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
     date: 'Aug 5',
     status: 'self-uploaded',
     hours: 2,
+    note: 'I helped out at the cleanup but forgot to check in on the app — Maya from your team saw me there.',
   },
   {
     id: 'oh4',
@@ -58,10 +62,11 @@ export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
   {
     id: 'oh6',
     volunteerName: 'Caleb Wright',
-    eventId: 'riverside-park-cleanup',
-    eventTitle: 'Riverside Park Cleanup',
-    date: 'Aug 5',
+    eventId: 'neighborhood-food-drive',
+    eventTitle: 'Neighborhood Food Drive',
+    date: 'Aug 3',
     status: 'self-uploaded',
     hours: 1,
+    note: 'Ran a small food drive with a few neighbors on our own street — not one of your posted events, but wanted to log the hours.',
   },
 ];

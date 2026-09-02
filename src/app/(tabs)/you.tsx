@@ -378,17 +378,16 @@ export default function YouScreen() {
         <ThemedText type="h1" style={styles.pageTitle}>
           You
         </ThemedText>
-        <View style={styles.titleRowRight}>
-          <View style={styles.reliabilityBadge}>
-            <Ionicons name="star" size={16} color={theme.warning} />
-            <ThemedText type="bodyBold">{reliabilityScore.toFixed(1)}</ThemedText>
-            <ThemedText type="caption" themeColor="textSecondary">
-              Reliability
-            </ThemedText>
-          </View>
-          <SwitchToOrganizationButton />
+        <View style={styles.reliabilityBadge}>
+          <Ionicons name="star" size={16} color={theme.warning} />
+          <ThemedText type="bodyBold">{reliabilityScore.toFixed(1)}</ThemedText>
+          <ThemedText type="caption" themeColor="textSecondary">
+            Reliability
+          </ThemedText>
         </View>
       </View>
+
+      <SwitchToOrganizationButton />
 
       <ThemedView style={styles.statsSection}>
         <TimeRangeSelector
@@ -442,12 +441,6 @@ const styles = StyleSheet.create({
   pageTitle: {
     marginBottom: 0,
   },
-  titleRowRight: {
-    alignItems: 'flex-end',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-    gap: Spacing.two,
-  },
   reliabilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -455,6 +448,7 @@ const styles = StyleSheet.create({
   },
   switchButton: {
     flexDirection: 'row',
+    alignSelf: 'flex-start',
     alignItems: 'center',
     gap: Spacing.one,
     paddingHorizontal: Spacing.three,
