@@ -6,3 +6,5 @@ export * from './activity-post-card';
 export * from './record-card';
 export * from './group-card';
 export * from './role-card';
+export * from './member-row';
+export * from './org-history-row';

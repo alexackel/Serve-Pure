@@ -7,6 +7,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useOrganization, type ViewMode } from '@/context/organization-context';
 import { useTheme } from '@/hooks/use-theme';
 
 type TabDef = {
@@ -18,31 +19,93 @@ type TabDef = {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
+  // 'shared' is visible in both view modes; the rest are visible in only one.
+  mode: ViewMode | 'shared';
 };
 
-const TABS: TabDef[] = [
-  { name: 'home', href: '/' as Href, label: 'Home', icon: 'home-outline', activeIcon: 'home' },
-  { name: 'find', href: '/find', label: 'Find', icon: 'search-outline', activeIcon: 'search' },
-  { name: 'map', href: '/map', label: 'Map', icon: 'map-outline', activeIcon: 'map' },
-  { name: 'groups', href: '/groups', label: 'Groups', icon: 'people-outline', activeIcon: 'people' },
+// Every tab across both view modes is registered here, and every one of them
+// stays mounted at all times (see AppTabs below) — only visibility toggles
+// with the mode. Letting the TabTrigger set itself change shape between
+// renders confused expo-router/ui's headless Tabs internal route bookkeeping
+// (an in-flight router.replace would get silently overridden back to the
+// first tab), so a stable, always-mounted trigger set is load-bearing here.
+const ALL_TABS: TabDef[] = [
+  { name: 'home', href: '/' as Href, label: 'Home', icon: 'home-outline', activeIcon: 'home', mode: 'shared' },
+  {
+    name: 'find',
+    href: '/find',
+    label: 'Find',
+    icon: 'search-outline',
+    activeIcon: 'search',
+    mode: 'personal',
+  },
+  {
+    name: 'org-events',
+    href: '/org-events',
+    label: 'Events',
+    icon: 'calendar-outline',
+    activeIcon: 'calendar',
+    mode: 'organization',
+  },
+  { name: 'map', href: '/map', label: 'Map', icon: 'map-outline', activeIcon: 'map', mode: 'personal' },
+  {
+    name: 'org-analytics',
+    href: '/org-analytics',
+    label: 'Analytics',
+    icon: 'bar-chart-outline',
+    activeIcon: 'bar-chart',
+    mode: 'organization',
+  },
+  {
+    name: 'groups',
+    href: '/groups',
+    label: 'Groups',
+    icon: 'people-outline',
+    activeIcon: 'people',
+    mode: 'personal',
+  },
+  {
+    name: 'org-groups',
+    href: '/org-groups',
+    label: 'Groups',
+    icon: 'people-outline',
+    activeIcon: 'people',
+    mode: 'organization',
+  },
   {
     name: 'you',
     href: '/you',
     label: 'You',
     icon: 'person-circle-outline',
     activeIcon: 'person-circle',
+    mode: 'personal',
+  },
+  {
+    name: 'org-you',
+    href: '/org-you',
+    label: 'You',
+    icon: 'person-circle-outline',
+    activeIcon: 'person-circle',
+    mode: 'organization',
   },
 ];
 
 export default function AppTabs() {
+  const { viewMode } = useOrganization();
+
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          {TABS.map((tab) => (
+          {ALL_TABS.map((tab) => (
             <TabTrigger key={tab.name} name={tab.name} href={tab.href} asChild>
-              <TabButton icon={tab.icon} activeIcon={tab.activeIcon} label={tab.label} />
+              <TabButton
+                icon={tab.icon}
+                activeIcon={tab.activeIcon}
+                label={tab.label}
+                hidden={tab.mode !== 'shared' && tab.mode !== viewMode}
+              />
             </TabTrigger>
           ))}
         </CustomTabList>
@@ -55,11 +118,16 @@ type TabButtonProps = TabTriggerSlotProps & {
   icon: keyof typeof Ionicons.glyphMap;
   activeIcon: keyof typeof Ionicons.glyphMap;
   label: string;
+  hidden?: boolean;
 };
 
-export function TabButton({ isFocused, icon, activeIcon, label, ...props }: TabButtonProps) {
+export function TabButton({ isFocused, icon, activeIcon, label, hidden, ...props }: TabButtonProps) {
   const theme = useTheme();
   const color = isFocused ? theme.primary : theme.textSecondary;
+
+  if (hidden) {
+    return <Pressable {...props} style={styles.hidden} pointerEvents="none" />;
+  }
 
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
@@ -105,6 +173,10 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  hidden: {
+    width: 0,
+    height: 0,
   },
   tabButtonView: {
     alignItems: 'center',

@@ -11,6 +11,7 @@ export type EventDetail = {
   id: string;
   title: string;
   organization: string;
+  organizationId?: string;
   organizationVerified?: boolean;
   category?: string;
   date: string;
@@ -32,6 +33,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     id: 'riverside-park-cleanup',
     title: 'Riverside Park Cleanup',
     organization: 'GreenFuture Coalition',
+    organizationId: 'greenfuture-coalition',
     organizationVerified: true,
     category: 'Environment',
     date: 'Sep 6',
@@ -51,6 +53,25 @@ export const MOCK_EVENTS: EventDetail[] = [
     volunteers: 11,
     maxVolunteers: 20,
     status: 'available',
+  },
+  {
+    id: 'community-garden-planting',
+    title: 'Community Garden Planting',
+    organization: 'GreenFuture Coalition',
+    organizationId: 'greenfuture-coalition',
+    organizationVerified: true,
+    category: 'Environment',
+    date: 'Aug 12',
+    startTime: '9:00 AM',
+    endTime: '12:00 PM',
+    hours: 3,
+    location: 'Riverside Park, 400 River Rd',
+    description: 'Planted native species and set up raised beds for the new community garden plot.',
+    contactInfo: 'volunteer@greenfuturecoalition.org',
+    website: 'https://greenfuturecoalition.org',
+    volunteers: 14,
+    maxVolunteers: 14,
+    status: 'full',
   },
   {
     id: 'food-bank-sorting',

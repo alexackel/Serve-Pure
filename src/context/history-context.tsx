@@ -2,7 +2,14 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 
 import { formatShortDate } from '@/utils/dates';
 
-export type HistoryStatus = 'verified' | 'pending' | 'self-reported' | 'no-show' | 'appealed' | 'cancelled';
+export type HistoryStatus =
+  | 'verified'
+  | 'pending'
+  | 'self-uploaded'
+  | 'admin-approved'
+  | 'no-show'
+  | 'appealed'
+  | 'cancelled';
 
 export type HistoryRecord = {
   id: string;
@@ -51,7 +58,7 @@ const SEED_HISTORY_RECORDS: HistoryRecord[] = [
     organization: 'Riverside Youth Center',
     hours: 5,
     date: 'Aug 12',
-    status: 'self-reported',
+    status: 'self-uploaded',
     hasPhoto: true,
     likes: 9,
   },
@@ -78,7 +85,7 @@ const SEED_HISTORY_RECORDS: HistoryRecord[] = [
     organization: 'Blue Ridge Trail Alliance',
     hours: 4,
     date: 'Jul 22',
-    status: 'self-reported',
+    status: 'self-uploaded',
     hasPhoto: false,
     likes: 3,
   },

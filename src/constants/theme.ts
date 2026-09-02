@@ -25,6 +25,10 @@ export const Colors = {
     warningBackground: '#FFF4D6',
     error: '#D92D20',
     errorBackground: '#FDEAEA',
+
+    chartSuccess: '#7FDDA8',
+    chartWarning: '#FFCF66',
+    chartPrimary: '#8FB4FF',
   },
   dark: {
     text: '#F5F7FA',
@@ -43,6 +47,10 @@ export const Colors = {
     warningBackground: '#3A2E0D',
     error: '#F26B5E',
     errorBackground: '#3A1613',
+
+    chartSuccess: '#5EDBA0',
+    chartWarning: '#F4CE73',
+    chartPrimary: '#8CB6FF',
   },
 } as const;
 

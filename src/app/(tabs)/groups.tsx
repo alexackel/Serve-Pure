@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { GroupCard, RoleCard } from '@/components/cards';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -11,12 +11,13 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { MOCK_GROUPS } from '@/data/mock-groups';
 import { useTheme } from '@/hooks/use-theme';
 
-type Group = {
-  name: string;
-  memberCount: number;
-};
+const MY_GROUP_IDS = ['riverside-high-key-club', 'greenfuture-youth-corps'];
+const MY_GROUPS = MY_GROUP_IDS.map((id) => MOCK_GROUPS.find((group) => group.id === id)).filter(
+  (group): group is NonNullable<typeof group> => Boolean(group),
+);
 
 type Role = {
   title: string;
@@ -25,11 +26,6 @@ type Role = {
   hoursPerWeek: number;
   paid?: boolean;
 };
-
-const SAMPLE_GROUPS: Group[] = [
-  { name: 'Riverside High Key Club', memberCount: 42 },
-  { name: 'GreenFuture Youth Corps', memberCount: 18 },
-];
 
 const SAMPLE_ROLES: Role[] = [
   {
@@ -85,10 +81,15 @@ function GroupsTab() {
     <ThemedView style={styles.section}>
       <ThemedText type="h3">My Groups</ThemedText>
 
-      {SAMPLE_GROUPS.length > 0 && (
+      {MY_GROUPS.length > 0 && (
         <ThemedView style={styles.list}>
-          {SAMPLE_GROUPS.map((group) => (
-            <GroupCard key={group.name} {...group} />
+          {MY_GROUPS.map((group) => (
+            <GroupCard
+              key={group.id}
+              name={group.name}
+              memberCount={group.memberCount}
+              onPress={() => router.push({ pathname: '/group/[id]', params: { id: group.id } })}
+            />
           ))}
         </ThemedView>
       )}

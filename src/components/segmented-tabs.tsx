@@ -22,7 +22,11 @@ export function SegmentedTabs<Key extends string>({ tabs, activeKey, onChange }:
             key={tab.key}
             onPress={() => onChange(tab.key)}
             style={[styles.segment, isActive && { backgroundColor: theme.background }, isActive && CardShadow]}>
-            <ThemedText type={isActive ? 'bodyBold' : 'body'} themeColor={isActive ? 'primary' : 'textSecondary'}>
+            <ThemedText
+              type={isActive ? 'bodyBold' : 'body'}
+              themeColor={isActive ? 'primary' : 'textSecondary'}
+              numberOfLines={1}
+              style={styles.segmentLabel}>
               {tab.label}
             </ThemedText>
           </Pressable>
@@ -42,6 +46,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.one,
     borderRadius: BorderRadius.pill,
+  },
+  segmentLabel: {
+    textAlign: 'center',
   },
 });

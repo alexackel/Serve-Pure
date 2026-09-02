@@ -8,7 +8,8 @@ export type VerificationStatus =
   | 'verified'
   | 'registered'
   | 'pending'
-  | 'self-reported'
+  | 'self-uploaded'
+  | 'admin-approved'
   | 'no-show'
   | 'appealed'
   | 'cancelled'
@@ -24,7 +25,8 @@ const defaultLabels: Record<VerificationStatus, string> = {
   verified: 'Verified',
   registered: 'Registered',
   pending: 'Pending',
-  'self-reported': 'Self-Reported',
+  'self-uploaded': 'Self-Uploaded',
+  'admin-approved': 'Admin Approved',
   'no-show': 'No-Show',
   appealed: 'Appealed',
   cancelled: 'Cancelled',
@@ -35,9 +37,9 @@ export function VerificationBadge({ status, label, size = 'md' }: VerificationBa
   const theme = useTheme();
 
   const colorKey =
-    status === 'verified' || status === 'registered'
+    status === 'verified' || status === 'registered' || status === 'admin-approved'
       ? 'success'
-      : status === 'pending' || status === 'self-reported'
+      : status === 'pending' || status === 'self-uploaded'
         ? 'warning'
         : 'error';
   const dotColor = theme[colorKey];

@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
+import { useTabTrigger } from 'expo-router/ui';
 
 import { EventCard, RecordCard, StatCard } from '@/components/cards';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -11,6 +12,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
+import { useOrganization } from '@/context/organization-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
@@ -39,7 +41,7 @@ type TabKey = (typeof YOU_TABS)[number]['key'];
 const HISTORY_FILTERS = [
   { key: 'verified', label: 'Verified' },
   { key: 'pending', label: 'Pending' },
-  { key: 'self-reported', label: 'Self-Reported' },
+  { key: 'self-uploaded', label: 'Self-Uploaded' },
   { key: 'no-show', label: 'No-Show' },
   { key: 'appealed', label: 'Appealed' },
   { key: 'cancelled', label: 'Cancelled' },
@@ -84,6 +86,13 @@ function sumHours(records: HistoryRecord[]) {
 
 function sumHoursByStatus(records: HistoryRecord[], status: HistoryFilterKey) {
   return sumHours(records.filter((record) => record.status === status));
+}
+
+// Admin-approved self-uploaded hours count toward Verified once a group admin
+// signs off, even though the underlying record keeps its own status for audit
+// views (e.g. the group Analytics chart) that still break it out separately.
+function sumVerifiedHours(records: HistoryRecord[]) {
+  return sumHours(records.filter((record) => record.status === 'verified' || record.status === 'admin-approved'));
 }
 
 function TimeRangeSelector({
@@ -259,7 +268,7 @@ function HistoryFilterChips({
         const dotColor =
           filter.key === 'verified'
             ? theme.success
-            : filter.key === 'pending' || filter.key === 'self-reported'
+            : filter.key === 'pending' || filter.key === 'self-uploaded'
               ? theme.warning
               : theme.error;
 
@@ -298,7 +307,9 @@ function HistoryTab({ records }: { records: HistoryRecord[] }) {
     });
   };
 
-  const visibleRecords = records.filter((record) => activeFilters.has(record.status));
+  const visibleRecords = records.filter((record) =>
+    record.status === 'admin-approved' ? activeFilters.has('verified') : activeFilters.has(record.status),
+  );
 
   return (
     <ThemedView style={styles.section}>
@@ -324,6 +335,24 @@ function ExportHistoryButton() {
   );
 }
 
+function SwitchToOrganizationButton() {
+  const theme = useTheme();
+  const { activeOrganization, switchToOrganization } = useOrganization();
+  const { switchTab } = useTabTrigger({ name: 'org-you', href: '/org-you' });
+
+  const handlePress = () => {
+    switchToOrganization(activeOrganization.id);
+    switchTab('org-you', {});
+  };
+
+  return (
+    <Pressable onPress={handlePress} style={[styles.switchButton, { borderColor: theme.border }]}>
+      <Ionicons name="swap-horizontal" size={14} color={theme.text} />
+      <ThemedText type="label">Organization</ThemedText>
+    </Pressable>
+  );
+}
+
 export default function YouScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
   const [timeRange, setTimeRange] = useState<TimeRangeKey>(TIME_RANGES[0]);
@@ -339,9 +368,9 @@ export default function YouScreen() {
 
   const rangeRecords = filterRecordsByRange(historyRecords, timeRange, customRange);
   const totalHours = sumHours(rangeRecords);
-  const verifiedHours = sumHoursByStatus(rangeRecords, 'verified');
+  const verifiedHours = sumVerifiedHours(rangeRecords);
   const pendingHours = sumHoursByStatus(rangeRecords, 'pending');
-  const selfReportedHours = sumHoursByStatus(rangeRecords, 'self-reported');
+  const selfUploadedHours = sumHoursByStatus(rangeRecords, 'self-uploaded');
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -349,12 +378,15 @@ export default function YouScreen() {
         <ThemedText type="h1" style={styles.pageTitle}>
           You
         </ThemedText>
-        <View style={styles.reliabilityBadge}>
-          <Ionicons name="star" size={16} color={theme.warning} />
-          <ThemedText type="bodyBold">{reliabilityScore.toFixed(1)}</ThemedText>
-          <ThemedText type="caption" themeColor="textSecondary">
-            Reliability
-          </ThemedText>
+        <View style={styles.titleRowRight}>
+          <View style={styles.reliabilityBadge}>
+            <Ionicons name="star" size={16} color={theme.warning} />
+            <ThemedText type="bodyBold">{reliabilityScore.toFixed(1)}</ThemedText>
+            <ThemedText type="caption" themeColor="textSecondary">
+              Reliability
+            </ThemedText>
+          </View>
+          <SwitchToOrganizationButton />
         </View>
       </View>
 
@@ -377,8 +409,8 @@ export default function YouScreen() {
           <StatCard label="Verified" value={verifiedHours} icon="checkmark-circle-outline" accentColor="success" />
           <StatCard label="Pending" value={pendingHours} icon="hourglass-outline" accentColor="warning" />
           <StatCard
-            label="Self-Reported"
-            value={selfReportedHours}
+            label="Self-Uploaded"
+            value={selfUploadedHours}
             icon="create-outline"
             accentColor="warning"
           />
@@ -403,15 +435,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    rowGap: Spacing.two,
     marginBottom: Spacing.one,
   },
   pageTitle: {
     marginBottom: 0,
   },
+  titleRowRight: {
+    alignItems: 'flex-end',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: Spacing.two,
+  },
   reliabilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
+  },
+  switchButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
   },
   statsSection: {
     gap: Spacing.three,
