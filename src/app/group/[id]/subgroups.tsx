@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { GroupCard } from '@/components/cards';
+import { CreateGroupPanel } from '@/components/create-group-panel';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { MOCK_GROUPS } from '@/data/mock-groups';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useGroups } from '@/context/groups-context';
 import { useTheme } from '@/hooks/use-theme';
 
 function BackButton() {
@@ -30,10 +32,14 @@ function BackButton() {
 
 export default function SubgroupsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const group = MOCK_GROUPS.find((item) => item.id === id);
+  const theme = useTheme();
+  const { groups, isAdmin, createSubgroup } = useGroups();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const group = groups.find((item) => item.id === id);
   const subgroups = group?.subgroupIds
     ? group.subgroupIds
-        .map((subgroupId) => MOCK_GROUPS.find((item) => item.id === subgroupId))
+        .map((subgroupId) => groups.find((item) => item.id === subgroupId))
         .filter((item): item is NonNullable<typeof item> => Boolean(item))
     : [];
 
@@ -45,6 +51,14 @@ export default function SubgroupsScreen() {
       </ScreenScrollView>
     );
   }
+
+  const canCreate = isAdmin(group.id);
+
+  const handleCreate = (name: string) => {
+    const subgroupId = createSubgroup(group.id, name);
+    setIsCreating(false);
+    router.push({ pathname: '/group/[id]', params: { id: subgroupId } });
+  };
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -73,6 +87,25 @@ export default function SubgroupsScreen() {
           ))}
         </ThemedView>
       )}
+
+      {canCreate &&
+        (isCreating ? (
+          <CreateGroupPanel
+            nameLabel="New subgroup name"
+            submitLabel="Create Subgroup"
+            onCreate={handleCreate}
+            onCancel={() => setIsCreating(false)}
+          />
+        ) : (
+          <Pressable
+            onPress={() => setIsCreating(true)}
+            style={[styles.createButton, { backgroundColor: theme.primary }]}>
+            <Ionicons name="add-circle-outline" size={16} color={theme.background} />
+            <ThemedText type="bodyBold" themeColor="background">
+              Create Subgroup
+            </ThemedText>
+          </Pressable>
+        ))}
     </ScreenScrollView>
   );
 }
@@ -92,5 +125,13 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: Spacing.three,
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.one,
+    paddingVertical: Spacing.three,
+    borderRadius: BorderRadius.pill,
   },
 });

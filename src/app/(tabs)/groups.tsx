@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
 import { GroupCard, RoleCard } from '@/components/cards';
+import { CreateGroupPanel } from '@/components/create-group-panel';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SearchBar } from '@/components/search-bar';
 import { SegmentedTabs } from '@/components/segmented-tabs';
@@ -66,52 +67,6 @@ function JoinGroupButton() {
       <Ionicons name="add-circle-outline" size={16} color={theme.text} />
       <ThemedText type="bodyBold">Join Group</ThemedText>
     </Pressable>
-  );
-}
-
-function CreateGroupPanel({ onCreate, onCancel }: { onCreate: (name: string) => void; onCancel: () => void }) {
-  const theme = useTheme();
-  const [name, setName] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  const handleCreate = () => {
-    if (!name.trim()) {
-      setError('Give your group a name.');
-      return;
-    }
-    onCreate(name.trim());
-  };
-
-  return (
-    <ThemedView type="backgroundElement" style={styles.createPanel}>
-      <ThemedText type="label" themeColor="textSecondary">
-        New group name
-      </ThemedText>
-      <TextInput
-        value={name}
-        onChangeText={setName}
-        placeholder="e.g. Riverside Robotics Club"
-        placeholderTextColor={theme.textSecondary}
-        style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-      />
-      {error && (
-        <ThemedText type="caption" themeColor="error">
-          {error}
-        </ThemedText>
-      )}
-      <ThemedView style={styles.createPanelActions}>
-        <Pressable onPress={onCancel} style={[styles.actionButton, { borderColor: theme.border }]}>
-          <ThemedText type="bodyBold">Cancel</ThemedText>
-        </Pressable>
-        <Pressable
-          onPress={handleCreate}
-          style={[styles.actionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-          <ThemedText type="bodyBold" themeColor="background">
-            Create Group
-          </ThemedText>
-        </Pressable>
-      </ThemedView>
-    </ThemedView>
   );
 }
 
@@ -223,29 +178,5 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.three,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
-  },
-  createPanel: {
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  createPanelActions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    marginTop: Spacing.one,
-  },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    fontSize: Platform.OS === 'web' ? 16 : 14,
   },
 });

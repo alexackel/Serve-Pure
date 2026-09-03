@@ -13,12 +13,8 @@ import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useGroups } from '@/context/groups-context';
 import { useHistory } from '@/context/history-context';
-import { sumMemberHours, type GroupMember, type MockGroup } from '@/data/mock-groups';
+import { sumHoursByStatus, sumMemberHours, type GroupMember, type MockGroup } from '@/data/mock-groups';
 import { useTheme } from '@/hooks/use-theme';
-
-// No records can carry the 'admin-approved' status yet (that approval flow
-// isn't built), so this is a fixed stand-in until a real admin view exists.
-const MOCK_ADMIN_APPROVED_HOURS = 6;
 
 const GROUP_TABS = [
   { key: 'members', label: 'Members' },
@@ -192,25 +188,19 @@ function DeleteGroupButton({ groupId }: { groupId: string }) {
   );
 }
 
-function AnalyticsTab() {
-  const { records } = useHistory();
+function AnalyticsTab({ group }: { group: MockGroup }) {
   const theme = useTheme();
 
-  const selfUploadedHours = records
-    .filter((record) => record.status === 'self-uploaded')
-    .reduce((sum, record) => sum + (record.hours ?? 0), 0);
-  const verifiedHours = records
-    .filter((record) => record.status === 'verified')
-    .reduce((sum, record) => sum + (record.hours ?? 0), 0);
+  const hoursByStatus = sumHoursByStatus(group.members.flatMap((member) => member.records));
 
   return (
     <ThemedView style={styles.section}>
       <ThemedText type="h3">Hours Breakdown</ThemedText>
       <PieChart
         data={[
-          { label: 'Self-Uploaded', value: selfUploadedHours, color: theme.chartWarning },
-          { label: 'Verified', value: verifiedHours, color: theme.chartSuccess },
-          { label: 'Admin Approved', value: MOCK_ADMIN_APPROVED_HOURS, color: theme.chartPrimary },
+          { label: 'Self-Uploaded', value: hoursByStatus['self-uploaded'] ?? 0, color: theme.chartWarning },
+          { label: 'Verified', value: hoursByStatus.verified ?? 0, color: theme.chartSuccess },
+          { label: 'Admin Approved', value: hoursByStatus['admin-approved'] ?? 0, color: theme.chartPrimary },
         ]}
       />
     </ThemedView>
@@ -262,12 +252,13 @@ export default function GroupDetailScreen() {
       <SegmentedTabs tabs={GROUP_TABS} activeKey={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'members' && (
-        <MembersTab groupId={group.id} members={group.members} adminIds={group.adminIds ?? []} isAdmin={isAdmin} />
+        <>
+          <MembersTab groupId={group.id} members={group.members} adminIds={group.adminIds ?? []} isAdmin={isAdmin} />
+          {isAdmin && <DeleteGroupButton groupId={group.id} />}
+        </>
       )}
       {activeTab === 'reported' && <ReportedHoursTab group={group} isAdmin={isAdmin} />}
-      {activeTab === 'analytics' && <AnalyticsTab />}
-
-      {isAdmin && <DeleteGroupButton groupId={group.id} />}
+      {activeTab === 'analytics' && <AnalyticsTab group={group} />}
     </ScreenScrollView>
   );
 }

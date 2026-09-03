@@ -13,7 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useGroups } from '@/context/groups-context';
 import type { HistoryStatus } from '@/context/history-context';
-import { sumMemberHours } from '@/data/mock-groups';
+import { sumHoursByStatus, sumMemberHours } from '@/data/mock-groups';
 import { useTheme } from '@/hooks/use-theme';
 
 const STATUS_LABELS: Record<HistoryStatus, string> = {
@@ -110,13 +110,7 @@ export default function GroupMemberDetailScreen() {
     );
   }
 
-  const statusCounts = member.records.reduce(
-    (acc, record) => {
-      acc[record.status] = (acc[record.status] ?? 0) + 1;
-      return acc;
-    },
-    {} as Partial<Record<HistoryStatus, number>>,
-  );
+  const hoursByStatus = sumHoursByStatus(member.records);
 
   const chartColor: Record<HistoryStatus, string> = {
     verified: theme.chartSuccess,
@@ -128,9 +122,9 @@ export default function GroupMemberDetailScreen() {
     cancelled: theme.chartError,
   };
 
-  const barData: BarChartEntry[] = (Object.keys(statusCounts) as HistoryStatus[]).map((status) => ({
+  const barData: BarChartEntry[] = (Object.keys(hoursByStatus) as HistoryStatus[]).map((status) => ({
     label: STATUS_LABELS[status],
-    value: statusCounts[status] ?? 0,
+    value: hoursByStatus[status] ?? 0,
     color: chartColor[status],
   }));
 
@@ -152,14 +146,13 @@ export default function GroupMemberDetailScreen() {
         </View>
       </View>
 
-      <RemoveMemberButton groupId={group.id} memberId={member.id} memberName={member.name} />
-
       <SegmentedTabs tabs={MEMBER_TABS} activeKey={activeTab} onChange={setActiveTab} />
 
       {activeTab === 'overview' && (
         <ThemedView style={styles.section}>
-          <ThemedText type="h3">Hours by State</ThemedText>
+          <ThemedText type="h3">Hours Breakdown</ThemedText>
           <BarChart data={barData} />
+          <RemoveMemberButton groupId={group.id} memberId={member.id} memberName={member.name} />
         </ThemedView>
       )}
 

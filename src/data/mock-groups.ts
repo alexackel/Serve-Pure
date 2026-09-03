@@ -33,6 +33,18 @@ export function sumMemberHours(member: GroupMember): number {
   return member.records.reduce((sum, record) => sum + (record.hours ?? 0), 0);
 }
 
+// Shared by the member-level and group-level hours breakdowns so the two
+// screens can't compute status totals two different ways and drift apart.
+export function sumHoursByStatus(records: GroupMemberRecord[]): Partial<Record<HistoryStatus, number>> {
+  return records.reduce(
+    (acc, record) => {
+      acc[record.status] = (acc[record.status] ?? 0) + (record.hours ?? 0);
+      return acc;
+    },
+    {} as Partial<Record<HistoryStatus, number>>,
+  );
+}
+
 export const MOCK_GROUPS: MockGroup[] = [
   {
     id: 'riverside-high-key-club',

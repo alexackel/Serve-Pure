@@ -9,6 +9,7 @@ type GroupsContextValue = {
   groups: MockGroup[];
   myGroupIds: string[];
   createGroup: (name: string) => string;
+  createSubgroup: (parentGroupId: string, name: string) => string;
   deleteGroup: (groupId: string) => void;
   removeMember: (groupId: string, memberId: string) => void;
   isAdmin: (groupId: string) => boolean;
@@ -25,24 +26,46 @@ function slugify(name: string) {
     .replace(/(^-|-$)/g, '');
 }
 
+function buildNewGroup(name: string): MockGroup {
+  return {
+    id: `${slugify(name)}-${Date.now()}`,
+    name,
+    memberCount: 1,
+    adminIds: [CURRENT_USER.id],
+    members: [{ id: CURRENT_USER.id, name: CURRENT_USER.name, records: [] }],
+  };
+}
+
 export function GroupsProvider({ children }: { children: ReactNode }) {
   const [groups, setGroups] = useState<MockGroup[]>(MOCK_GROUPS);
   const [myGroupIds, setMyGroupIds] = useState<string[]>(SEED_MY_GROUP_IDS);
 
   const createGroup = useCallback((name: string) => {
-    const id = `${slugify(name)}-${Date.now()}`;
-    const newGroup: MockGroup = {
-      id,
-      name,
-      memberCount: 1,
-      adminIds: [CURRENT_USER.id],
-      members: [{ id: CURRENT_USER.id, name: CURRENT_USER.name, records: [] }],
-    };
+    const newGroup = buildNewGroup(name);
 
     setGroups((current) => [...current, newGroup]);
-    setMyGroupIds((current) => [...current, id]);
+    setMyGroupIds((current) => [...current, newGroup.id]);
 
-    return id;
+    return newGroup.id;
+  }, []);
+
+  // Subgroups aren't listed as top-level "My Groups" — they're reached by
+  // drilling into the parent's Subgroups screen, matching the seed data
+  // (key-club-freshman/sophomore aren't in SEED_MY_GROUP_IDS either).
+  const createSubgroup = useCallback((parentGroupId: string, name: string) => {
+    const newGroup = buildNewGroup(name);
+
+    setGroups((current) =>
+      current
+        .map((group) =>
+          group.id === parentGroupId
+            ? { ...group, subgroupIds: [...(group.subgroupIds ?? []), newGroup.id] }
+            : group,
+        )
+        .concat(newGroup),
+    );
+
+    return newGroup.id;
   }, []);
 
   const deleteGroup = useCallback((groupId: string) => {
@@ -113,13 +136,24 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
       groups,
       myGroupIds,
       createGroup,
+      createSubgroup,
       deleteGroup,
       removeMember,
       isAdmin,
       approveMemberRecord,
       rejectMemberRecord,
     }),
-    [groups, myGroupIds, createGroup, deleteGroup, removeMember, isAdmin, approveMemberRecord, rejectMemberRecord],
+    [
+      groups,
+      myGroupIds,
+      createGroup,
+      createSubgroup,
+      deleteGroup,
+      removeMember,
+      isAdmin,
+      approveMemberRecord,
+      rejectMemberRecord,
+    ],
   );
 
   return <GroupsContext.Provider value={value}>{children}</GroupsContext.Provider>;
