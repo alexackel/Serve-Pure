@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -9,25 +9,46 @@ export type MemberRowProps = {
   rank: number;
   name: string;
   hours: number;
+  isAdmin?: boolean;
+  onPress?: () => void;
 };
 
-export function MemberRow({ rank, name, hours }: MemberRowProps) {
+export function MemberRow({ rank, name, hours, isAdmin, onPress }: MemberRowProps) {
   const theme = useTheme();
 
-  return (
+  const content = (
     <ThemedView type="backgroundElement" style={styles.row}>
       <View style={[styles.rankCircle, { backgroundColor: theme.primaryTint }]}>
         <ThemedText type="bodyBold" themeColor="primary">
           {rank}
         </ThemedText>
       </View>
-      <ThemedText type="bodyBold" style={styles.name} numberOfLines={1}>
-        {name}
-      </ThemedText>
+      <View style={styles.nameColumn}>
+        <ThemedText type="bodyBold" numberOfLines={1}>
+          {name}
+        </ThemedText>
+        {isAdmin && (
+          <View style={[styles.adminPill, { backgroundColor: theme.primaryTint }]}>
+            <ThemedText type="label" themeColor="primary">
+              Admin
+            </ThemedText>
+          </View>
+        )}
+      </View>
       <View style={[styles.hoursPill, { backgroundColor: theme.backgroundSelected }]}>
         <ThemedText type="label">{hours} hrs</ThemedText>
       </View>
     </ThemedView>
+  );
+
+  if (!onPress) {
+    return content;
+  }
+
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => pressed && styles.pressed}>
+      {content}
+    </Pressable>
   );
 }
 
@@ -46,12 +67,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: {
+  nameColumn: {
     flex: 1,
+    gap: Spacing.half,
+    alignItems: 'flex-start',
+  },
+  adminPill: {
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 1,
+    borderRadius: BorderRadius.pill,
   },
   hoursPill: {
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.half,
     borderRadius: BorderRadius.pill,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

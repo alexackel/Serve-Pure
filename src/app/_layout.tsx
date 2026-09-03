@@ -3,6 +3,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
+import { GroupsProvider } from '@/context/groups-context';
 import { HistoryProvider } from '@/context/history-context';
 import { OrganizationProvider } from '@/context/organization-context';
 import { OrgHistoryProvider } from '@/context/org-history-context';
@@ -18,14 +19,17 @@ export default function RootLayout() {
         <RegistrationsProvider>
           <HistoryProvider>
             <OrgHistoryProvider>
-              <AnimatedSplashOverlay />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="event/[id]" />
-                <Stack.Screen name="group/[id]" />
-                <Stack.Screen name="group/[id]/subgroups" />
-                <Stack.Screen name="org-group/[id]" />
-              </Stack>
+              <GroupsProvider>
+                <AnimatedSplashOverlay />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen name="event/[id]" />
+                  <Stack.Screen name="group/[id]" />
+                  <Stack.Screen name="group/[id]/subgroups" />
+                  <Stack.Screen name="group/[id]/member/[memberId]" />
+                  <Stack.Screen name="org-group/[id]" />
+                </Stack>
+              </GroupsProvider>
             </OrgHistoryProvider>
           </HistoryProvider>
         </RegistrationsProvider>

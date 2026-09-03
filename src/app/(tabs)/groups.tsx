@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Platform, Pressable, StyleSheet, TextInput } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
@@ -11,13 +11,8 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { MOCK_GROUPS } from '@/data/mock-groups';
+import { useGroups } from '@/context/groups-context';
 import { useTheme } from '@/hooks/use-theme';
-
-const MY_GROUP_IDS = ['riverside-high-key-club', 'greenfuture-youth-corps'];
-const MY_GROUPS = MY_GROUP_IDS.map((id) => MOCK_GROUPS.find((group) => group.id === id)).filter(
-  (group): group is NonNullable<typeof group> => Boolean(group),
-);
 
 type Role = {
   title: string;
@@ -67,23 +62,81 @@ function JoinGroupButton() {
   const theme = useTheme();
 
   return (
-    <Pressable style={[styles.joinButton, { backgroundColor: theme.primary }]}>
-      <Ionicons name="add-circle-outline" size={16} color={theme.background} />
-      <ThemedText type="bodyBold" themeColor="background">
-        Join Group
-      </ThemedText>
+    <Pressable style={[styles.joinButton, { backgroundColor: theme.backgroundElement, borderColor: theme.border }]}>
+      <Ionicons name="add-circle-outline" size={16} color={theme.text} />
+      <ThemedText type="bodyBold">Join Group</ThemedText>
     </Pressable>
   );
 }
 
+function CreateGroupPanel({ onCreate, onCancel }: { onCreate: (name: string) => void; onCancel: () => void }) {
+  const theme = useTheme();
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreate = () => {
+    if (!name.trim()) {
+      setError('Give your group a name.');
+      return;
+    }
+    onCreate(name.trim());
+  };
+
+  return (
+    <ThemedView type="backgroundElement" style={styles.createPanel}>
+      <ThemedText type="label" themeColor="textSecondary">
+        New group name
+      </ThemedText>
+      <TextInput
+        value={name}
+        onChangeText={setName}
+        placeholder="e.g. Riverside Robotics Club"
+        placeholderTextColor={theme.textSecondary}
+        style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+      />
+      {error && (
+        <ThemedText type="caption" themeColor="error">
+          {error}
+        </ThemedText>
+      )}
+      <ThemedView style={styles.createPanelActions}>
+        <Pressable onPress={onCancel} style={[styles.actionButton, { borderColor: theme.border }]}>
+          <ThemedText type="bodyBold">Cancel</ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={handleCreate}
+          style={[styles.actionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
+          <ThemedText type="bodyBold" themeColor="background">
+            Create Group
+          </ThemedText>
+        </Pressable>
+      </ThemedView>
+    </ThemedView>
+  );
+}
+
 function GroupsTab() {
+  const theme = useTheme();
+  const { groups, myGroupIds, createGroup } = useGroups();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const myGroups = myGroupIds
+    .map((id) => groups.find((group) => group.id === id))
+    .filter((group): group is NonNullable<typeof group> => Boolean(group));
+
+  const handleCreate = (name: string) => {
+    const id = createGroup(name);
+    setIsCreating(false);
+    router.push({ pathname: '/group/[id]', params: { id } });
+  };
+
   return (
     <ThemedView style={styles.section}>
       <ThemedText type="h3">My Groups</ThemedText>
 
-      {MY_GROUPS.length > 0 && (
+      {myGroups.length > 0 && (
         <ThemedView style={styles.list}>
-          {MY_GROUPS.map((group) => (
+          {myGroups.map((group) => (
             <GroupCard
               key={group.id}
               name={group.name}
@@ -92,6 +145,19 @@ function GroupsTab() {
             />
           ))}
         </ThemedView>
+      )}
+
+      {isCreating ? (
+        <CreateGroupPanel onCreate={handleCreate} onCancel={() => setIsCreating(false)} />
+      ) : (
+        <Pressable
+          onPress={() => setIsCreating(true)}
+          style={[styles.joinButton, { backgroundColor: theme.primary }]}>
+          <Ionicons name="add-circle-outline" size={16} color={theme.background} />
+          <ThemedText type="bodyBold" themeColor="background">
+            Create Group
+          </ThemedText>
+        </Pressable>
       )}
 
       <JoinGroupButton />
@@ -156,5 +222,30 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     paddingVertical: Spacing.three,
     borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+  },
+  createPanel: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  createPanelActions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    marginTop: Spacing.one,
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    fontSize: Platform.OS === 'web' ? 16 : 14,
   },
 });

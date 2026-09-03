@@ -29,6 +29,7 @@ export const Colors = {
     chartSuccess: '#7FDDA8',
     chartWarning: '#FFCF66',
     chartPrimary: '#8FB4FF',
+    chartError: '#F3A399',
   },
   dark: {
     text: '#F5F7FA',
@@ -51,6 +52,7 @@ export const Colors = {
     chartSuccess: '#5EDBA0',
     chartWarning: '#F4CE73',
     chartPrimary: '#8CB6FF',
+    chartError: '#F5978A',
   },
 } as const;
 

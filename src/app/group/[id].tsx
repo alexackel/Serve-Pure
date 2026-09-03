@@ -4,15 +4,16 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { router, useLocalSearchParams } from 'expo-router';
 
-import { MemberRow, RecordCard } from '@/components/cards';
+import { MemberRow, RecordCard, UploadedRecordCard } from '@/components/cards';
 import { PieChart } from '@/components/charts/pie-chart';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { useGroups } from '@/context/groups-context';
 import { useHistory } from '@/context/history-context';
-import { MOCK_GROUPS } from '@/data/mock-groups';
+import { sumMemberHours, type GroupMember, type MockGroup } from '@/data/mock-groups';
 import { useTheme } from '@/hooks/use-theme';
 
 // No records can carry the 'admin-approved' status yet (that approval flow
@@ -44,9 +45,19 @@ function BackButton() {
   );
 }
 
-function MembersTab({ groupId, members }: { groupId: string; members: { id: string; name: string; hours: number }[] }) {
+function MembersTab({
+  groupId,
+  members,
+  adminIds,
+  isAdmin,
+}: {
+  groupId: string;
+  members: GroupMember[];
+  adminIds: string[];
+  isAdmin: boolean;
+}) {
   const theme = useTheme();
-  const ranked = [...members].sort((a, b) => b.hours - a.hours);
+  const ranked = [...members].sort((a, b) => sumMemberHours(b) - sumMemberHours(a));
 
   return (
     <ThemedView style={styles.section}>
@@ -62,15 +73,63 @@ function MembersTab({ groupId, members }: { groupId: string; members: { id: stri
 
       <ThemedView style={styles.list}>
         {ranked.map((member, index) => (
-          <MemberRow key={member.id} rank={index + 1} name={member.name} hours={member.hours} />
+          <MemberRow
+            key={member.id}
+            rank={index + 1}
+            name={member.name}
+            hours={sumMemberHours(member)}
+            isAdmin={adminIds.includes(member.id)}
+            onPress={
+              isAdmin
+                ? () =>
+                    router.push({
+                      pathname: '/group/[id]/member/[memberId]',
+                      params: { id: groupId, memberId: member.id },
+                    })
+                : undefined
+            }
+          />
         ))}
       </ThemedView>
     </ThemedView>
   );
 }
 
-function ReportedHoursTab() {
+function ReportedHoursTab({ group, isAdmin }: { group: MockGroup; isAdmin: boolean }) {
   const { records } = useHistory();
+  const { approveMemberRecord, rejectMemberRecord } = useGroups();
+
+  if (isAdmin) {
+    const uploaded = group.members.flatMap((member) =>
+      member.records
+        .filter((record) => record.status === 'self-uploaded')
+        .map((record) => ({ member, record })),
+    );
+
+    return (
+      <ThemedView style={styles.section}>
+        <ThemedText type="h3">Self-Uploaded Hours</ThemedText>
+        {uploaded.length === 0 ? (
+          <ThemedText type="body" themeColor="textSecondary">
+            No self-uploaded hours yet.
+          </ThemedText>
+        ) : (
+          <ThemedView style={styles.list}>
+            {uploaded.map(({ member, record }) => (
+              <UploadedRecordCard
+                key={record.id}
+                memberName={member.name}
+                record={record}
+                onApprove={() => approveMemberRecord(group.id, member.id, record.id)}
+                onReject={() => rejectMemberRecord(group.id, member.id, record.id)}
+              />
+            ))}
+          </ThemedView>
+        )}
+      </ThemedView>
+    );
+  }
+
   const selfUploaded = records.filter((record) => record.status === 'self-uploaded');
 
   return (
@@ -88,6 +147,48 @@ function ReportedHoursTab() {
         </ThemedView>
       )}
     </ThemedView>
+  );
+}
+
+function DeleteGroupButton({ groupId }: { groupId: string }) {
+  const theme = useTheme();
+  const { deleteGroup } = useGroups();
+  const [confirming, setConfirming] = useState(false);
+
+  const handleDelete = () => {
+    deleteGroup(groupId);
+    router.replace('/groups');
+  };
+
+  if (confirming) {
+    return (
+      <ThemedView type="backgroundElement" style={styles.deleteConfirm}>
+        <ThemedText type="body">Delete this group? This can't be undone.</ThemedText>
+        <View style={styles.deleteConfirmActions}>
+          <Pressable
+            onPress={() => setConfirming(false)}
+            style={[styles.actionButton, { borderColor: theme.border }]}>
+            <ThemedText type="bodyBold">Cancel</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={handleDelete}
+            style={[styles.actionButton, { backgroundColor: theme.error, borderColor: theme.error }]}>
+            <ThemedText type="bodyBold" themeColor="background">
+              Delete Permanently
+            </ThemedText>
+          </Pressable>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  return (
+    <Pressable onPress={() => setConfirming(true)} style={styles.deleteButton} hitSlop={8}>
+      <Ionicons name="trash-outline" size={14} color={theme.error} />
+      <ThemedText type="label" themeColor="error">
+        Delete Group
+      </ThemedText>
+    </Pressable>
   );
 }
 
@@ -119,7 +220,8 @@ function AnalyticsTab() {
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
-  const group = MOCK_GROUPS.find((item) => item.id === id);
+  const { groups, isAdmin: checkIsAdmin } = useGroups();
+  const group = groups.find((item) => item.id === id);
   const [activeTab, setActiveTab] = useState<TabKey>('members');
 
   if (!group) {
@@ -130,6 +232,8 @@ export default function GroupDetailScreen() {
       </ScreenScrollView>
     );
   }
+
+  const isAdmin = checkIsAdmin(group.id);
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -147,11 +251,23 @@ export default function GroupDetailScreen() {
         </View>
       </View>
 
+      {isAdmin && (
+        <View style={[styles.adminBadge, { backgroundColor: theme.primaryTint }]}>
+          <ThemedText type="label" themeColor="primary">
+            Admin
+          </ThemedText>
+        </View>
+      )}
+
       <SegmentedTabs tabs={GROUP_TABS} activeKey={activeTab} onChange={setActiveTab} />
 
-      {activeTab === 'members' && <MembersTab groupId={group.id} members={group.members} />}
-      {activeTab === 'reported' && <ReportedHoursTab />}
+      {activeTab === 'members' && (
+        <MembersTab groupId={group.id} members={group.members} adminIds={group.adminIds ?? []} isAdmin={isAdmin} />
+      )}
+      {activeTab === 'reported' && <ReportedHoursTab group={group} isAdmin={isAdmin} />}
       {activeTab === 'analytics' && <AnalyticsTab />}
+
+      {isAdmin && <DeleteGroupButton groupId={group.id} />}
     </ScreenScrollView>
   );
 }
@@ -181,6 +297,12 @@ const styles = StyleSheet.create({
   headerInfo: {
     gap: Spacing.half,
   },
+  adminBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.half,
+    borderRadius: BorderRadius.pill,
+  },
   section: {
     gap: Spacing.three,
   },
@@ -200,5 +322,27 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: Spacing.two,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: Spacing.one,
+  },
+  deleteConfirm: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  deleteConfirmActions: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.two,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
   },
 });
