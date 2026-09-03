@@ -330,7 +330,7 @@ function ExportHistoryButton() {
   return (
     <Pressable style={[styles.exportButton, { borderColor: theme.border }]}>
       <Ionicons name="download-outline" size={14} color={theme.text} />
-      <ThemedText type="label">Export History</ThemedText>
+      <ThemedText type="label">Export Verified Transcript</ThemedText>
     </Pressable>
   );
 }

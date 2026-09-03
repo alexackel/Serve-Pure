@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { SearchBar } from './search-bar';
-
-import { Spacing } from '@/constants/theme';
+import { ThemedText } from '@/components/themed-text';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type IconButtonProps = {
@@ -30,15 +29,27 @@ function IconButton({ icon, accessibilityLabel, hasUnread, onPress }: IconButton
   );
 }
 
-type HomeHeaderProps = {
-  searchValue: string;
-  onSearchChange: (value: string) => void;
-};
+export function HomeHeader() {
+  const theme = useTheme();
 
-export function HomeHeader({ searchValue, onSearchChange }: HomeHeaderProps) {
   return (
     <View style={styles.row}>
-      <SearchBar placeholder="Search friends" value={searchValue} onChangeText={onSearchChange} />
+      <View style={styles.icons}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Profile" style={styles.avatarButton}>
+          <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
+            <Ionicons name="person" size={18} color={theme.primary} />
+          </View>
+        </Pressable>
+        <IconButton icon="search-outline" accessibilityLabel="Search" />
+      </View>
+
+      <View style={styles.upgradeSlot}>
+        <Pressable style={({ pressed }) => [styles.upgradeButton, { backgroundColor: theme.primary }, pressed && styles.pressed]}>
+          <ThemedText type="bodyBold" themeColor="background">
+            Upgrade
+          </ThemedText>
+        </Pressable>
+      </View>
 
       <View style={styles.icons}>
         <IconButton icon="notifications-outline" accessibilityLabel="Notifications" hasUnread />
@@ -56,6 +67,29 @@ const styles = StyleSheet.create({
   },
   icons: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  upgradeSlot: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  avatarButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: BorderRadius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upgradeButton: {
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderRadius: BorderRadius.pill,
   },
   iconButton: {
     width: 40,

@@ -23,14 +23,14 @@ export function ScreenScrollView({ children, style, contentContainerStyle, conta
   const theme = useTheme();
 
   const platformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
     web: {
       paddingTop: Spacing.six,
+      paddingBottom: insets.bottom,
+    },
+    default: {
+      paddingTop: insets.top + Spacing.two,
+      paddingLeft: insets.left,
+      paddingRight: insets.right,
       paddingBottom: insets.bottom,
     },
   });
@@ -38,7 +38,6 @@ export function ScreenScrollView({ children, style, contentContainerStyle, conta
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }, style]}
-      contentInset={insets}
       contentContainerStyle={[styles.contentContainer, platformStyle, contentContainerStyle]}
       {...rest}>
       <ThemedView style={[styles.container, containerStyle]}>{children}</ThemedView>

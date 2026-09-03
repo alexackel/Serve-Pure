@@ -1,5 +1,31 @@
+const MONTH_ABBREVIATIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH_DAY_PATTERN = /^([A-Za-z]{3})\s+(\d{1,2})$/;
+
+// `new Date(string)` only has spec-guaranteed behavior for ISO 8601 — free-form labels
+// like "Aug 24" are implementation-defined, and engines can disagree (Hermes, React
+// Native's JS engine, returns Invalid Date for shapes V8/browsers accept). Parsing the
+// month/day ourselves and building the Date numerically works identically everywhere.
+function parseMonthDayLabel(dateLabel: string) {
+  const match = MONTH_DAY_PATTERN.exec(dateLabel.trim());
+  if (!match) {
+    return null;
+  }
+
+  const month = MONTH_ABBREVIATIONS.indexOf(match[1]);
+  if (month === -1) {
+    return null;
+  }
+
+  return { month, day: Number(match[2]) };
+}
+
 export function parseRecordDate(dateLabel: string, now: Date) {
-  const parsed = new Date(`${dateLabel}, ${now.getFullYear()}`);
+  const parts = parseMonthDayLabel(dateLabel);
+  if (!parts) {
+    return new Date(NaN);
+  }
+
+  const parsed = new Date(now.getFullYear(), parts.month, parts.day);
   if (parsed.getTime() > now.getTime()) {
     parsed.setFullYear(parsed.getFullYear() - 1);
   }
@@ -14,7 +40,8 @@ const SIX_MONTHS_MS = 1000 * 60 * 60 * 24 * 30 * 6;
 // Missing startTime is left at midnight, which makes the 24-hour cancellation check
 // trigger more readily rather than less.
 export function parseEventDateTime(dateLabel: string, timeLabel: string | undefined, now: Date) {
-  const parsed = new Date(`${dateLabel}, ${now.getFullYear()}`);
+  const parts = parseMonthDayLabel(dateLabel);
+  const parsed = parts ? new Date(now.getFullYear(), parts.month, parts.day) : new Date(NaN);
   if (now.getTime() - parsed.getTime() > SIX_MONTHS_MS) {
     parsed.setFullYear(parsed.getFullYear() + 1);
   }

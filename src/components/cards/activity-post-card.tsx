@@ -55,7 +55,7 @@ export function ActivityPostCard({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: BorderRadius.lg,
+    borderRadius: 0,
     padding: Spacing.four,
     gap: Spacing.two,
   },
