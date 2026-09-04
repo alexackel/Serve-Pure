@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -36,9 +37,7 @@ export function HomeHeader() {
     <View style={styles.row}>
       <View style={styles.icons}>
         <Pressable accessibilityRole="button" accessibilityLabel="Profile" style={styles.avatarButton}>
-          <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-            <Ionicons name="person" size={18} color={theme.primary} />
-          </View>
+          <Avatar icon="person" iconSize={18} />
         </Pressable>
         <IconButton icon="search-outline" accessibilityLabel="Search" />
       </View>
@@ -76,13 +75,6 @@ const styles = StyleSheet.create({
   avatarButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },

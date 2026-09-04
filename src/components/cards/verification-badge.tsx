@@ -21,7 +21,7 @@ export type VerificationBadgeProps = {
   size?: 'sm' | 'md';
 };
 
-const defaultLabels: Record<VerificationStatus, string> = {
+export const defaultLabels: Record<VerificationStatus, string> = {
   verified: 'Verified',
   registered: 'Registered',
   pending: 'Pending',
@@ -33,15 +33,18 @@ const defaultLabels: Record<VerificationStatus, string> = {
   warning: 'Warning',
 };
 
+export function statusColorKey(status: VerificationStatus): 'success' | 'warning' | 'error' {
+  return status === 'verified' || status === 'registered' || status === 'admin-approved'
+    ? 'success'
+    : status === 'pending' || status === 'self-uploaded'
+      ? 'warning'
+      : 'error';
+}
+
 export function VerificationBadge({ status, label, size = 'md' }: VerificationBadgeProps) {
   const theme = useTheme();
 
-  const colorKey =
-    status === 'verified' || status === 'registered' || status === 'admin-approved'
-      ? 'success'
-      : status === 'pending' || status === 'self-uploaded'
-        ? 'warning'
-        : 'error';
+  const colorKey = statusColorKey(status);
   const dotColor = theme[colorKey];
   const backgroundColor = theme[`${colorKey}Background`];
 

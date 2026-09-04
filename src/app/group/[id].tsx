@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { MemberRow, RecordCard, UploadedRecordCard } from '@/components/cards';
+import { Avatar } from '@/components/avatar';
+import { BackButton } from '@/components/back-button';
 import { PieChart } from '@/components/charts/pie-chart';
+import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
@@ -13,7 +16,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useGroups } from '@/context/groups-context';
 import { useHistory } from '@/context/history-context';
-import { sumHoursByStatus, sumMemberHours, type GroupMember, type MockGroup } from '@/data/mock-groups';
+import { sumHoursByStatusMap, sumMemberHours, type GroupMember, type MockGroup } from '@/data/mock-groups';
 import { useTheme } from '@/hooks/use-theme';
 
 const GROUP_TABS = [
@@ -23,23 +26,6 @@ const GROUP_TABS = [
 ] as const;
 
 type TabKey = (typeof GROUP_TABS)[number]['key'];
-
-function BackButton() {
-  const theme = useTheme();
-  const handlePress = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/groups');
-    }
-  };
-  return (
-    <Pressable onPress={handlePress} hitSlop={8} style={styles.backButton}>
-      <Ionicons name="chevron-back" size={22} color={theme.text} />
-      <ThemedText type="bodyBold">Back</ThemedText>
-    </Pressable>
-  );
-}
 
 function MembersTab({
   groupId,
@@ -53,7 +39,13 @@ function MembersTab({
   isAdmin: boolean;
 }) {
   const theme = useTheme();
-  const ranked = [...members].sort((a, b) => sumMemberHours(b) - sumMemberHours(a));
+  const ranked = useMemo(
+    () =>
+      members
+        .map((member) => ({ member, hours: sumMemberHours(member) }))
+        .sort((a, b) => b.hours - a.hours),
+    [members],
+  );
 
   return (
     <ThemedView style={styles.section}>
@@ -68,12 +60,12 @@ function MembersTab({
       </View>
 
       <ThemedView style={styles.list}>
-        {ranked.map((member, index) => (
+        {ranked.map(({ member, hours }, index) => (
           <MemberRow
             key={member.id}
             rank={index + 1}
             name={member.name}
-            hours={sumMemberHours(member)}
+            hours={hours}
             isAdmin={adminIds.includes(member.id)}
             onPress={
               isAdmin
@@ -159,21 +151,13 @@ function DeleteGroupButton({ groupId }: { groupId: string }) {
   if (confirming) {
     return (
       <ThemedView type="backgroundElement" style={styles.deleteConfirm}>
-        <ThemedText type="body">Delete this group? This can't be undone.</ThemedText>
-        <View style={styles.deleteConfirmActions}>
-          <Pressable
-            onPress={() => setConfirming(false)}
-            style={[styles.actionButton, { borderColor: theme.border }]}>
-            <ThemedText type="bodyBold">Cancel</ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={handleDelete}
-            style={[styles.actionButton, { backgroundColor: theme.error, borderColor: theme.error }]}>
-            <ThemedText type="bodyBold" themeColor="background">
-              Delete Permanently
-            </ThemedText>
-          </Pressable>
-        </View>
+        <ThemedText type="body">Delete this group? This can&apos;t be undone.</ThemedText>
+        <ConfirmCancelRow
+          confirmLabel="Delete Permanently"
+          confirmColor="error"
+          onCancel={() => setConfirming(false)}
+          onConfirm={handleDelete}
+        />
       </ThemedView>
     );
   }
@@ -191,7 +175,10 @@ function DeleteGroupButton({ groupId }: { groupId: string }) {
 function AnalyticsTab({ group }: { group: MockGroup }) {
   const theme = useTheme();
 
-  const hoursByStatus = sumHoursByStatus(group.members.flatMap((member) => member.records));
+  const hoursByStatus = useMemo(
+    () => sumHoursByStatusMap(group.members.flatMap((member) => member.records)),
+    [group],
+  );
 
   return (
     <ThemedView style={styles.section}>
@@ -217,7 +204,7 @@ export default function GroupDetailScreen() {
   if (!group) {
     return (
       <ScreenScrollView containerStyle={styles.container}>
-        <BackButton />
+        <BackButton fallbackHref="/groups" />
         <ThemedText type="h3">Group not found</ThemedText>
       </ScreenScrollView>
     );
@@ -227,12 +214,10 @@ export default function GroupDetailScreen() {
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
-      <BackButton />
+      <BackButton fallbackHref="/groups" />
 
       <View style={styles.headerRow}>
-        <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-          <Ionicons name="people" size={22} color={theme.primary} />
-        </View>
+        <Avatar size={48} icon="people" iconSize={22} />
         <View style={styles.headerInfo}>
           <ThemedText type="h2">{group.name}</ThemedText>
           <ThemedText type="caption" themeColor="textSecondary">
@@ -267,23 +252,10 @@ const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.half,
-    alignSelf: 'flex-start',
-  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerInfo: {
     gap: Spacing.half,
@@ -324,16 +296,5 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: Spacing.three,
     gap: Spacing.two,
-  },
-  deleteConfirmActions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
   },
 });

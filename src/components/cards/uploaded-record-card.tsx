@@ -1,24 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { VerificationBadge } from '@/components/cards/verification-badge';
+import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
+import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import type { GroupMemberRecord } from '@/data/mock-groups';
 import { useTheme } from '@/hooks/use-theme';
-
-function MetaRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  const theme = useTheme();
-  return (
-    <View style={styles.metaRow}>
-      <Ionicons name={icon} size={14} color={theme.textSecondary} />
-      <ThemedText type="caption" themeColor="textSecondary">
-        {text}
-      </ThemedText>
-    </View>
-  );
-}
 
 export type UploadedRecordCardProps = {
   memberName: string;
@@ -33,9 +24,7 @@ export function UploadedRecordCard({ memberName, record, onApprove, onReject }: 
   return (
     <ThemedView type="backgroundElement" style={[styles.card, CardShadow]}>
       <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-          <Ionicons name="person" size={18} color={theme.primary} />
-        </View>
+        <Avatar size={40} icon="person" iconSize={18} />
         <View style={styles.headerInfo}>
           <ThemedText type="bodyBold" numberOfLines={1}>
             {memberName}
@@ -63,18 +52,7 @@ export function UploadedRecordCard({ memberName, record, onApprove, onReject }: 
         )}
       </View>
 
-      <View style={styles.actions}>
-        <Pressable onPress={onReject} style={[styles.actionButton, { borderColor: theme.border }]}>
-          <ThemedText type="bodyBold">Reject</ThemedText>
-        </Pressable>
-        <Pressable
-          onPress={onApprove}
-          style={[styles.actionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-          <ThemedText type="bodyBold" themeColor="background">
-            Approve
-          </ThemedText>
-        </Pressable>
-      </View>
+      <ConfirmCancelRow cancelLabel="Reject" confirmLabel="Approve" onCancel={onReject} onConfirm={onApprove} />
     </ThemedView>
   );
 }
@@ -94,22 +72,10 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   eventDetails: {
     gap: Spacing.one,
   },
   metaList: {
-    gap: Spacing.one,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.one,
   },
   noteBox: {
@@ -123,16 +89,5 @@ const styles = StyleSheet.create({
   },
   noteText: {
     flex: 1,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
   },
 });

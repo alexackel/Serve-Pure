@@ -1,11 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { PostActions, PostPhoto } from '@/components/cards/post-card-shared';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Spacing } from '@/constants/theme';
 
 export type ActivityPostCardProps = {
   name: string;
@@ -26,15 +25,11 @@ export function ActivityPostCard({
   likes,
   onPress,
 }: ActivityPostCardProps) {
-  const theme = useTheme();
-
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <ThemedView type="backgroundElement" style={styles.card}>
         <View style={styles.header}>
-          <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-            <Ionicons name="person" size={18} color={theme.primary} />
-          </View>
+          <Avatar icon="person" iconSize={18} />
           <ThemedText type="caption" themeColor="textSecondary">
             {timeAgo}
           </ThemedText>
@@ -63,13 +58,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   sentence: {},
 });

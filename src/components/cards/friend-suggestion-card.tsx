@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
@@ -26,9 +27,7 @@ export function FriendSuggestionCard({
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
-        <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-          <Ionicons name="person" size={26} color={theme.primary} />
-        </View>
+        <Avatar size={56} icon="person" iconSize={26} style={styles.avatarSpacing} />
 
         <ThemedText type="bodyBold" numberOfLines={1} style={styles.name}>
           {name}
@@ -73,12 +72,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.one,
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
+  avatarSpacing: {
     marginBottom: Spacing.half,
   },
   name: {

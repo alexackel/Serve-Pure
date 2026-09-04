@@ -5,7 +5,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { UploadedRecordCard } from '@/components/cards';
+import { Avatar } from '@/components/avatar';
+import { BackButton } from '@/components/back-button';
 import { BarChart, type BarChartEntry } from '@/components/charts/bar-chart';
+import { defaultLabels } from '@/components/cards/verification-badge';
+import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
@@ -13,18 +17,8 @@ import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useGroups } from '@/context/groups-context';
 import type { HistoryStatus } from '@/context/history-context';
-import { sumHoursByStatus, sumMemberHours } from '@/data/mock-groups';
+import { sumHoursByStatusMap, sumMemberHours } from '@/data/mock-groups';
 import { useTheme } from '@/hooks/use-theme';
-
-const STATUS_LABELS: Record<HistoryStatus, string> = {
-  verified: 'Verified',
-  pending: 'Pending',
-  'self-uploaded': 'Self-Uploaded',
-  'admin-approved': 'Admin Approved',
-  'no-show': 'No-Show',
-  appealed: 'Appealed',
-  cancelled: 'Cancelled',
-};
 
 const MEMBER_TABS = [
   { key: 'overview', label: 'Overview' },
@@ -47,20 +41,12 @@ function RemoveMemberButton({ groupId, memberId, memberName }: { groupId: string
     return (
       <ThemedView type="backgroundElement" style={styles.removeConfirm}>
         <ThemedText type="body">Remove {memberName} from this group?</ThemedText>
-        <View style={styles.removeConfirmActions}>
-          <Pressable
-            onPress={() => setConfirming(false)}
-            style={[styles.actionButton, { borderColor: theme.border }]}>
-            <ThemedText type="bodyBold">Cancel</ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={handleRemove}
-            style={[styles.actionButton, { backgroundColor: theme.error, borderColor: theme.error }]}>
-            <ThemedText type="bodyBold" themeColor="background">
-              Remove
-            </ThemedText>
-          </Pressable>
-        </View>
+        <ConfirmCancelRow
+          confirmLabel="Remove"
+          confirmColor="error"
+          onCancel={() => setConfirming(false)}
+          onConfirm={handleRemove}
+        />
       </ThemedView>
     );
   }
@@ -71,23 +57,6 @@ function RemoveMemberButton({ groupId, memberId, memberName }: { groupId: string
       <ThemedText type="label" themeColor="error">
         Remove from Group
       </ThemedText>
-    </Pressable>
-  );
-}
-
-function BackButton({ groupId }: { groupId: string }) {
-  const theme = useTheme();
-  const handlePress = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace({ pathname: '/group/[id]', params: { id: groupId } });
-    }
-  };
-  return (
-    <Pressable onPress={handlePress} hitSlop={8} style={styles.backButton}>
-      <Ionicons name="chevron-back" size={22} color={theme.text} />
-      <ThemedText type="bodyBold">Back</ThemedText>
     </Pressable>
   );
 }
@@ -104,13 +73,13 @@ export default function GroupMemberDetailScreen() {
   if (!group || !member || !isAdmin(group.id)) {
     return (
       <ScreenScrollView containerStyle={styles.container}>
-        <BackButton groupId={id ?? ''} />
+        <BackButton fallbackHref={{ pathname: '/group/[id]', params: { id: id ?? '' } }} />
         <ThemedText type="h3">Member not found</ThemedText>
       </ScreenScrollView>
     );
   }
 
-  const hoursByStatus = sumHoursByStatus(member.records);
+  const hoursByStatus = sumHoursByStatusMap(member.records);
 
   const chartColor: Record<HistoryStatus, string> = {
     verified: theme.chartSuccess,
@@ -123,7 +92,7 @@ export default function GroupMemberDetailScreen() {
   };
 
   const barData: BarChartEntry[] = (Object.keys(hoursByStatus) as HistoryStatus[]).map((status) => ({
-    label: STATUS_LABELS[status],
+    label: defaultLabels[status],
     value: hoursByStatus[status] ?? 0,
     color: chartColor[status],
   }));
@@ -132,12 +101,10 @@ export default function GroupMemberDetailScreen() {
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
-      <BackButton groupId={group.id} />
+      <BackButton fallbackHref={{ pathname: '/group/[id]', params: { id: group.id } }} />
 
       <View style={styles.headerRow}>
-        <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-          <Ionicons name="person" size={22} color={theme.primary} />
-        </View>
+        <Avatar size={48} icon="person" iconSize={22} />
         <View style={styles.headerInfo}>
           <ThemedText type="h2">{member.name}</ThemedText>
           <ThemedText type="caption" themeColor="textSecondary">
@@ -186,23 +153,10 @@ const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.half,
-    alignSelf: 'flex-start',
-  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   headerInfo: {
     gap: Spacing.half,
@@ -223,16 +177,5 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: Spacing.three,
     gap: Spacing.two,
-  },
-  removeConfirmActions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
   },
 });

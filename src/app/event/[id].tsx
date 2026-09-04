@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 
+import { Avatar } from '@/components/avatar';
+import { BackButton } from '@/components/back-button';
 import { VerificationBadge } from '@/components/cards/verification-badge';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -15,23 +17,6 @@ import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
 import { parseEventDateTime } from '@/utils/dates';
-
-function BackButton() {
-  const theme = useTheme();
-  const handlePress = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/find');
-    }
-  };
-  return (
-    <Pressable onPress={handlePress} hitSlop={8} style={styles.backButton}>
-      <Ionicons name="chevron-back" size={22} color={theme.text} />
-      <ThemedText type="bodyBold">Back</ThemedText>
-    </Pressable>
-  );
-}
 
 function SectionDivider() {
   const theme = useTheme();
@@ -75,16 +60,17 @@ export default function EventDetailScreen() {
   if (!event) {
     return (
       <ScreenScrollView containerStyle={styles.container}>
-        <BackButton />
+        <BackButton fallbackHref="/find" />
         <ThemedText type="h3">Event not found</ThemedText>
       </ScreenScrollView>
     );
   }
 
+  const { maxVolunteers } = event;
   const signedUp = isRegistered(event.id);
   const volunteerCount = event.volunteers === undefined ? undefined : event.volunteers + (signedUp ? 1 : 0);
-  const hasCapacity = volunteerCount !== undefined && event.maxVolunteers !== undefined;
-  const isFull = hasCapacity && volunteerCount! >= event.maxVolunteers!;
+  const hasCapacity = volunteerCount !== undefined && maxVolunteers !== undefined;
+  const isFull = volunteerCount !== undefined && maxVolunteers !== undefined && volunteerCount >= maxVolunteers;
 
   const now = new Date();
   const eventStart = parseEventDateTime(event.date, event.startTime, now);
@@ -111,19 +97,16 @@ export default function EventDetailScreen() {
 
   const handleCancelUnregister = () => setConfirmingUnregister(false);
 
-  const hasRequirements =
-    event.requirements &&
-    (event.requirements.age || event.requirements.skills || event.requirements.physical || event.requirements.whatToBring);
+  const { age, skills, physical, whatToBring } = event.requirements ?? {};
+  const hasRequirements = Boolean(age || skills || physical || whatToBring);
   const hasContactSection = event.contactInfo || event.website;
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
-      <BackButton />
+      <BackButton fallbackHref="/find" />
 
       <View style={styles.orgRow}>
-        <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-          <Ionicons name="business-outline" size={22} color={theme.primary} />
-        </View>
+        <Avatar size={40} icon="business-outline" iconSize={22} />
         <View style={styles.orgInfo}>
           <ThemedText type="bodyBold">{event.organization}</ThemedText>
           {event.organizationVerified && (
@@ -177,16 +160,10 @@ export default function EventDetailScreen() {
         <ThemedView style={styles.section}>
           <ThemedText type="h3">Requirements</ThemedText>
           <View style={styles.infoList}>
-            {event.requirements!.age && <InfoRow icon="person-outline" text={`Age: ${event.requirements!.age}`} />}
-            {event.requirements!.skills && (
-              <InfoRow icon="ribbon-outline" text={`Skills: ${event.requirements!.skills}`} />
-            )}
-            {event.requirements!.physical && (
-              <InfoRow icon="fitness-outline" text={`Physical: ${event.requirements!.physical}`} />
-            )}
-            {event.requirements!.whatToBring && (
-              <InfoRow icon="bag-outline" text={`What to bring: ${event.requirements!.whatToBring}`} />
-            )}
+            {age && <InfoRow icon="person-outline" text={`Age: ${age}`} />}
+            {skills && <InfoRow icon="ribbon-outline" text={`Skills: ${skills}`} />}
+            {physical && <InfoRow icon="fitness-outline" text={`Physical: ${physical}`} />}
+            {whatToBring && <InfoRow icon="bag-outline" text={`What to bring: ${whatToBring}`} />}
           </View>
         </ThemedView>
       )}
@@ -202,7 +179,7 @@ export default function EventDetailScreen() {
       )}
 
       {hasCapacity && (
-        <InfoRow icon="people-outline" text={`${volunteerCount}/${event.maxVolunteers} volunteers registered`} />
+        <InfoRow icon="people-outline" text={`${volunteerCount}/${maxVolunteers} volunteers registered`} />
       )}
 
       {confirmingUnregister ? (
@@ -256,23 +233,10 @@ const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.half,
-    alignSelf: 'flex-start',
-  },
   orgRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   orgInfo: {
     gap: Spacing.one,

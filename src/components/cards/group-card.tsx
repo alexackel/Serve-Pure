@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
@@ -18,9 +19,7 @@ export function GroupCard({ name, memberCount, onPress }: GroupCardProps) {
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
-        <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-          <Ionicons name="people" size={22} color={theme.primary} />
-        </View>
+        <Avatar size={44} icon="people" iconSize={22} />
 
         <View style={styles.info}>
           <ThemedText type="bodyBold" numberOfLines={1}>
@@ -48,13 +47,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.three,
     gap: Spacing.three,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   info: {
     flex: 1,

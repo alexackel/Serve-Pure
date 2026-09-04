@@ -1,13 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { useFocusEffect } from 'expo-router';
-import { useTabTrigger } from 'expo-router/ui';
 
+import { Avatar } from '@/components/avatar';
 import { EventCard, VerificationBadge } from '@/components/cards';
+import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
+import { HistoryFilterChips } from '@/components/history-filter-chips';
+import { MetaRow } from '@/components/meta-row';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
+import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
@@ -17,6 +21,7 @@ import { useOrganization } from '@/context/organization-context';
 import type { EventDetail } from '@/data/mock-events';
 import type { OrgHistoryRecord } from '@/data/mock-org-history';
 import { useTheme } from '@/hooks/use-theme';
+import { useToggleSet } from '@/hooks/use-toggle-set';
 import { parseEventDateTime } from '@/utils/dates';
 
 const ORG_YOU_TABS = [
@@ -75,45 +80,6 @@ function buildEventGroups(records: OrgHistoryRecord[], events: EventDetail[]): E
     const bTime = b.event ? parseEventDateTime(b.event.date, b.event.startTime, now).getTime() : 0;
     return bTime - aTime;
   });
-}
-
-function SwitchToPersonalButton() {
-  const theme = useTheme();
-  const { switchToPersonal } = useOrganization();
-  const { switchTab } = useTabTrigger({ name: 'you', href: '/you' });
-
-  const handlePress = () => {
-    switchToPersonal();
-    switchTab('you', {});
-  };
-
-  return (
-    <Pressable onPress={handlePress} style={[styles.switchButton, { borderColor: theme.border }]}>
-      <Ionicons name="swap-horizontal" size={14} color={theme.text} />
-      <ThemedText type="label">Personal</ThemedText>
-    </Pressable>
-  );
-}
-
-function VolunteerAvatar() {
-  const theme = useTheme();
-  return (
-    <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-      <Ionicons name="person" size={18} color={theme.primary} />
-    </View>
-  );
-}
-
-function MetaRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  const theme = useTheme();
-  return (
-    <View style={styles.metaRow}>
-      <Ionicons name={icon} size={14} color={theme.textSecondary} />
-      <ThemedText type="caption" themeColor="textSecondary">
-        {text}
-      </ThemedText>
-    </View>
-  );
 }
 
 function EventPicker({ events, onSelect }: { events: EventDetail[]; onSelect: (event: EventDetail) => void }) {
@@ -251,18 +217,12 @@ function CreateEventForm({
           {error}
         </ThemedText>
       )}
-      <View style={styles.panelActions}>
-        <Pressable onPress={onCancel} style={[styles.actionButton, { borderColor: theme.border }]}>
-          <ThemedText type="bodyBold">Cancel</ThemedText>
-        </Pressable>
-        <Pressable
-          onPress={handleCreate}
-          style={[styles.actionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-          <ThemedText type="bodyBold" themeColor="background">
-            Create &amp; Verify
-          </ThemedText>
-        </Pressable>
-      </View>
+      <ConfirmCancelRow
+        confirmLabel="Create & Verify"
+        onCancel={onCancel}
+        onConfirm={handleCreate}
+        style={styles.panelActions}
+      />
     </View>
   );
 }
@@ -363,7 +323,7 @@ function ApprovalCard({
   return (
     <ThemedView type="backgroundElement" style={[styles.approveCard, CardShadow]}>
       <View style={styles.approveHeader}>
-        <VolunteerAvatar />
+        <Avatar size={40} icon="person" iconSize={18} />
         <View style={styles.approveHeaderInfo}>
           <ThemedText type="bodyBold" numberOfLines={1}>
             {record.volunteerName}
@@ -413,20 +373,12 @@ function ApprovalCard({
           onCreateEvent={onCreateEvent}
         />
       ) : (
-        <View style={styles.approveActions}>
-          <Pressable
-            onPress={() => onReject(record.id)}
-            style={[styles.actionButton, { borderColor: theme.border }]}>
-            <ThemedText type="bodyBold">Reject</ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={() => onApprove(record.id)}
-            style={[styles.actionButton, { backgroundColor: theme.primary, borderColor: theme.primary }]}>
-            <ThemedText type="bodyBold" themeColor="background">
-              Approve
-            </ThemedText>
-          </Pressable>
-        </View>
+        <ConfirmCancelRow
+          cancelLabel="Reject"
+          confirmLabel="Approve"
+          onCancel={() => onReject(record.id)}
+          onConfirm={() => onApprove(record.id)}
+        />
       )}
     </ThemedView>
   );
@@ -448,6 +400,7 @@ function ApproveTab({
   onCreateEvent: (id: string, draft: NewEventDraft) => void;
 }) {
   const pending = records.filter((record) => NEEDS_ACTION_STATUSES.has(record.status));
+  const eventsById = useMemo(() => new Map(orgEvents.map((event) => [event.id, event])), [orgEvents]);
 
   return (
     <ThemedView style={styles.section}>
@@ -462,7 +415,7 @@ function ApproveTab({
             <ApprovalCard
               key={record.id}
               record={record}
-              event={orgEvents.find((event) => event.id === record.eventId)}
+              event={eventsById.get(record.eventId)}
               orgEvents={orgEvents}
               onApprove={onApprove}
               onReject={onReject}
@@ -473,41 +426,6 @@ function ApproveTab({
         </ThemedView>
       )}
     </ThemedView>
-  );
-}
-
-function HistoryFilterChips({
-  active,
-  onToggle,
-}: {
-  active: Set<HistoryFilterKey>;
-  onToggle: (key: HistoryFilterKey) => void;
-}) {
-  const theme = useTheme();
-
-  return (
-    <View style={styles.filterRow}>
-      {HISTORY_FILTERS.map((filter) => {
-        const isActive = active.has(filter.key);
-        const dotColor = filter.key === 'verified' ? theme.success : filter.key === 'pending' ? theme.warning : theme.error;
-
-        return (
-          <Pressable
-            key={filter.key}
-            onPress={() => onToggle(filter.key)}
-            style={[
-              styles.filterChip,
-              { borderColor: isActive ? theme.primary : theme.border },
-              isActive && { backgroundColor: theme.primaryTint },
-            ]}>
-            <View style={[styles.filterDot, { backgroundColor: dotColor }]} />
-            <ThemedText type="label" themeColor={isActive ? 'primary' : 'textSecondary'}>
-              {filter.label}
-            </ThemedText>
-          </Pressable>
-        );
-      })}
-    </View>
   );
 }
 
@@ -528,27 +446,15 @@ function RosterRow({ volunteerName, hours, status }: { volunteerName: string; ho
 }
 
 function HistoryTab({ records, events }: { records: OrgHistoryRecord[]; events: EventDetail[] }) {
-  const [activeFilters, setActiveFilters] = useState<Set<HistoryFilterKey>>(ALL_HISTORY_FILTERS);
+  const [activeFilters, toggleFilter] = useToggleSet(ALL_HISTORY_FILTERS);
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
-  const toggleFilter = (key: HistoryFilterKey) => {
-    setActiveFilters((current) => {
-      const next = new Set(current);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  };
-
-  const groups = buildEventGroups(records, events);
+  const groups = useMemo(() => buildEventGroups(records, events), [records, events]);
 
   return (
     <ThemedView style={styles.section}>
       <ThemedText type="h3">Historical Events</ThemedText>
-      <HistoryFilterChips active={activeFilters} onToggle={toggleFilter} />
+      <HistoryFilterChips filters={HISTORY_FILTERS} active={activeFilters} onToggle={toggleFilter} />
       {groups.length === 0 ? (
         <ThemedText type="body" themeColor="textSecondary">
           No historical events yet.
@@ -619,7 +525,7 @@ export default function OrgYouScreen() {
         </ThemedText>
       </View>
 
-      <SwitchToPersonalButton />
+      <SwitchViewModeButton target="personal" />
 
       <SegmentedTabs tabs={ORG_YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
 
@@ -655,16 +561,6 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     flexShrink: 1,
   },
-  switchButton: {
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-  },
   section: {
     gap: Spacing.three,
   },
@@ -685,22 +581,10 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   eventDetails: {
     gap: Spacing.one,
   },
   metaList: {
-    gap: Spacing.one,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.one,
   },
   noteBox: {
@@ -714,17 +598,6 @@ const styles = StyleSheet.create({
   },
   noteText: {
     flex: 1,
-  },
-  approveActions: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
   },
   selfUploadedActions: {
     gap: Spacing.two,
@@ -781,25 +654,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
     marginTop: Spacing.one,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-  },
-  filterDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   eventGroup: {
     gap: Spacing.two,

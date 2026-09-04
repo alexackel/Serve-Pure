@@ -35,7 +35,7 @@ export function sumMemberHours(member: GroupMember): number {
 
 // Shared by the member-level and group-level hours breakdowns so the two
 // screens can't compute status totals two different ways and drift apart.
-export function sumHoursByStatus(records: GroupMemberRecord[]): Partial<Record<HistoryStatus, number>> {
+export function sumHoursByStatusMap(records: GroupMemberRecord[]): Partial<Record<HistoryStatus, number>> {
   return records.reduce(
     (acc, record) => {
       acc[record.status] = (acc[record.status] ?? 0) + (record.hours ?? 0);

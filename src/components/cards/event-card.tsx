@@ -1,7 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { VerificationBadge } from '@/components/cards/verification-badge';
+import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
@@ -69,18 +70,6 @@ function StatusIndicator({ status }: { status: EventStatus }) {
   }
 }
 
-function MetaRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  const theme = useTheme();
-  return (
-    <View style={styles.metaRow}>
-      <Ionicons name={icon} size={14} color={theme.textSecondary} />
-      <ThemedText type="caption" themeColor="textSecondary">
-        {text}
-      </ThemedText>
-    </View>
-  );
-}
-
 export function EventCard({
   title,
   organization,
@@ -100,9 +89,7 @@ export function EventCard({
       <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
         <View style={styles.header}>
           <View style={styles.orgRow}>
-            <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-              <Ionicons name="business-outline" size={18} color={theme.primary} />
-            </View>
+            <Avatar icon="business-outline" iconSize={18} />
             <ThemedText type="caption" themeColor="textSecondary" style={styles.orgText} numberOfLines={1}>
               {organization}
             </ThemedText>
@@ -151,22 +138,10 @@ const styles = StyleSheet.create({
   orgText: {
     flexShrink: 1,
   },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: {
     marginBottom: Spacing.one,
   },
   metaList: {
-    gap: Spacing.one,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.one,
   },
   neutralPill: {

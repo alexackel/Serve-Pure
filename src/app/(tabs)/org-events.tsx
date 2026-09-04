@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { router } from 'expo-router';
@@ -9,16 +10,24 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useOrgHistory } from '@/context/org-history-context';
 import { useOrganization } from '@/context/organization-context';
+import type { EventDetail } from '@/data/mock-events';
 import { parseEventDateTime } from '@/utils/dates';
 
 export default function OrgEventsScreen() {
   const { activeOrganization } = useOrganization();
   const { getOrgEvents } = useOrgHistory();
 
-  const now = new Date();
+  const now = useMemo(() => new Date(), []);
   const orgEvents = getOrgEvents(activeOrganization.id);
-  const upcomingEvents = orgEvents.filter((event) => parseEventDateTime(event.date, event.startTime, now) >= now);
-  const pastEvents = orgEvents.filter((event) => parseEventDateTime(event.date, event.startTime, now) < now);
+  const { upcomingEvents, pastEvents } = useMemo(() => {
+    const upcoming: EventDetail[] = [];
+    const past: EventDetail[] = [];
+    for (const event of orgEvents) {
+      const target = parseEventDateTime(event.date, event.startTime, now) >= now ? upcoming : past;
+      target.push(event);
+    }
+    return { upcomingEvents: upcoming, pastEvents: past };
+  }, [orgEvents, now]);
 
   return (
     <ScreenScrollView containerStyle={styles.container}>

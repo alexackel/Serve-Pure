@@ -1,6 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
+import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
@@ -27,18 +28,6 @@ function PaidIndicator() {
   );
 }
 
-function MetaRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  const theme = useTheme();
-  return (
-    <View style={styles.metaRow}>
-      <Ionicons name={icon} size={14} color={theme.textSecondary} />
-      <ThemedText type="caption" themeColor="textSecondary">
-        {text}
-      </ThemedText>
-    </View>
-  );
-}
-
 export function RoleCard({ title, organization, location, hoursPerWeek, paid, onPress }: RoleCardProps) {
   const theme = useTheme();
 
@@ -47,9 +36,7 @@ export function RoleCard({ title, organization, location, hoursPerWeek, paid, on
       <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
         <View style={styles.header}>
           <View style={styles.orgRow}>
-            <View style={[styles.avatar, { backgroundColor: theme.primaryTint }]}>
-              <Ionicons name="business-outline" size={18} color={theme.primary} />
-            </View>
+            <Avatar icon="business-outline" iconSize={18} />
             <ThemedText type="caption" themeColor="textSecondary">
               {organization}
             </ThemedText>
@@ -87,22 +74,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.two,
   },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: BorderRadius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: {
     marginBottom: Spacing.one,
   },
   metaList: {
-    gap: Spacing.one,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: Spacing.one,
   },
   neutralPill: {

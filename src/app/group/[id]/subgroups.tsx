@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { GroupCard } from '@/components/cards';
+import { BackButton } from '@/components/back-button';
 import { CreateGroupPanel } from '@/components/create-group-panel';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -13,23 +14,6 @@ import { BorderRadius, Spacing } from '@/constants/theme';
 import { useGroups } from '@/context/groups-context';
 import { useTheme } from '@/hooks/use-theme';
 
-function BackButton() {
-  const theme = useTheme();
-  const handlePress = () => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/groups');
-    }
-  };
-  return (
-    <Pressable onPress={handlePress} hitSlop={8} style={styles.backButton}>
-      <Ionicons name="chevron-back" size={22} color={theme.text} />
-      <ThemedText type="bodyBold">Back</ThemedText>
-    </Pressable>
-  );
-}
-
 export default function SubgroupsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
@@ -37,16 +21,21 @@ export default function SubgroupsScreen() {
   const [isCreating, setIsCreating] = useState(false);
 
   const group = groups.find((item) => item.id === id);
-  const subgroups = group?.subgroupIds
-    ? group.subgroupIds
-        .map((subgroupId) => groups.find((item) => item.id === subgroupId))
-        .filter((item): item is NonNullable<typeof item> => Boolean(item))
-    : [];
+  const groupsById = useMemo(() => new Map(groups.map((item) => [item.id, item])), [groups]);
+  const subgroups = useMemo(
+    () =>
+      group?.subgroupIds
+        ? group.subgroupIds
+            .map((subgroupId) => groupsById.get(subgroupId))
+            .filter((item): item is NonNullable<typeof item> => Boolean(item))
+        : [],
+    [group, groupsById],
+  );
 
   if (!group) {
     return (
       <ScreenScrollView containerStyle={styles.container}>
-        <BackButton />
+        <BackButton fallbackHref="/groups" />
         <ThemedText type="h3">Group not found</ThemedText>
       </ScreenScrollView>
     );
@@ -62,7 +51,7 @@ export default function SubgroupsScreen() {
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
-      <BackButton />
+      <BackButton fallbackHref="/groups" />
 
       <ThemedText type="h1" style={styles.pageTitle}>
         Subgroups
@@ -113,12 +102,6 @@ export default function SubgroupsScreen() {
 const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.half,
-    alignSelf: 'flex-start',
   },
   pageTitle: {
     marginBottom: 0,

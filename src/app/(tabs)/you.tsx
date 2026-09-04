@@ -1,21 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
-import { useTabTrigger } from 'expo-router/ui';
 
 import { EventCard, RecordCard, StatCard } from '@/components/cards';
+import { HistoryFilterChips } from '@/components/history-filter-chips';
+import { PillIconButton } from '@/components/pill-icon-button';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
+import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
-import { useOrganization } from '@/context/organization-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
+import { useToggleSet } from '@/hooks/use-toggle-set';
 import { endOfDay, formatDateInput, formatShortDate, parseDateInput, parseRecordDate, startOfDay } from '@/utils/dates';
 
 const TIME_RANGES = ['All Time', 'Last 365 Days', 'Last 30 Days', 'Last 7 Days'] as const;
@@ -252,60 +254,8 @@ function UpcomingTab() {
   );
 }
 
-function HistoryFilterChips({
-  active,
-  onToggle,
-}: {
-  active: Set<HistoryFilterKey>;
-  onToggle: (key: HistoryFilterKey) => void;
-}) {
-  const theme = useTheme();
-
-  return (
-    <View style={styles.filterRow}>
-      {HISTORY_FILTERS.map((filter) => {
-        const isActive = active.has(filter.key);
-        const dotColor =
-          filter.key === 'verified'
-            ? theme.success
-            : filter.key === 'pending' || filter.key === 'self-uploaded'
-              ? theme.warning
-              : theme.error;
-
-        return (
-          <Pressable
-            key={filter.key}
-            onPress={() => onToggle(filter.key)}
-            style={[
-              styles.filterChip,
-              { borderColor: isActive ? theme.primary : theme.border },
-              isActive && { backgroundColor: theme.primaryTint },
-            ]}>
-            <View style={[styles.filterDot, { backgroundColor: dotColor }]} />
-            <ThemedText type="label" themeColor={isActive ? 'primary' : 'textSecondary'}>
-              {filter.label}
-            </ThemedText>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 function HistoryTab({ records }: { records: HistoryRecord[] }) {
-  const [activeFilters, setActiveFilters] = useState<Set<HistoryFilterKey>>(ALL_HISTORY_FILTERS);
-
-  const toggleFilter = (key: HistoryFilterKey) => {
-    setActiveFilters((current) => {
-      const next = new Set(current);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  };
+  const [activeFilters, toggleFilter] = useToggleSet(ALL_HISTORY_FILTERS);
 
   const visibleRecords = records.filter((record) =>
     record.status === 'admin-approved' ? activeFilters.has('verified') : activeFilters.has(record.status),
@@ -314,42 +264,13 @@ function HistoryTab({ records }: { records: HistoryRecord[] }) {
   return (
     <ThemedView style={styles.section}>
       <ThemedText type="h3">Your Volunteer History</ThemedText>
-      <HistoryFilterChips active={activeFilters} onToggle={toggleFilter} />
+      <HistoryFilterChips filters={HISTORY_FILTERS} active={activeFilters} onToggle={toggleFilter} />
       <ThemedView style={styles.list}>
         {visibleRecords.map(({ id, ...record }) => (
           <RecordCard key={id} {...record} />
         ))}
       </ThemedView>
     </ThemedView>
-  );
-}
-
-function ExportHistoryButton() {
-  const theme = useTheme();
-
-  return (
-    <Pressable style={[styles.exportButton, { borderColor: theme.border }]}>
-      <Ionicons name="download-outline" size={14} color={theme.text} />
-      <ThemedText type="label">Export Verified Transcript</ThemedText>
-    </Pressable>
-  );
-}
-
-function SwitchToOrganizationButton() {
-  const theme = useTheme();
-  const { activeOrganization, switchToOrganization } = useOrganization();
-  const { switchTab } = useTabTrigger({ name: 'org-you', href: '/org-you' });
-
-  const handlePress = () => {
-    switchToOrganization(activeOrganization.id);
-    switchTab('org-you', {});
-  };
-
-  return (
-    <Pressable onPress={handlePress} style={[styles.switchButton, { borderColor: theme.border }]}>
-      <Ionicons name="swap-horizontal" size={14} color={theme.text} />
-      <ThemedText type="label">Organization</ThemedText>
-    </Pressable>
   );
 }
 
@@ -366,11 +287,14 @@ export default function YouScreen() {
     }, []),
   );
 
-  const rangeRecords = filterRecordsByRange(historyRecords, timeRange, customRange);
-  const totalHours = sumHours(rangeRecords);
-  const verifiedHours = sumVerifiedHours(rangeRecords);
-  const pendingHours = sumHoursByStatus(rangeRecords, 'pending');
-  const selfUploadedHours = sumHoursByStatus(rangeRecords, 'self-uploaded');
+  const rangeRecords = useMemo(
+    () => filterRecordsByRange(historyRecords, timeRange, customRange),
+    [historyRecords, timeRange, customRange],
+  );
+  const totalHours = useMemo(() => sumHours(rangeRecords), [rangeRecords]);
+  const verifiedHours = useMemo(() => sumVerifiedHours(rangeRecords), [rangeRecords]);
+  const pendingHours = useMemo(() => sumHoursByStatus(rangeRecords, 'pending'), [rangeRecords]);
+  const selfUploadedHours = useMemo(() => sumHoursByStatus(rangeRecords, 'self-uploaded'), [rangeRecords]);
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -387,7 +311,7 @@ export default function YouScreen() {
         </View>
       </View>
 
-      <SwitchToOrganizationButton />
+      <SwitchViewModeButton target="organization" />
 
       <ThemedView style={styles.statsSection}>
         <TimeRangeSelector
@@ -415,7 +339,7 @@ export default function YouScreen() {
           />
         </ThemedView>
 
-        <ExportHistoryButton />
+        <PillIconButton icon="download-outline" label="Export Verified Transcript" />
       </ThemedView>
 
       <SegmentedTabs tabs={YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
@@ -445,16 +369,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
-  },
-  switchButton: {
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
   },
   statsSection: {
     gap: Spacing.three,
@@ -530,35 +444,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.three,
-  },
-  exportButton: {
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  filterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-  },
-  filterDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   list: {
     gap: Spacing.three,

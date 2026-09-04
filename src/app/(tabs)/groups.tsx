@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
@@ -75,9 +75,14 @@ function GroupsTab() {
   const { groups, myGroupIds, createGroup } = useGroups();
   const [isCreating, setIsCreating] = useState(false);
 
-  const myGroups = myGroupIds
-    .map((id) => groups.find((group) => group.id === id))
-    .filter((group): group is NonNullable<typeof group> => Boolean(group));
+  const groupsById = useMemo(() => new Map(groups.map((group) => [group.id, group])), [groups]);
+  const myGroups = useMemo(
+    () =>
+      myGroupIds
+        .map((id) => groupsById.get(id))
+        .filter((group): group is NonNullable<typeof group> => Boolean(group)),
+    [myGroupIds, groupsById],
+  );
 
   const handleCreate = (name: string) => {
     const id = createGroup(name);
