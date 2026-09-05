@@ -26,6 +26,14 @@ export type EventDetail = {
   volunteers?: number;
   maxVolunteers?: number;
   status: EventStatus;
+  // Optional: every Find-tab mock event has these populated, but events
+  // created ad hoc elsewhere (e.g. org-history-context's self-report flow)
+  // may not have coordinates/a recurrence yet. Filter/sort logic treats a
+  // missing value as "unknown" rather than crashing.
+  latitude?: number;
+  longitude?: number;
+  postedAt?: string;
+  recurring?: boolean;
 };
 
 export const MOCK_EVENTS: EventDetail[] = [
@@ -53,6 +61,10 @@ export const MOCK_EVENTS: EventDetail[] = [
     volunteers: 11,
     maxVolunteers: 20,
     status: 'available',
+    latitude: 37.7694,
+    longitude: -122.4862,
+    postedAt: '2026-08-30T14:00:00Z',
+    recurring: false,
   },
   {
     id: 'community-garden-planting',
@@ -61,7 +73,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     organizationId: 'greenfuture-coalition',
     organizationVerified: true,
     category: 'Environment',
-    date: 'Aug 12',
+    date: 'Sep 20',
     startTime: '9:00 AM',
     endTime: '12:00 PM',
     hours: 3,
@@ -72,6 +84,10 @@ export const MOCK_EVENTS: EventDetail[] = [
     volunteers: 14,
     maxVolunteers: 14,
     status: 'full',
+    latitude: 37.7694,
+    longitude: -122.4862,
+    postedAt: '2026-07-20T10:00:00Z',
+    recurring: true,
   },
   {
     id: 'food-bank-sorting',
@@ -79,7 +95,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     organization: 'Northside Food Bank',
     organizationVerified: true,
     category: 'Community',
-    date: 'Sep 2',
+    date: 'Sep 12',
     startTime: '1:00 PM',
     endTime: '5:00 PM',
     hours: 4,
@@ -96,13 +112,17 @@ export const MOCK_EVENTS: EventDetail[] = [
     volunteers: 8,
     maxVolunteers: 8,
     status: 'full',
+    latitude: 37.7849,
+    longitude: -122.4094,
+    postedAt: '2026-09-01T09:00:00Z',
+    recurring: true,
   },
   {
     id: 'animal-shelter-adoption-day',
     title: 'Animal Shelter Adoption Day',
     organization: 'Furry Friends Rescue',
     category: 'Animals',
-    date: 'Aug 24',
+    date: 'Sep 27',
     hours: 5,
     location: 'Furry Friends Rescue',
     description:
@@ -110,6 +130,10 @@ export const MOCK_EVENTS: EventDetail[] = [
     volunteers: 4,
     maxVolunteers: 12,
     status: 'available',
+    latitude: 37.7295,
+    longitude: -122.39,
+    postedAt: '2026-08-15T12:00:00Z',
+    recurring: true,
   },
   {
     id: 'library-reading-buddies',
@@ -117,7 +141,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     organization: 'Central Public Library',
     organizationVerified: true,
     category: 'Education',
-    date: 'Aug 18',
+    date: 'Sep 15',
     startTime: '3:30 PM',
     endTime: '5:30 PM',
     hours: 2,
@@ -131,18 +155,26 @@ export const MOCK_EVENTS: EventDetail[] = [
     volunteers: 6,
     maxVolunteers: 6,
     status: 'full',
+    latitude: 37.7793,
+    longitude: -122.4193,
+    postedAt: '2026-08-25T16:00:00Z',
+    recurring: true,
   },
   {
     id: 'trail-restoration-day',
     title: 'Trail Restoration Day',
     organization: 'Parks Conservancy',
     category: 'Environment',
-    date: 'Aug 10',
+    date: 'Oct 3',
     hours: 2,
     location: 'Blue Ridge Trailhead',
     volunteers: 11,
     maxVolunteers: 13,
     status: 'available',
+    latitude: 37.8199,
+    longitude: -122.5606,
+    postedAt: '2026-07-28T08:00:00Z',
+    recurring: false,
   },
   {
     id: 'senior-center-tech-help',
@@ -150,7 +182,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     organization: 'Maple Grove Senior Center',
     organizationVerified: true,
     category: 'Seniors',
-    date: 'Aug 3',
+    date: 'Sep 22',
     startTime: '10:00 AM',
     endTime: '1:00 PM',
     hours: 3,
@@ -165,17 +197,25 @@ export const MOCK_EVENTS: EventDetail[] = [
     volunteers: 3,
     maxVolunteers: 10,
     status: 'available',
+    latitude: 37.7599,
+    longitude: -122.4148,
+    postedAt: '2026-08-05T11:00:00Z',
+    recurring: true,
   },
   {
     id: 'beach-cleanup',
     title: 'Beach Cleanup',
     organization: 'Coastal Guardians',
     category: 'Environment',
-    date: 'Jul 27',
+    date: 'Oct 10',
     hours: 3,
     location: 'Sunset Beach',
     volunteers: 25,
     maxVolunteers: 25,
     status: 'full',
+    latitude: 37.7594,
+    longitude: -122.5107,
+    postedAt: '2026-07-10T13:00:00Z',
+    recurring: false,
   },
 ];

@@ -86,6 +86,12 @@ export function formatShortDate(date: Date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+export function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
 export function startOfDay(date: Date) {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
