@@ -14,10 +14,12 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useGroups } from '@/context/groups-context';
 import type { HistoryStatus } from '@/context/history-context';
 import { sumHoursByStatusMap, sumMemberHours } from '@/data/mock-groups';
+import { getUser } from '@/data/mock-users';
 import { useTheme } from '@/hooks/use-theme';
 
 const MEMBER_TABS = [
@@ -79,6 +81,7 @@ export default function GroupMemberDetailScreen() {
     );
   }
 
+  const memberUser = getUser(member.id);
   const hoursByStatus = sumHoursByStatusMap(member.records);
 
   const chartColor: Record<HistoryStatus, string> = {
@@ -106,7 +109,10 @@ export default function GroupMemberDetailScreen() {
       <View style={styles.headerRow}>
         <Avatar size={48} icon="person" iconSize={22} />
         <View style={styles.headerInfo}>
-          <ThemedText type="h2">{member.name}</ThemedText>
+          <View style={styles.nameRow}>
+            <ThemedText type="h2">{memberUser?.name ?? 'Unknown member'}</ThemedText>
+            {memberUser?.verified && <VerifiedBadge />}
+          </View>
           <ThemedText type="caption" themeColor="textSecondary">
             {sumMemberHours(member)} hrs total
           </ThemedText>
@@ -119,7 +125,11 @@ export default function GroupMemberDetailScreen() {
         <ThemedView style={styles.section}>
           <ThemedText type="h3">Hours Breakdown</ThemedText>
           <BarChart data={barData} />
-          <RemoveMemberButton groupId={group.id} memberId={member.id} memberName={member.name} />
+          <RemoveMemberButton
+            groupId={group.id}
+            memberId={member.id}
+            memberName={memberUser?.name ?? 'this member'}
+          />
         </ThemedView>
       )}
 
@@ -135,7 +145,8 @@ export default function GroupMemberDetailScreen() {
               {uploaded.map((record) => (
                 <UploadedRecordCard
                   key={record.id}
-                  memberName={member.name}
+                  memberName={memberUser?.name ?? 'Unknown member'}
+                  memberVerified={memberUser?.verified}
                   record={record}
                   onApprove={() => approveMemberRecord(group.id, member.id, record.id)}
                   onReject={() => rejectMemberRecord(group.id, member.id, record.id)}
@@ -157,6 +168,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
   headerInfo: {
     gap: Spacing.half,

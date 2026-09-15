@@ -7,18 +7,26 @@ import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
 import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import type { GroupMemberRecord } from '@/data/mock-groups';
 import { useTheme } from '@/hooks/use-theme';
 
 export type UploadedRecordCardProps = {
   memberName: string;
+  memberVerified?: boolean;
   record: GroupMemberRecord;
   onApprove: () => void;
   onReject: () => void;
 };
 
-export function UploadedRecordCard({ memberName, record, onApprove, onReject }: UploadedRecordCardProps) {
+export function UploadedRecordCard({
+  memberName,
+  memberVerified,
+  record,
+  onApprove,
+  onReject,
+}: UploadedRecordCardProps) {
   const theme = useTheme();
 
   return (
@@ -26,9 +34,12 @@ export function UploadedRecordCard({ memberName, record, onApprove, onReject }: 
       <View style={styles.header}>
         <Avatar size={40} icon="person" iconSize={18} />
         <View style={styles.headerInfo}>
-          <ThemedText type="bodyBold" numberOfLines={1}>
-            {memberName}
-          </ThemedText>
+          <View style={styles.nameRow}>
+            <ThemedText type="bodyBold" numberOfLines={1}>
+              {memberName}
+            </ThemedText>
+            {memberVerified && <VerifiedBadge size="sm" />}
+          </View>
           <ThemedText type="caption" themeColor="textSecondary">
             {record.date}
             {record.hours !== undefined ? ` · ${record.hours} hrs` : ''}
@@ -71,6 +82,11 @@ const styles = StyleSheet.create({
   headerInfo: {
     flex: 1,
     gap: 2,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
   eventDetails: {
     gap: Spacing.one,

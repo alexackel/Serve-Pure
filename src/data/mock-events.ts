@@ -1,4 +1,5 @@
 import type { EventStatus } from '@/components/cards/event-card';
+import { MOCK_USERS } from '@/data/mock-users';
 
 export type EventRequirements = {
   age?: string;
@@ -25,6 +26,13 @@ export type EventDetail = {
   website?: string;
   volunteers?: number;
   maxVolunteers?: number;
+  // Ids into MOCK_USERS (src/data/mock-users.ts) for the volunteers already
+  // registered — separate from `volunteers` (a bare headcount kept for
+  // card-list summaries/sorting) so the event detail screen's roster can
+  // show real names without touching that existing count logic. Undefined
+  // for ad hoc events (e.g. org self-report flow) that don't get seeded
+  // identities; the detail screen falls back to the plain count for those.
+  registrants?: string[];
   status: EventStatus;
   // Optional: every Find-tab mock event has these populated, but events
   // created ad hoc elsewhere (e.g. org-history-context's self-report flow)
@@ -35,6 +43,15 @@ export type EventDetail = {
   postedAt?: string;
   recurring?: boolean;
 };
+
+// Deterministic, non-repeating (within a single event) slice of the shared
+// user pool so every event's registrant list shows real, distinct people
+// without hand-authoring a name for each seat.
+const REGISTRANT_POOL = MOCK_USERS.map((user) => user.id).filter((id) => id !== 'me');
+
+function pickRegistrants(count: number, offset: number): string[] {
+  return Array.from({ length: count }, (_, i) => REGISTRANT_POOL[(offset + i) % REGISTRANT_POOL.length]);
+}
 
 export const MOCK_EVENTS: EventDetail[] = [
   {
@@ -60,6 +77,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     website: 'https://greenfuturecoalition.org',
     volunteers: 11,
     maxVolunteers: 20,
+    registrants: pickRegistrants(11, 0),
     status: 'available',
     latitude: 37.7694,
     longitude: -122.4862,
@@ -83,6 +101,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     website: 'https://greenfuturecoalition.org',
     volunteers: 14,
     maxVolunteers: 14,
+    registrants: pickRegistrants(14, 11),
     status: 'full',
     latitude: 37.7694,
     longitude: -122.4862,
@@ -111,6 +130,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     website: 'https://northsidefoodbank.org',
     volunteers: 8,
     maxVolunteers: 8,
+    registrants: pickRegistrants(8, 25),
     status: 'full',
     latitude: 37.7849,
     longitude: -122.4094,
@@ -129,6 +149,7 @@ export const MOCK_EVENTS: EventDetail[] = [
       'Support our monthly adoption event — greet visitors, walk dogs for meet-and-greets, and help with setup and cleanup.',
     volunteers: 4,
     maxVolunteers: 12,
+    registrants: pickRegistrants(4, 33),
     status: 'available',
     latitude: 37.7295,
     longitude: -122.39,
@@ -154,6 +175,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     contactInfo: 'programs@centralpubliclibrary.org',
     volunteers: 6,
     maxVolunteers: 6,
+    registrants: pickRegistrants(6, 37),
     status: 'full',
     latitude: 37.7793,
     longitude: -122.4193,
@@ -170,6 +192,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     location: 'Blue Ridge Trailhead',
     volunteers: 11,
     maxVolunteers: 13,
+    registrants: pickRegistrants(11, 43),
     status: 'available',
     latitude: 37.8199,
     longitude: -122.5606,
@@ -196,6 +219,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     website: 'https://maplegroveseniors.org',
     volunteers: 3,
     maxVolunteers: 10,
+    registrants: pickRegistrants(3, 54),
     status: 'available',
     latitude: 37.7599,
     longitude: -122.4148,
@@ -212,6 +236,7 @@ export const MOCK_EVENTS: EventDetail[] = [
     location: 'Sunset Beach',
     volunteers: 25,
     maxVolunteers: 25,
+    registrants: pickRegistrants(25, 57),
     status: 'full',
     latitude: 37.7594,
     longitude: -122.5107,

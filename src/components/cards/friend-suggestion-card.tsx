@@ -4,11 +4,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type FriendSuggestionCardProps = {
   name: string;
+  verified?: boolean;
   mutualCount?: number;
   volunteeredWith?: string;
   onPress?: () => void;
@@ -17,6 +19,7 @@ export type FriendSuggestionCardProps = {
 
 export function FriendSuggestionCard({
   name,
+  verified,
   mutualCount,
   volunteeredWith,
   onPress,
@@ -29,9 +32,12 @@ export function FriendSuggestionCard({
       <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
         <Avatar size={56} icon="person" iconSize={26} style={styles.avatarSpacing} />
 
-        <ThemedText type="bodyBold" numberOfLines={1} style={styles.name}>
-          {name}
-        </ThemedText>
+        <View style={styles.nameRow}>
+          <ThemedText type="bodyBold" numberOfLines={1} style={styles.name}>
+            {name}
+          </ThemedText>
+          {verified && <VerifiedBadge size="sm" />}
+        </View>
 
         <View style={styles.reasons}>
           {mutualCount !== undefined && mutualCount > 0 && (
@@ -75,8 +81,15 @@ const styles = StyleSheet.create({
   avatarSpacing: {
     marginBottom: Spacing.half,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.half,
+    maxWidth: '100%',
+  },
   name: {
     textAlign: 'center',
+    flexShrink: 1,
   },
   reasons: {
     width: '100%',

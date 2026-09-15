@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
+import { Avatar } from '@/components/avatar';
 import { EventCard, RecordCard, StatCard } from '@/components/cards';
 import { HistoryFilterChips } from '@/components/history-filter-chips';
 import { PillIconButton } from '@/components/pill-icon-button';
@@ -12,9 +13,11 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
+import { CURRENT_USER } from '@/data/current-user';
 import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
 import { useToggleSet } from '@/hooks/use-toggle-set';
@@ -299,9 +302,13 @@ export default function YouScreen() {
   return (
     <ScreenScrollView containerStyle={styles.container}>
       <View style={styles.titleRow}>
-        <ThemedText type="h1" style={styles.pageTitle}>
-          You
-        </ThemedText>
+        <View style={styles.identityRow}>
+          <Avatar size={32} icon="person" iconSize={16} />
+          <ThemedText type="h1" style={styles.pageTitle}>
+            You
+          </ThemedText>
+          {CURRENT_USER.verified && <VerifiedBadge />}
+        </View>
         <View style={styles.reliabilityBadge}>
           <Ionicons name="star" size={16} color={theme.warning} />
           <ThemedText type="bodyBold">{reliabilityScore.toFixed(1)}</ThemedText>
@@ -364,6 +371,11 @@ const styles = StyleSheet.create({
   },
   pageTitle: {
     marginBottom: 0,
+  },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   reliabilityBadge: {
     flexDirection: 'row',

@@ -2,7 +2,9 @@ import type { HistoryStatus } from '@/context/history-context';
 
 export type OrgHistoryRecord = {
   id: string;
-  volunteerName: string;
+  // References a MOCK_USERS id (src/data/mock-users.ts) — look up
+  // name/verified via getUser(volunteerId) rather than storing them here.
+  volunteerId: string;
   eventId: string;
   eventTitle: string;
   date: string;
@@ -16,7 +18,7 @@ export type OrgHistoryRecord = {
 export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
   {
     id: 'oh1',
-    volunteerName: 'Jordan Lee',
+    volunteerId: 'm2',
     eventId: 'community-garden-planting',
     eventTitle: 'Community Garden Planting',
     date: 'Aug 12',
@@ -25,7 +27,7 @@ export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
   },
   {
     id: 'oh2',
-    volunteerName: 'Maya Torres',
+    volunteerId: 'm1',
     eventId: 'community-garden-planting',
     eventTitle: 'Community Garden Planting',
     date: 'Aug 12',
@@ -34,7 +36,7 @@ export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
   },
   {
     id: 'oh3',
-    volunteerName: 'Priya Nair',
+    volunteerId: 'm3',
     eventId: 'riverside-park-cleanup',
     eventTitle: 'Riverside Park Cleanup',
     date: 'Aug 5',
@@ -44,7 +46,7 @@ export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
   },
   {
     id: 'oh4',
-    volunteerName: 'Ethan Brooks',
+    volunteerId: 'm4',
     eventId: 'community-garden-planting',
     eventTitle: 'Community Garden Planting',
     date: 'Aug 12',
@@ -53,7 +55,7 @@ export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
   },
   {
     id: 'oh5',
-    volunteerName: 'Sofia Ramirez',
+    volunteerId: 'm5',
     eventId: 'community-garden-planting',
     eventTitle: 'Community Garden Planting',
     date: 'Aug 12',
@@ -61,7 +63,7 @@ export const MOCK_ORG_HISTORY: OrgHistoryRecord[] = [
   },
   {
     id: 'oh6',
-    volunteerName: 'Caleb Wright',
+    volunteerId: 'm6',
     eventId: 'neighborhood-food-drive',
     eventTitle: 'Neighborhood Food Drive',
     date: 'Aug 3',

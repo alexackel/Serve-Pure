@@ -2,18 +2,20 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type MemberRowProps = {
   rank: number;
   name: string;
+  verified?: boolean;
   hours: number;
   isAdmin?: boolean;
   onPress?: () => void;
 };
 
-export function MemberRow({ rank, name, hours, isAdmin, onPress }: MemberRowProps) {
+export function MemberRow({ rank, name, verified, hours, isAdmin, onPress }: MemberRowProps) {
   const theme = useTheme();
 
   const content = (
@@ -24,9 +26,12 @@ export function MemberRow({ rank, name, hours, isAdmin, onPress }: MemberRowProp
         </ThemedText>
       </View>
       <View style={styles.nameColumn}>
-        <ThemedText type="bodyBold" numberOfLines={1}>
-          {name}
-        </ThemedText>
+        <View style={styles.nameRow}>
+          <ThemedText type="bodyBold" numberOfLines={1} style={styles.nameText}>
+            {name}
+          </ThemedText>
+          {verified && <VerifiedBadge size="sm" />}
+        </View>
         {isAdmin && (
           <View style={[styles.adminPill, { backgroundColor: theme.primaryTint }]}>
             <ThemedText type="label" themeColor="primary">
@@ -71,6 +76,15 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.half,
     alignItems: 'flex-start',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    maxWidth: '100%',
+  },
+  nameText: {
+    flexShrink: 1,
   },
   adminPill: {
     paddingHorizontal: Spacing.two,

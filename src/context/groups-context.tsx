@@ -32,7 +32,7 @@ function buildNewGroup(name: string): MockGroup {
     name,
     memberCount: 1,
     adminIds: [CURRENT_USER.id],
-    members: [{ id: CURRENT_USER.id, name: CURRENT_USER.name, records: [] }],
+    members: [{ id: CURRENT_USER.id, records: [] }],
   };
 }
 

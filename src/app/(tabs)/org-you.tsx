@@ -14,12 +14,14 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { type HistoryStatus } from '@/context/history-context';
 import { type NewEventDraft, useOrgHistory } from '@/context/org-history-context';
 import { useOrganization } from '@/context/organization-context';
 import type { EventDetail } from '@/data/mock-events';
 import type { OrgHistoryRecord } from '@/data/mock-org-history';
+import { getUser } from '@/data/mock-users';
 import { useTheme } from '@/hooks/use-theme';
 import { useToggleSet } from '@/hooks/use-toggle-set';
 import { parseEventDateTime } from '@/utils/dates';
@@ -319,15 +321,19 @@ function ApprovalCard({
   onCreateEvent: (id: string, draft: NewEventDraft) => void;
 }) {
   const theme = useTheme();
+  const volunteer = getUser(record.volunteerId);
 
   return (
     <ThemedView type="backgroundElement" style={[styles.approveCard, CardShadow]}>
       <View style={styles.approveHeader}>
         <Avatar size={40} icon="person" iconSize={18} />
         <View style={styles.approveHeaderInfo}>
-          <ThemedText type="bodyBold" numberOfLines={1}>
-            {record.volunteerName}
-          </ThemedText>
+          <View style={styles.nameRow}>
+            <ThemedText type="bodyBold" numberOfLines={1}>
+              {volunteer?.name ?? 'Unknown volunteer'}
+            </ThemedText>
+            {volunteer?.verified && <VerifiedBadge size="sm" />}
+          </View>
           <ThemedText type="caption" themeColor="textSecondary">
             {record.date}
             {record.hours !== undefined ? ` · ${record.hours} hrs` : ''}
@@ -429,12 +435,16 @@ function ApproveTab({
   );
 }
 
-function RosterRow({ volunteerName, hours, status }: { volunteerName: string; hours?: number; status: HistoryStatus }) {
+function RosterRow({ volunteerId, hours, status }: { volunteerId: string; hours?: number; status: HistoryStatus }) {
+  const volunteer = getUser(volunteerId);
   return (
     <ThemedView type="backgroundElement" style={styles.rosterRow}>
-      <ThemedText type="bodyBold" style={styles.rosterName} numberOfLines={1}>
-        {volunteerName}
-      </ThemedText>
+      <View style={styles.rosterNameRow}>
+        <ThemedText type="bodyBold" numberOfLines={1}>
+          {volunteer?.name ?? 'Unknown volunteer'}
+        </ThemedText>
+        {volunteer?.verified && <VerifiedBadge size="sm" />}
+      </View>
       {hours !== undefined && (
         <ThemedText type="caption" themeColor="textSecondary">
           {hours} hrs
@@ -485,7 +495,7 @@ function HistoryTab({ records, events }: { records: OrgHistoryRecord[]; events: 
                     {visibleRecords.map((record) => (
                       <RosterRow
                         key={record.id}
-                        volunteerName={record.volunteerName}
+                        volunteerId={record.volunteerId}
                         hours={record.hours}
                         status={record.status}
                       />
@@ -581,6 +591,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
   eventDetails: {
     gap: Spacing.one,
   },
@@ -673,7 +688,10 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  rosterName: {
+  rosterNameRow: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
 });

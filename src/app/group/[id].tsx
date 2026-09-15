@@ -17,6 +17,7 @@ import { BorderRadius, Spacing } from '@/constants/theme';
 import { useGroups } from '@/context/groups-context';
 import { useHistory } from '@/context/history-context';
 import { sumHoursByStatusMap, sumMemberHours, type GroupMember, type MockGroup } from '@/data/mock-groups';
+import { getUser } from '@/data/mock-users';
 import { useTheme } from '@/hooks/use-theme';
 
 const GROUP_TABS = [
@@ -64,7 +65,8 @@ function MembersTab({
           <MemberRow
             key={member.id}
             rank={index + 1}
-            name={member.name}
+            name={getUser(member.id)?.name ?? 'Unknown member'}
+            verified={getUser(member.id)?.verified}
             hours={hours}
             isAdmin={adminIds.includes(member.id)}
             onPress={
@@ -106,7 +108,8 @@ function ReportedHoursTab({ group, isAdmin }: { group: MockGroup; isAdmin: boole
             {uploaded.map(({ member, record }) => (
               <UploadedRecordCard
                 key={record.id}
-                memberName={member.name}
+                memberName={getUser(member.id)?.name ?? 'Unknown member'}
+                memberVerified={getUser(member.id)?.verified}
                 record={record}
                 onApprove={() => approveMemberRecord(group.id, member.id, record.id)}
                 onReject={() => rejectMemberRecord(group.id, member.id, record.id)}

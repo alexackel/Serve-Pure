@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { Avatar } from '@/components/avatar';
 import { BackButton } from '@/components/back-button';
@@ -10,13 +10,36 @@ import { VerificationBadge } from '@/components/cards/verification-badge';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useHistory } from '@/context/history-context';
 import { useOrgHistory } from '@/context/org-history-context';
 import { useRegistrations } from '@/context/registrations-context';
+import { CURRENT_USER } from '@/data/current-user';
 import { MOCK_EVENTS } from '@/data/mock-events';
+import { getUser } from '@/data/mock-users';
 import { useTheme } from '@/hooks/use-theme';
 import { parseEventDateTime } from '@/utils/dates';
+
+function RegistrantRow({ eventId, userId }: { eventId: string; userId: string }) {
+  const theme = useTheme();
+  const registrant = getUser(userId);
+
+  return (
+    <Pressable
+      onPress={() => router.push({ pathname: '/event/[id]/volunteer/[volunteerId]', params: { id: eventId, volunteerId: userId } })}
+      style={[styles.registrantRow, { backgroundColor: theme.backgroundElement }]}>
+      <Avatar size={32} icon="person" iconSize={16} />
+      <View style={styles.registrantNameRow}>
+        <ThemedText type="bodyBold" numberOfLines={1} style={styles.registrantName}>
+          {registrant?.name ?? 'Unknown volunteer'}
+        </ThemedText>
+        {registrant?.verified && <VerifiedBadge size="sm" />}
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+    </Pressable>
+  );
+}
 
 function SectionDivider() {
   const theme = useTheme();
@@ -56,6 +79,7 @@ export default function EventDetailScreen() {
   const { addCancellationRecord } = useHistory();
 
   const [confirmingUnregister, setConfirmingUnregister] = useState(false);
+  const [rosterExpanded, setRosterExpanded] = useState(false);
 
   if (!event) {
     return (
@@ -71,6 +95,11 @@ export default function EventDetailScreen() {
   const volunteerCount = event.volunteers === undefined ? undefined : event.volunteers + (signedUp ? 1 : 0);
   const hasCapacity = volunteerCount !== undefined && maxVolunteers !== undefined;
   const isFull = volunteerCount !== undefined && maxVolunteers !== undefined && volunteerCount >= maxVolunteers;
+  const displayedRegistrantIds = event.registrants
+    ? signedUp
+      ? [...event.registrants, CURRENT_USER.id]
+      : event.registrants
+    : undefined;
 
   const now = new Date();
   const eventStart = parseEventDateTime(event.date, event.startTime, now);
@@ -178,8 +207,33 @@ export default function EventDetailScreen() {
         </ThemedView>
       )}
 
-      {hasCapacity && (
-        <InfoRow icon="people-outline" text={`${volunteerCount}/${maxVolunteers} volunteers registered`} />
+      {displayedRegistrantIds ? (
+        <ThemedView style={styles.section}>
+          <Pressable
+            onPress={() => setRosterExpanded((current) => !current)}
+            style={[styles.registrantToggle, { backgroundColor: theme.backgroundElement }]}>
+            <ThemedText type="h3" style={styles.registrantToggleText}>
+              Registered Volunteers
+              {maxVolunteers !== undefined && ` (${displayedRegistrantIds.length}/${maxVolunteers})`}
+            </ThemedText>
+            <Ionicons
+              name={rosterExpanded ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={theme.textSecondary}
+            />
+          </Pressable>
+          {rosterExpanded && (
+            <View style={styles.registrantList}>
+              {displayedRegistrantIds.map((userId) => (
+                <RegistrantRow key={userId} eventId={event.id} userId={userId} />
+              ))}
+            </View>
+          )}
+        </ThemedView>
+      ) : (
+        hasCapacity && (
+          <InfoRow icon="people-outline" text={`${volunteerCount}/${maxVolunteers} volunteers registered`} />
+        )
       )}
 
       {confirmingUnregister ? (
@@ -255,6 +309,35 @@ const styles = StyleSheet.create({
   },
   infoList: {
     gap: Spacing.two,
+  },
+  registrantToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.three,
+  },
+  registrantToggleText: {
+    flex: 1,
+  },
+  registrantList: {
+    gap: Spacing.two,
+  },
+  registrantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.three,
+  },
+  registrantNameRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  registrantName: {
+    flexShrink: 1,
   },
   infoRow: {
     flexDirection: 'row',
