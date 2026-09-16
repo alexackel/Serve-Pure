@@ -1,33 +1,168 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import type { PostgrestError } from '@supabase/supabase-js';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-const SEEDED_REGISTERED_EVENT_IDS = ['riverside-park-cleanup', 'senior-center-tech-help'];
+import { useSession } from '@/context/auth-context';
+import { EVENT_SELECT, mapEventRow, type EventRow } from '@/data/events';
+import type { EventDetail } from '@/data/mock-events';
+import { supabase } from '@/lib/supabase';
+
+const REGISTRATION_SELECT = `id, event_id, status, registered_at, penalized, events(${EVENT_SELECT})`;
+
+type RegistrationStatus = 'pending_confirmation' | 'confirmed' | 'cancelled';
+
+type RegistrationRow = {
+  id: string;
+  event_id: string;
+  status: RegistrationStatus;
+  registered_at: string;
+  penalized: boolean;
+  events: EventRow;
+};
+
+export type RegistrationWithEvent = {
+  id: string;
+  eventId: string;
+  status: RegistrationStatus;
+  registeredAt: string;
+  penalized: boolean;
+  event: EventDetail;
+};
+
+function mapRegistrationRow(row: RegistrationRow): RegistrationWithEvent {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    status: row.status,
+    registeredAt: row.registered_at,
+    penalized: row.penalized,
+    event: mapEventRow(row.events),
+  };
+}
+
+// Postgres errors from the registration triggers (self-dealing block, minor/
+// guardian gate) surface as raw exception text — translate the ones a
+// volunteer can actually hit into something readable.
+function friendlyRegistrationError(error: PostgrestError): string {
+  if (error.code === '23514' || error.message.includes('self_dealing_violation')) {
+    return "You can't register for an event you created.";
+  }
+  if (error.message.includes('is a minor with no guardian on file')) {
+    return 'Guardian info is required before you can register for events. Please add a guardian in your profile.';
+  }
+  if (error.code === '23505') {
+    return "You're already registered for this event.";
+  }
+  return error.message;
+}
 
 type RegistrationsContextValue = {
+  registrations: RegistrationWithEvent[];
+  isLoading: boolean;
   isRegistered: (eventId: string) => boolean;
-  register: (eventId: string) => void;
-  unregister: (eventId: string) => void;
+  register: (eventId: string) => Promise<{ error: string | null }>;
+  unregister: (eventId: string) => Promise<{ error: string | null }>;
 };
 
 const RegistrationsContext = createContext<RegistrationsContextValue | null>(null);
 
 export function RegistrationsProvider({ children }: { children: ReactNode }) {
-  const [registeredIds, setRegisteredIds] = useState<Set<string>>(() => new Set(SEEDED_REGISTERED_EVENT_IDS));
+  const { session } = useSession();
+  const [registrations, setRegistrations] = useState<RegistrationWithEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const register = useCallback((eventId: string) => {
-    setRegisteredIds((current) => new Set(current).add(eventId));
-  }, []);
+  useEffect(() => {
+    let cancelled = false;
 
-  const unregister = useCallback((eventId: string) => {
-    setRegisteredIds((current) => {
-      const next = new Set(current);
-      next.delete(eventId);
-      return next;
-    });
-  }, []);
+    async function load() {
+      if (!session) {
+        if (!cancelled) {
+          setRegistrations([]);
+          setIsLoading(false);
+        }
+        return;
+      }
 
-  const isRegistered = useCallback((eventId: string) => registeredIds.has(eventId), [registeredIds]);
+      const { data, error } = await supabase
+        .from('registrations')
+        .select(REGISTRATION_SELECT)
+        .eq('user_id', session.user.id)
+        .order('registered_at', { ascending: false });
 
-  const value = useMemo(() => ({ isRegistered, register, unregister }), [isRegistered, register, unregister]);
+      if (cancelled) return;
+      if (error) {
+        console.error('Failed to load registrations', error);
+      } else {
+        setRegistrations(((data ?? []) as unknown as RegistrationRow[]).map(mapRegistrationRow));
+      }
+      setIsLoading(false);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  const register = useCallback(
+    async (eventId: string) => {
+      if (!session) {
+        return { error: 'You must be signed in to register.' };
+      }
+
+      const { data, error } = await supabase
+        .from('registrations')
+        .insert({ event_id: eventId, user_id: session.user.id })
+        .select(REGISTRATION_SELECT)
+        .single();
+
+      if (error) {
+        return { error: friendlyRegistrationError(error) };
+      }
+
+      setRegistrations((current) => [mapRegistrationRow(data as unknown as RegistrationRow), ...current]);
+      return { error: null };
+    },
+    [session],
+  );
+
+  const unregister = useCallback(
+    async (eventId: string) => {
+      if (!session) {
+        return { error: 'You must be signed in to manage registrations.' };
+      }
+
+      const existing = registrations.find((registration) => registration.eventId === eventId && registration.status !== 'cancelled');
+      if (!existing) {
+        return { error: null };
+      }
+
+      const { data, error } = await supabase
+        .from('registrations')
+        .update({ status: 'cancelled', cancelled_by_type: 'volunteer', cancelled_by_user_id: session.user.id })
+        .eq('id', existing.id)
+        .select(REGISTRATION_SELECT)
+        .single();
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      const updated = mapRegistrationRow(data as unknown as RegistrationRow);
+      setRegistrations((current) => current.map((registration) => (registration.id === updated.id ? updated : registration)));
+      return { error: null };
+    },
+    [session, registrations],
+  );
+
+  const isRegistered = useCallback(
+    (eventId: string) => registrations.some((registration) => registration.eventId === eventId && registration.status !== 'cancelled'),
+    [registrations],
+  );
+
+  const value = useMemo(
+    () => ({ registrations, isLoading, isRegistered, register, unregister }),
+    [registrations, isLoading, isRegistered, register, unregister],
+  );
 
   return <RegistrationsContext.Provider value={value}>{children}</RegistrationsContext.Provider>;
 }

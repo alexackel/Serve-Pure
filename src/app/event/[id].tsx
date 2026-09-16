@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
@@ -14,27 +14,52 @@ import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
-import { CURRENT_USER } from '@/data/current-user';
 import { getEvent } from '@/data/events';
 import type { EventDetail } from '@/data/mock-events';
-import { getUser } from '@/data/mock-users';
+import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
 import { parseEventDateTime } from '@/utils/dates';
 
-function RegistrantRow({ eventId, userId }: { eventId: string; userId: string }) {
+type Registrant = { userId: string; fullName: string; verified: boolean };
+
+type RegistrantRow_DB = { user_id: string; profiles: { full_name: string; identity_verified: boolean } | null };
+
+async function fetchRoster(eventId: string): Promise<Registrant[]> {
+  // registrations has two FKs into profiles (user_id and cancelled_by_user_id)
+  // — the embed hint disambiguates which one to join on.
+  const { data, error } = await supabase
+    .from('registrations')
+    .select('user_id, profiles!user_id(full_name, identity_verified)')
+    .eq('event_id', eventId)
+    .neq('status', 'cancelled');
+
+  if (error) {
+    console.error('Failed to load roster', error);
+    return [];
+  }
+
+  return ((data ?? []) as unknown as RegistrantRow_DB[]).map((row) => ({
+    userId: row.user_id,
+    fullName: row.profiles?.full_name ?? 'Unknown volunteer',
+    verified: row.profiles?.identity_verified ?? false,
+  }));
+}
+
+function RegistrantRow({ eventId, registrant }: { eventId: string; registrant: Registrant }) {
   const theme = useTheme();
-  const registrant = getUser(userId);
 
   return (
     <Pressable
-      onPress={() => router.push({ pathname: '/event/[id]/volunteer/[volunteerId]', params: { id: eventId, volunteerId: userId } })}
+      onPress={() =>
+        router.push({ pathname: '/event/[id]/volunteer/[volunteerId]', params: { id: eventId, volunteerId: registrant.userId } })
+      }
       style={[styles.registrantRow, { backgroundColor: theme.backgroundElement }]}>
       <Avatar size={32} icon="person" iconSize={16} />
       <View style={styles.registrantNameRow}>
         <ThemedText type="bodyBold" numberOfLines={1} style={styles.registrantName}>
-          {registrant?.name ?? 'Unknown volunteer'}
+          {registrant.fullName}
         </ThemedText>
-        {registrant?.verified && <VerifiedBadge size="sm" />}
+        {registrant.verified && <VerifiedBadge size="sm" />}
       </View>
       <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
     </Pressable>
@@ -74,27 +99,34 @@ export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
   const [event, setEvent] = useState<EventDetail | null | undefined>(undefined);
+  const [roster, setRoster] = useState<Registrant[]>([]);
   const { isRegistered, register, unregister } = useRegistrations();
   const { addCancellationRecord } = useHistory();
 
   const [confirmingUnregister, setConfirmingUnregister] = useState(false);
   const [rosterExpanded, setRosterExpanded] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    const [eventResult, rosterResult] = await Promise.all([getEvent(id), fetchRoster(id)]);
+    setEvent(eventResult);
+    setRoster(rosterResult);
+  }, [id]);
 
   useEffect(() => {
-    let cancelled = false;
-    setEvent(undefined);
-    getEvent(id)
-      .then((result) => {
-        if (!cancelled) setEvent(result);
-      })
-      .catch((error) => {
+    async function loadForNewId() {
+      setEvent(undefined);
+      setRoster([]);
+      try {
+        await reload();
+      } catch (error) {
         console.error('Failed to load event', error);
-        if (!cancelled) setEvent(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+        setEvent(null);
+      }
+    }
+    loadForNewId();
+  }, [reload]);
 
   if (event === undefined) {
     return (
@@ -116,36 +148,47 @@ export default function EventDetailScreen() {
 
   const { maxVolunteers } = event;
   const signedUp = isRegistered(event.id);
-  const volunteerCount = event.volunteers === undefined ? undefined : event.volunteers + (signedUp ? 1 : 0);
-  const hasCapacity = volunteerCount !== undefined && maxVolunteers !== undefined;
-  const isFull = volunteerCount !== undefined && maxVolunteers !== undefined && volunteerCount >= maxVolunteers;
-  const displayedRegistrantIds = event.registrants
-    ? signedUp
-      ? [...event.registrants, CURRENT_USER.id]
-      : event.registrants
-    : undefined;
+  const volunteerCount = roster.length;
+  const hasCapacity = maxVolunteers !== undefined;
+  const isFull = hasCapacity && volunteerCount >= maxVolunteers;
 
   const now = new Date();
   const eventStart = parseEventDateTime(event.date, event.startTime, now);
   const hoursUntilEvent = (eventStart.getTime() - now.getTime()) / (1000 * 60 * 60);
   const isLateCancellation = signedUp && hoursUntilEvent >= 0 && hoursUntilEvent < 24;
 
-  const handleSignUpPress = () => {
+  const handleSignUpPress = async () => {
     if (signedUp) {
       setConfirmingUnregister(true);
       return;
     }
-    register(event.id);
+    setSubmitError(null);
+    setIsSubmitting(true);
+    const { error } = await register(event.id);
+    setIsSubmitting(false);
+    if (error) {
+      setSubmitError(error);
+    } else {
+      reload();
+    }
   };
 
-  const handleConfirmUnregister = () => {
+  const handleConfirmUnregister = async () => {
     if (isLateCancellation) {
       const cancelTime = new Date();
       const timeLabel = cancelTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       addCancellationRecord(event.organization, timeLabel);
     }
-    unregister(event.id);
+    setSubmitError(null);
+    setIsSubmitting(true);
+    const { error } = await unregister(event.id);
+    setIsSubmitting(false);
     setConfirmingUnregister(false);
+    if (error) {
+      setSubmitError(error);
+    } else {
+      reload();
+    }
   };
 
   const handleCancelUnregister = () => setConfirmingUnregister(false);
@@ -231,14 +274,14 @@ export default function EventDetailScreen() {
         </ThemedView>
       )}
 
-      {displayedRegistrantIds ? (
+      {roster.length > 0 ? (
         <ThemedView style={styles.section}>
           <Pressable
             onPress={() => setRosterExpanded((current) => !current)}
             style={[styles.registrantToggle, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="h3" style={styles.registrantToggleText}>
               Registered Volunteers
-              {maxVolunteers !== undefined && ` (${displayedRegistrantIds.length}/${maxVolunteers})`}
+              {maxVolunteers !== undefined && ` (${roster.length}/${maxVolunteers})`}
             </ThemedText>
             <Ionicons
               name={rosterExpanded ? 'chevron-up' : 'chevron-down'}
@@ -248,8 +291,8 @@ export default function EventDetailScreen() {
           </Pressable>
           {rosterExpanded && (
             <View style={styles.registrantList}>
-              {displayedRegistrantIds.map((userId) => (
-                <RegistrantRow key={userId} eventId={event.id} userId={userId} />
+              {roster.map((registrant) => (
+                <RegistrantRow key={registrant.userId} eventId={event.id} registrant={registrant} />
               ))}
             </View>
           )}
@@ -258,6 +301,15 @@ export default function EventDetailScreen() {
         hasCapacity && (
           <InfoRow icon="people-outline" text={`${volunteerCount}/${maxVolunteers} volunteers registered`} />
         )
+      )}
+
+      {submitError && (
+        <View style={[styles.warningBanner, { backgroundColor: theme.errorBackground }]}>
+          <Ionicons name="warning-outline" size={16} color={theme.error} />
+          <ThemedText type="body" themeColor="error" style={styles.warningText}>
+            {submitError}
+          </ThemedText>
+        </View>
       )}
 
       {confirmingUnregister ? (
@@ -275,21 +327,23 @@ export default function EventDetailScreen() {
           <View style={styles.confirmActions}>
             <Pressable
               onPress={handleCancelUnregister}
+              disabled={isSubmitting}
               style={[styles.confirmButton, styles.cancelButton, { borderColor: theme.border }]}>
               <ThemedText type="bodyBold">Cancel</ThemedText>
             </Pressable>
             <Pressable
               onPress={handleConfirmUnregister}
+              disabled={isSubmitting}
               style={[styles.confirmButton, { backgroundColor: theme.errorBackground }]}>
               <ThemedText type="bodyBold" themeColor="error">
-                Unregister
+                {isSubmitting ? 'Unregistering…' : 'Unregister'}
               </ThemedText>
             </Pressable>
           </View>
         </View>
       ) : (
         <Pressable
-          disabled={isFull && !signedUp}
+          disabled={(isFull && !signedUp) || isSubmitting}
           onPress={handleSignUpPress}
           style={[
             styles.cta,
@@ -299,7 +353,7 @@ export default function EventDetailScreen() {
           <ThemedText
             type="bodyBold"
             themeColor={isFull && !signedUp ? 'textSecondary' : signedUp ? 'success' : 'background'}>
-            {signedUp ? 'Registered ✓' : isFull ? 'Full' : 'Sign Up'}
+            {isSubmitting ? 'Signing up…' : signedUp ? 'Registered ✓' : isFull ? 'Full' : 'Sign Up'}
           </ThemedText>
         </Pressable>
       )}

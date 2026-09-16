@@ -2,9 +2,9 @@ import { supabase } from '@/lib/supabase';
 import type { EventDetail } from '@/data/mock-events';
 import { formatShortDate } from '@/utils/dates';
 
-const EVENT_SELECT = '*, organizations(name, verification_status)';
+export const EVENT_SELECT = '*, organizations(name, verification_status)';
 
-type EventRow = {
+export type EventRow = {
   id: string;
   org_id: string | null;
   title: string;
@@ -39,7 +39,7 @@ function mapEventStatus(status: EventRow['status']): EventDetail['status'] {
   return status === 'available' ? 'available' : 'full';
 }
 
-function mapEventRow(row: EventRow): EventDetail {
+export function mapEventRow(row: EventRow): EventDetail {
   const start = new Date(row.start_at);
   const end = new Date(row.end_at);
   const hours = Math.round(((end.getTime() - start.getTime()) / (1000 * 60 * 60)) * 10) / 10;

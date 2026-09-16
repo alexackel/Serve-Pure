@@ -19,7 +19,6 @@ import { useSession } from '@/context/auth-context';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { CURRENT_USER } from '@/data/current-user';
-import { MOCK_EVENTS } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
 import { useToggleSet } from '@/hooks/use-toggle-set';
 import { endOfDay, formatDateInput, formatShortDate, parseDateInput, parseRecordDate, startOfDay } from '@/utils/dates';
@@ -237,8 +236,10 @@ function TimeRangeSelector({
 }
 
 function UpcomingTab() {
-  const { isRegistered } = useRegistrations();
-  const upcomingEvents = MOCK_EVENTS.filter((event) => isRegistered(event.id));
+  const { registrations } = useRegistrations();
+  const upcomingEvents = registrations
+    .filter((registration) => registration.status !== 'cancelled')
+    .map((registration) => registration.event);
 
   return (
     <ThemedView style={styles.section}>
