@@ -84,9 +84,13 @@ function GroupsTab() {
     [myGroupIds, groupsById],
   );
 
-  const handleCreate = (name: string) => {
-    const id = createGroup(name);
+  const handleCreate = async (name: string) => {
+    const { id, error } = await createGroup(name);
     setIsCreating(false);
+    if (error || !id) {
+      console.error('Failed to create group', error);
+      return;
+    }
     router.push({ pathname: '/group/[id]', params: { id } });
   };
 

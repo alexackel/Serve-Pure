@@ -9,7 +9,7 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { MOCK_GROUPS } from '@/data/mock-groups';
+import { useGroups } from '@/context/groups-context';
 import { useTheme } from '@/hooks/use-theme';
 
 function ContactRow({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
@@ -27,7 +27,8 @@ function ContactRow({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; lab
 export default function OrgGroupContactScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
-  const group = MOCK_GROUPS.find((item) => item.id === id);
+  const { groups } = useGroups();
+  const group = groups.find((item) => item.id === id);
 
   if (!group) {
     return (

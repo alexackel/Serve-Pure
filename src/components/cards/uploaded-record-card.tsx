@@ -9,7 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import type { GroupMemberRecord } from '@/data/mock-groups';
+import type { GroupMemberRecord } from '@/context/groups-context';
 import { useTheme } from '@/hooks/use-theme';
 
 export type UploadedRecordCardProps = {

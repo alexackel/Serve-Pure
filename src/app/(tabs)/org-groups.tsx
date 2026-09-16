@@ -7,9 +7,11 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { MOCK_GROUPS } from '@/data/mock-groups';
+import { useGroups } from '@/context/groups-context';
 
 export default function OrgGroupsScreen() {
+  const { groups } = useGroups();
+
   return (
     <ScreenScrollView containerStyle={styles.container}>
       <ThemedText type="h1" style={styles.pageTitle}>
@@ -20,7 +22,7 @@ export default function OrgGroupsScreen() {
       </ThemedText>
 
       <ThemedView style={styles.list}>
-        {MOCK_GROUPS.map((group) => (
+        {groups.map((group) => (
           <GroupCard
             key={group.id}
             name={group.name}

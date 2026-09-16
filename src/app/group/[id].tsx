@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -14,10 +14,8 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { useGroups } from '@/context/groups-context';
+import { sumHoursByStatusMap, sumMemberHours, useGroups, type Group, type GroupMember } from '@/context/groups-context';
 import { useHistory } from '@/context/history-context';
-import { sumHoursByStatusMap, sumMemberHours, type GroupMember, type MockGroup } from '@/data/mock-groups';
-import { getUser } from '@/data/mock-users';
 import { useTheme } from '@/hooks/use-theme';
 
 const GROUP_TABS = [
@@ -28,17 +26,7 @@ const GROUP_TABS = [
 
 type TabKey = (typeof GROUP_TABS)[number]['key'];
 
-function MembersTab({
-  groupId,
-  members,
-  adminIds,
-  isAdmin,
-}: {
-  groupId: string;
-  members: GroupMember[];
-  adminIds: string[];
-  isAdmin: boolean;
-}) {
+function MembersTab({ groupId, members, isAdmin }: { groupId: string; members: GroupMember[]; isAdmin: boolean }) {
   const theme = useTheme();
   const ranked = useMemo(
     () =>
@@ -65,10 +53,10 @@ function MembersTab({
           <MemberRow
             key={member.id}
             rank={index + 1}
-            name={getUser(member.id)?.name ?? 'Unknown member'}
-            verified={getUser(member.id)?.verified}
+            name={member.fullName}
+            verified={member.verified}
             hours={hours}
-            isAdmin={adminIds.includes(member.id)}
+            isAdmin={member.isAdmin}
             onPress={
               isAdmin
                 ? () =>
@@ -85,12 +73,22 @@ function MembersTab({
   );
 }
 
-function ReportedHoursTab({ group, isAdmin }: { group: MockGroup; isAdmin: boolean }) {
+function ReportedHoursTab({
+  groupId,
+  members,
+  isAdmin,
+  onMutated,
+}: {
+  groupId: string;
+  members: GroupMember[];
+  isAdmin: boolean;
+  onMutated: () => void;
+}) {
   const { records } = useHistory();
   const { approveMemberRecord, rejectMemberRecord } = useGroups();
 
   if (isAdmin) {
-    const uploaded = group.members.flatMap((member) =>
+    const uploaded = members.flatMap((member) =>
       member.records
         .filter((record) => record.status === 'self-uploaded')
         .map((record) => ({ member, record })),
@@ -108,11 +106,17 @@ function ReportedHoursTab({ group, isAdmin }: { group: MockGroup; isAdmin: boole
             {uploaded.map(({ member, record }) => (
               <UploadedRecordCard
                 key={record.id}
-                memberName={getUser(member.id)?.name ?? 'Unknown member'}
-                memberVerified={getUser(member.id)?.verified}
+                memberName={member.fullName}
+                memberVerified={member.verified}
                 record={record}
-                onApprove={() => approveMemberRecord(group.id, member.id, record.id)}
-                onReject={() => rejectMemberRecord(group.id, member.id, record.id)}
+                onApprove={async () => {
+                  await approveMemberRecord(groupId, member.id, record.id);
+                  onMutated();
+                }}
+                onReject={async () => {
+                  await rejectMemberRecord(groupId, member.id, record.id);
+                  onMutated();
+                }}
               />
             ))}
           </ThemedView>
@@ -146,8 +150,12 @@ function DeleteGroupButton({ groupId }: { groupId: string }) {
   const { deleteGroup } = useGroups();
   const [confirming, setConfirming] = useState(false);
 
-  const handleDelete = () => {
-    deleteGroup(groupId);
+  const handleDelete = async () => {
+    const { error } = await deleteGroup(groupId);
+    if (error) {
+      console.error('Failed to delete group', error);
+      return;
+    }
     router.replace('/groups');
   };
 
@@ -175,12 +183,12 @@ function DeleteGroupButton({ groupId }: { groupId: string }) {
   );
 }
 
-function AnalyticsTab({ group }: { group: MockGroup }) {
+function AnalyticsTab({ members }: { members: GroupMember[] }) {
   const theme = useTheme();
 
   const hoursByStatus = useMemo(
-    () => sumHoursByStatusMap(group.members.flatMap((member) => member.records)),
-    [group],
+    () => sumHoursByStatusMap(members.flatMap((member) => member.records)),
+    [members],
   );
 
   return (
@@ -199,10 +207,25 @@ function AnalyticsTab({ group }: { group: MockGroup }) {
 
 export default function GroupDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const theme = useTheme();
   const { groups, isAdmin: checkIsAdmin } = useGroups();
   const group = groups.find((item) => item.id === id);
   const [activeTab, setActiveTab] = useState<TabKey>('members');
+  const [members, setMembers] = useState<GroupMember[]>([]);
+
+  const { getGroupMembers } = useGroups();
+
+  const loadMembers = useCallback(async () => {
+    if (!group) return;
+    const result = await getGroupMembers(group.id);
+    setMembers(result);
+  }, [group, getGroupMembers]);
+
+  useEffect(() => {
+    // loadMembers is async — its setState runs after the await, not
+    // synchronously during this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadMembers();
+  }, [loadMembers]);
 
   if (!group) {
     return (
@@ -219,6 +242,28 @@ export default function GroupDetailScreen() {
     <ScreenScrollView containerStyle={styles.container}>
       <BackButton fallbackHref="/groups" />
 
+      <GroupHeader group={group} isAdmin={isAdmin} />
+
+      <SegmentedTabs tabs={GROUP_TABS} activeKey={activeTab} onChange={setActiveTab} />
+
+      {activeTab === 'members' && (
+        <>
+          <MembersTab groupId={group.id} members={members} isAdmin={isAdmin} />
+          {isAdmin && <DeleteGroupButton groupId={group.id} />}
+        </>
+      )}
+      {activeTab === 'reported' && (
+        <ReportedHoursTab groupId={group.id} members={members} isAdmin={isAdmin} onMutated={loadMembers} />
+      )}
+      {activeTab === 'analytics' && <AnalyticsTab members={members} />}
+    </ScreenScrollView>
+  );
+}
+
+function GroupHeader({ group, isAdmin }: { group: Group; isAdmin: boolean }) {
+  const theme = useTheme();
+  return (
+    <>
       <View style={styles.headerRow}>
         <Avatar size={48} icon="people" iconSize={22} />
         <View style={styles.headerInfo}>
@@ -236,18 +281,7 @@ export default function GroupDetailScreen() {
           </ThemedText>
         </View>
       )}
-
-      <SegmentedTabs tabs={GROUP_TABS} activeKey={activeTab} onChange={setActiveTab} />
-
-      {activeTab === 'members' && (
-        <>
-          <MembersTab groupId={group.id} members={group.members} adminIds={group.adminIds ?? []} isAdmin={isAdmin} />
-          {isAdmin && <DeleteGroupButton groupId={group.id} />}
-        </>
-      )}
-      {activeTab === 'reported' && <ReportedHoursTab group={group} isAdmin={isAdmin} />}
-      {activeTab === 'analytics' && <AnalyticsTab group={group} />}
-    </ScreenScrollView>
+    </>
   );
 }
 

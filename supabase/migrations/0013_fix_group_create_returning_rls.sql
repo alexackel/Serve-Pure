@@ -1,0 +1,19 @@
+-- Fixes "42501 new row violates row-level security policy for table groups"
+-- on every group/subgroup creation.
+--
+-- Root cause: createGroup/createSubgroup (groups-context.tsx) do
+-- `.insert(...).select('id').single()`. Per Postgres docs, INSERT ...
+-- RETURNING requires the newly inserted row to also satisfy the table's
+-- SELECT policy, and throws rather than silently omitting the row if it
+-- doesn't. groups_select_members_admins (0006) only allows a caller who is
+-- already a group_members/group_admins row for that group -- but that row
+-- is created by trg_group_auto_admin (0008), an AFTER ROW trigger, which
+-- fires at the end of the statement, after the RETURNING recheck already
+-- ran for that row. So the check always failed on creation, even though the
+-- groups_insert_own WITH CHECK itself was satisfied. (organizations never
+-- hit this: organizations_select_all is `using (true)`, and no app code
+-- path inserts into organizations yet to have exercised RETURNING there.)
+--
+-- Letting the creator see their own group directly sidesteps the
+-- trigger-ordering dependency entirely.
+create policy groups_select_own on public.groups for select using (created_by = auth.uid());

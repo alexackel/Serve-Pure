@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -16,10 +16,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { useGroups } from '@/context/groups-context';
+import { sumHoursByStatusMap, sumMemberHours, useGroups, type GroupMember } from '@/context/groups-context';
 import type { HistoryStatus } from '@/context/history-context';
-import { sumHoursByStatusMap, sumMemberHours } from '@/data/mock-groups';
-import { getUser } from '@/data/mock-users';
 import { useTheme } from '@/hooks/use-theme';
 
 const MEMBER_TABS = [
@@ -34,8 +32,12 @@ function RemoveMemberButton({ groupId, memberId, memberName }: { groupId: string
   const { removeMember } = useGroups();
   const [confirming, setConfirming] = useState(false);
 
-  const handleRemove = () => {
-    removeMember(groupId, memberId);
+  const handleRemove = async () => {
+    const { error } = await removeMember(groupId, memberId);
+    if (error) {
+      console.error('Failed to remove member', error);
+      return;
+    }
     router.replace({ pathname: '/group/[id]', params: { id: groupId } });
   };
 
@@ -66,13 +68,29 @@ function RemoveMemberButton({ groupId, memberId, memberName }: { groupId: string
 export default function GroupMemberDetailScreen() {
   const { id, memberId } = useLocalSearchParams<{ id: string; memberId: string }>();
   const theme = useTheme();
-  const { groups, isAdmin, approveMemberRecord, rejectMemberRecord } = useGroups();
+  const { groups, isAdmin, getGroupMembers, approveMemberRecord, rejectMemberRecord } = useGroups();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [member, setMember] = useState<GroupMember | null | undefined>(undefined);
 
   const group = groups.find((item) => item.id === id);
-  const member = group?.members.find((item) => item.id === memberId);
 
-  if (!group || !member || !isAdmin(group.id)) {
+  const loadMember = useCallback(async () => {
+    if (!group) {
+      setMember(null);
+      return;
+    }
+    const members = await getGroupMembers(group.id);
+    setMember(members.find((item) => item.id === memberId) ?? null);
+  }, [group, getGroupMembers, memberId]);
+
+  useEffect(() => {
+    // loadMember is async — its setState runs after the await, not
+    // synchronously during this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadMember();
+  }, [loadMember]);
+
+  if (!group || !isAdmin(group.id) || member === null) {
     return (
       <ScreenScrollView containerStyle={styles.container}>
         <BackButton fallbackHref={{ pathname: '/group/[id]', params: { id: id ?? '' } }} />
@@ -81,7 +99,15 @@ export default function GroupMemberDetailScreen() {
     );
   }
 
-  const memberUser = getUser(member.id);
+  if (member === undefined) {
+    return (
+      <ScreenScrollView containerStyle={styles.container}>
+        <BackButton fallbackHref={{ pathname: '/group/[id]', params: { id: group.id } }} />
+        <ThemedText type="h3">Loading…</ThemedText>
+      </ScreenScrollView>
+    );
+  }
+
   const hoursByStatus = sumHoursByStatusMap(member.records);
 
   const chartColor: Record<HistoryStatus, string> = {
@@ -110,8 +136,8 @@ export default function GroupMemberDetailScreen() {
         <Avatar size={48} icon="person" iconSize={22} />
         <View style={styles.headerInfo}>
           <View style={styles.nameRow}>
-            <ThemedText type="h2">{memberUser?.name ?? 'Unknown member'}</ThemedText>
-            {memberUser?.verified && <VerifiedBadge />}
+            <ThemedText type="h2">{member.fullName}</ThemedText>
+            {member.verified && <VerifiedBadge />}
           </View>
           <ThemedText type="caption" themeColor="textSecondary">
             {sumMemberHours(member)} hrs total
@@ -125,11 +151,7 @@ export default function GroupMemberDetailScreen() {
         <ThemedView style={styles.section}>
           <ThemedText type="h3">Hours Breakdown</ThemedText>
           <BarChart data={barData} />
-          <RemoveMemberButton
-            groupId={group.id}
-            memberId={member.id}
-            memberName={memberUser?.name ?? 'this member'}
-          />
+          <RemoveMemberButton groupId={group.id} memberId={member.id} memberName={member.fullName} />
         </ThemedView>
       )}
 
@@ -145,11 +167,17 @@ export default function GroupMemberDetailScreen() {
               {uploaded.map((record) => (
                 <UploadedRecordCard
                   key={record.id}
-                  memberName={memberUser?.name ?? 'Unknown member'}
-                  memberVerified={memberUser?.verified}
+                  memberName={member.fullName}
+                  memberVerified={member.verified}
                   record={record}
-                  onApprove={() => approveMemberRecord(group.id, member.id, record.id)}
-                  onReject={() => rejectMemberRecord(group.id, member.id, record.id)}
+                  onApprove={async () => {
+                    await approveMemberRecord(group.id, member.id, record.id);
+                    loadMember();
+                  }}
+                  onReject={async () => {
+                    await rejectMemberRecord(group.id, member.id, record.id);
+                    loadMember();
+                  }}
                 />
               ))}
             </ThemedView>

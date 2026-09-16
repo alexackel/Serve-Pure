@@ -21,16 +21,7 @@ export default function SubgroupsScreen() {
   const [isCreating, setIsCreating] = useState(false);
 
   const group = groups.find((item) => item.id === id);
-  const groupsById = useMemo(() => new Map(groups.map((item) => [item.id, item])), [groups]);
-  const subgroups = useMemo(
-    () =>
-      group?.subgroupIds
-        ? group.subgroupIds
-            .map((subgroupId) => groupsById.get(subgroupId))
-            .filter((item): item is NonNullable<typeof item> => Boolean(item))
-        : [],
-    [group, groupsById],
-  );
+  const subgroups = useMemo(() => groups.filter((item) => item.parentGroupId === id), [groups, id]);
 
   if (!group) {
     return (
@@ -43,9 +34,13 @@ export default function SubgroupsScreen() {
 
   const canCreate = isAdmin(group.id);
 
-  const handleCreate = (name: string) => {
-    const subgroupId = createSubgroup(group.id, name);
+  const handleCreate = async (name: string) => {
+    const { id: subgroupId, error } = await createSubgroup(group.id, name);
     setIsCreating(false);
+    if (error || !subgroupId) {
+      console.error('Failed to create subgroup', error);
+      return;
+    }
     router.push({ pathname: '/group/[id]', params: { id: subgroupId } });
   };
 
