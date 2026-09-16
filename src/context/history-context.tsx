@@ -1,5 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { useSession } from '@/context/auth-context';
+import { supabase } from '@/lib/supabase';
 import { formatShortDate } from '@/utils/dates';
 
 export type HistoryStatus =
@@ -22,139 +24,122 @@ export type HistoryRecord = {
   note?: string;
 };
 
-// Kept most-recent-first: the seed list is authored newest-to-oldest, and new
-// cancellations are always "now" so they're safe to prepend. The reliability
-// score's "last 10" window relies on this ordering.
-const SEED_HISTORY_RECORDS: HistoryRecord[] = [
-  {
-    id: 'h1',
-    organization: 'GreenFuture Coalition',
-    hours: 3,
-    date: 'Aug 24',
-    status: 'verified',
-    hasPhoto: true,
-    likes: 12,
-  },
-  {
-    id: 'h2',
-    organization: 'Northside Food Bank',
-    hours: 4,
-    date: 'Aug 20',
-    status: 'verified',
-    hasPhoto: false,
-    likes: 6,
-  },
-  {
-    id: 'h3',
-    organization: 'Central Public Library',
-    hours: 2,
-    date: 'Aug 18',
-    status: 'pending',
-    hasPhoto: false,
-    likes: 2,
-  },
-  {
-    id: 'h4',
-    organization: 'Riverside Youth Center',
-    hours: 5,
-    date: 'Aug 12',
-    status: 'self-uploaded',
-    hasPhoto: true,
-    likes: 9,
-  },
-  {
-    id: 'h5',
-    organization: 'Coastal Guardians',
-    hours: 3,
-    date: 'Aug 6',
-    status: 'verified',
-    hasPhoto: true,
-    likes: 15,
-  },
-  {
-    id: 'h6',
-    organization: 'Maple Grove Senior Center',
-    hours: 3,
-    date: 'Jul 30',
-    status: 'pending',
-    hasPhoto: false,
-    likes: 1,
-  },
-  {
-    id: 'h7',
-    organization: 'Blue Ridge Trail Alliance',
-    hours: 4,
-    date: 'Jul 22',
-    status: 'self-uploaded',
-    hasPhoto: false,
-    likes: 3,
-  },
-  {
-    id: 'h8',
-    organization: 'Furry Friends Rescue',
-    hours: 5,
-    date: 'Jul 14',
-    status: 'verified',
-    hasPhoto: true,
-    likes: 18,
-  },
-  {
-    id: 'h9',
-    organization: 'Riverside Youth Center',
-    date: 'Jul 5',
-    status: 'no-show',
-  },
-  {
-    id: 'h10',
-    organization: 'Central Public Library',
-    date: 'Jun 28',
-    status: 'appealed',
-  },
-];
+const ATTENDANCE_SELECT = 'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, created_at, events(start_at, organizations(name))';
 
-const RELIABILITY_WINDOW = 10;
-const ZERO_POINT_STATUSES = new Set<HistoryStatus>(['no-show', 'appealed', 'cancelled']);
+type AttendanceSource = 'platform_registration' | 'self_reported';
+type AttendanceStatus = 'pending' | 'verified' | 'partial' | 'no_show' | 'appealed' | 'rejected' | 'cancelled';
 
-function computeReliabilityScore(records: HistoryRecord[]) {
-  if (records.length === 0) {
-    return 5;
+type AttendanceRow = {
+  id: string;
+  source: AttendanceSource;
+  status: AttendanceStatus;
+  activity_org_name: string | null;
+  hours_claimed: number | null;
+  hours_awarded: number | null;
+  verified_by_role: string | null;
+  created_at: string;
+  events: { start_at: string; organizations: { name: string } | null } | null;
+};
+
+// verification_status (DB) -> HistoryStatus (UI). A group-admin-verified row
+// is surfaced as 'admin-approved' rather than plain 'verified' so Analytics/
+// filter views can still break it out, matching the old mock behavior.
+// 'rejected' (a declined self-report) has no distinct UI bucket — treated as
+// 'no-show' since both mean "not credited."
+function mapHistoryStatus(row: AttendanceRow): HistoryStatus {
+  switch (row.status) {
+    case 'pending':
+      return row.source === 'self_reported' ? 'self-uploaded' : 'pending';
+    case 'verified':
+    case 'partial':
+      return row.verified_by_role === 'group_admin' ? 'admin-approved' : 'verified';
+    case 'no_show':
+    case 'rejected':
+      return 'no-show';
+    case 'appealed':
+      return 'appealed';
+    case 'cancelled':
+      return 'cancelled';
   }
+}
 
-  const recent = records.slice(0, RELIABILITY_WINDOW);
-  const points = recent.reduce((sum, record) => sum + (ZERO_POINT_STATUSES.has(record.status) ? 0 : 1), 0);
+function mapHistoryRecord(row: AttendanceRow): HistoryRecord {
+  const organization = row.events?.organizations?.name ?? row.activity_org_name ?? 'Unknown organization';
+  const status = mapHistoryStatus(row);
+  const date = formatShortDate(new Date(row.events?.start_at ?? row.created_at));
 
-  return (points / recent.length) * 5;
+  return {
+    id: row.id,
+    organization,
+    date,
+    status,
+    hours: row.hours_awarded ?? row.hours_claimed ?? undefined,
+    note: status === 'cancelled' ? `You cancelled your registration for ${organization}` : undefined,
+  };
 }
 
 type HistoryContextValue = {
   records: HistoryRecord[];
-  addCancellationRecord: (organization: string, timeLabel: string) => void;
-  reliabilityScore: number;
+  isLoading: boolean;
+  reliabilityScore: number | null;
 };
 
 const HistoryContext = createContext<HistoryContextValue | null>(null);
 
 export function HistoryProvider({ children }: { children: ReactNode }) {
-  const [records, setRecords] = useState<HistoryRecord[]>(SEED_HISTORY_RECORDS);
+  const { session } = useSession();
+  const [records, setRecords] = useState<HistoryRecord[]>([]);
+  const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const addCancellationRecord = useCallback((organization: string, timeLabel: string) => {
-    setRecords((current) => [
-      {
-        id: `cancelled-${Date.now()}`,
-        organization,
-        date: formatShortDate(new Date()),
-        status: 'cancelled',
-        note: `You cancelled your registration for ${organization} at ${timeLabel}`,
-      },
-      ...current,
-    ]);
-  }, []);
+  useEffect(() => {
+    let cancelled = false;
 
-  const reliabilityScore = useMemo(() => computeReliabilityScore(records), [records]);
+    async function load() {
+      if (!session) {
+        if (!cancelled) {
+          setRecords([]);
+          setReliabilityScore(null);
+          setIsLoading(false);
+        }
+        return;
+      }
+
+      const [recordsResult, scoreResult] = await Promise.all([
+        supabase
+          .from('attendance_records')
+          .select(ATTENDANCE_SELECT)
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false }),
+        supabase.rpc('get_reliability_score', { p_user_id: session.user.id }),
+      ]);
+
+      if (cancelled) return;
+
+      if (recordsResult.error) {
+        console.error('Failed to load history', recordsResult.error);
+      } else {
+        setRecords(((recordsResult.data ?? []) as unknown as AttendanceRow[]).map(mapHistoryRecord));
+      }
+
+      if (scoreResult.error) {
+        console.error('Failed to load reliability score', scoreResult.error);
+      } else {
+        setReliabilityScore(scoreResult.data);
+      }
+
+      setIsLoading(false);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const value = useMemo(
-    () => ({ records, addCancellationRecord, reliabilityScore }),
-    [records, addCancellationRecord, reliabilityScore],
+    () => ({ records, isLoading, reliabilityScore }),
+    [records, isLoading, reliabilityScore],
   );
 
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>;

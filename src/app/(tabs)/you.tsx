@@ -314,7 +314,7 @@ export default function YouScreen() {
         </View>
         <View style={styles.reliabilityBadge}>
           <Ionicons name="star" size={16} color={theme.warning} />
-          <ThemedText type="bodyBold">{reliabilityScore.toFixed(1)}</ThemedText>
+          <ThemedText type="bodyBold">{reliabilityScore !== null ? reliabilityScore.toFixed(1) : '—'}</ThemedText>
           <ThemedText type="caption" themeColor="textSecondary">
             Reliability
           </ThemedText>

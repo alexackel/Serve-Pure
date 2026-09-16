@@ -12,7 +12,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { getEvent } from '@/data/events';
 import type { EventDetail } from '@/data/mock-events';
@@ -101,7 +100,6 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<EventDetail | null | undefined>(undefined);
   const [roster, setRoster] = useState<Registrant[]>([]);
   const { isRegistered, register, unregister } = useRegistrations();
-  const { addCancellationRecord } = useHistory();
 
   const [confirmingUnregister, setConfirmingUnregister] = useState(false);
   const [rosterExpanded, setRosterExpanded] = useState(false);
@@ -174,11 +172,6 @@ export default function EventDetailScreen() {
   };
 
   const handleConfirmUnregister = async () => {
-    if (isLateCancellation) {
-      const cancelTime = new Date();
-      const timeLabel = cancelTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      addCancellationRecord(event.organization, timeLabel);
-    }
     setSubmitError(null);
     setIsSubmitting(true);
     const { error } = await unregister(event.id);
