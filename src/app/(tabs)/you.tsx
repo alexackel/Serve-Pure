@@ -15,6 +15,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { useSession } from '@/context/auth-context';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { CURRENT_USER } from '@/data/current-user';
@@ -282,6 +283,7 @@ export default function YouScreen() {
   const [timeRange, setTimeRange] = useState<TimeRangeKey>(TIME_RANGES[0]);
   const [customRange, setCustomRange] = useState<CustomRange | null>(null);
   const { records: historyRecords, reliabilityScore } = useHistory();
+  const { signOut } = useSession();
   const theme = useTheme();
 
   useFocusEffect(
@@ -347,6 +349,7 @@ export default function YouScreen() {
         </ThemedView>
 
         <PillIconButton icon="download-outline" label="Export Verified Transcript" />
+        <PillIconButton icon="log-out-outline" label="Sign Out" onPress={() => signOut()} />
       </ThemedView>
 
       <SegmentedTabs tabs={YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
