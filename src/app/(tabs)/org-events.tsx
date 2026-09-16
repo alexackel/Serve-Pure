@@ -18,8 +18,8 @@ export default function OrgEventsScreen() {
   const { getOrgEvents } = useOrgHistory();
 
   const now = useMemo(() => new Date(), []);
-  const orgEvents = getOrgEvents(activeOrganization.id);
   const { upcomingEvents, pastEvents } = useMemo(() => {
+    const orgEvents = activeOrganization ? getOrgEvents(activeOrganization.id) : [];
     const upcoming: EventDetail[] = [];
     const past: EventDetail[] = [];
     for (const event of orgEvents) {
@@ -27,7 +27,20 @@ export default function OrgEventsScreen() {
       target.push(event);
     }
     return { upcomingEvents: upcoming, pastEvents: past };
-  }, [orgEvents, now]);
+  }, [activeOrganization, getOrgEvents, now]);
+
+  if (!activeOrganization) {
+    return (
+      <ScreenScrollView containerStyle={styles.container}>
+        <ThemedText type="h1" style={styles.pageTitle}>
+          Events
+        </ThemedText>
+        <ThemedText type="body" themeColor="textSecondary">
+          You don&apos;t admin any organizations yet.
+        </ThemedText>
+      </ScreenScrollView>
+    );
+  }
 
   return (
     <ScreenScrollView containerStyle={styles.container}>

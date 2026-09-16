@@ -4,13 +4,20 @@ import { PillIconButton } from '@/components/pill-icon-button';
 import { useOrganization } from '@/context/organization-context';
 
 export function SwitchViewModeButton({ target }: { target: 'organization' | 'personal' }) {
-  const { activeOrganization, switchToOrganization, switchToPersonal } = useOrganization();
+  const { activeOrganization, organizations, switchToOrganization, switchToPersonal } = useOrganization();
   const { switchTab } = useTabTrigger(
     target === 'organization' ? { name: 'org-you', href: '/org-you' } : { name: 'you', href: '/you' },
   );
 
+  // Nothing to switch into if the account doesn't admin any organizations
+  // (there's no Create Organization flow yet).
+  if (target === 'organization' && organizations.length === 0) {
+    return null;
+  }
+
   const handlePress = () => {
     if (target === 'organization') {
+      if (!activeOrganization) return;
       switchToOrganization(activeOrganization.id);
       switchTab('org-you', {});
     } else {

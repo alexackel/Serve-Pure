@@ -523,6 +523,20 @@ export default function OrgYouScreen() {
     }, []),
   );
 
+  if (!activeOrganization) {
+    return (
+      <ScreenScrollView containerStyle={styles.container}>
+        <ThemedText type="h1" style={styles.pageTitle}>
+          Organization
+        </ThemedText>
+        <SwitchViewModeButton target="personal" />
+        <ThemedText type="body" themeColor="textSecondary">
+          You don&apos;t admin any organizations yet.
+        </ThemedText>
+      </ScreenScrollView>
+    );
+  }
+
   const orgEvents = getOrgEvents(activeOrganization.id);
 
   const handleCreateEvent = (id: string, draft: NewEventDraft) => createEventFromRecord(id, activeOrganization, draft);
