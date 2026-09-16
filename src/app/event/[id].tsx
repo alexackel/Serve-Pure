@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
@@ -13,10 +13,10 @@ import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useHistory } from '@/context/history-context';
-import { useOrgHistory } from '@/context/org-history-context';
 import { useRegistrations } from '@/context/registrations-context';
 import { CURRENT_USER } from '@/data/current-user';
-import { MOCK_EVENTS } from '@/data/mock-events';
+import { getEvent } from '@/data/events';
+import type { EventDetail } from '@/data/mock-events';
 import { getUser } from '@/data/mock-users';
 import { useTheme } from '@/hooks/use-theme';
 import { parseEventDateTime } from '@/utils/dates';
@@ -73,13 +73,37 @@ function LinkRow({ icon, text, url }: { icon: keyof typeof Ionicons.glyphMap; te
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
-  const { customEvents } = useOrgHistory();
-  const event = MOCK_EVENTS.find((item) => item.id === id) ?? customEvents.find((item) => item.id === id);
+  const [event, setEvent] = useState<EventDetail | null | undefined>(undefined);
   const { isRegistered, register, unregister } = useRegistrations();
   const { addCancellationRecord } = useHistory();
 
   const [confirmingUnregister, setConfirmingUnregister] = useState(false);
   const [rosterExpanded, setRosterExpanded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setEvent(undefined);
+    getEvent(id)
+      .then((result) => {
+        if (!cancelled) setEvent(result);
+      })
+      .catch((error) => {
+        console.error('Failed to load event', error);
+        if (!cancelled) setEvent(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (event === undefined) {
+    return (
+      <ScreenScrollView containerStyle={styles.container}>
+        <BackButton fallbackHref="/find" />
+        <ThemedText type="h3">Loading…</ThemedText>
+      </ScreenScrollView>
+    );
+  }
 
   if (!event) {
     return (

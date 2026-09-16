@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type Dispatch } from 'react';
+import { useCallback, useEffect, useMemo, useState, type Dispatch } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
@@ -11,7 +11,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useRegistrations } from '@/context/registrations-context';
-import { MOCK_EVENTS } from '@/data/mock-events';
+import type { EventDetail } from '@/data/mock-events';
+import { listEvents } from '@/data/events';
 import { useFindFilters, type FindFiltersAction } from '@/hooks/use-find-filters';
 import { useUserLocation } from '@/hooks/use-user-location';
 import {
@@ -130,14 +131,31 @@ export default function FindScreen() {
     setLastSheetKey(activeSheet);
   }
 
+  const [events, setEvents] = useState<EventDetail[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refetchEvents = useCallback(() => {
+    listEvents()
+      .then(setEvents)
+      .catch((error) => console.error('Failed to load events', error))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    refetchEvents();
+  }, [refetchEvents]);
+
+  // Also refetches on every return to this tab, so newly-created/registered
+  // events reflect an up-to-date registered_count without a manual pull.
   useFocusEffect(
     useCallback(() => {
+      refetchEvents();
       return () => setSearchValue('');
-    }, []),
+    }, [refetchEvents]),
   );
 
   const now = useMemo(() => new Date(), []);
-  const upcomingEvents = useMemo(() => excludePastEvents(MOCK_EVENTS, now), [now]);
+  const upcomingEvents = useMemo(() => excludePastEvents(events, now), [events, now]);
   const categoryOptions = useMemo(() => getCategoryOptions(upcomingEvents), [upcomingEvents]);
   const pills = useMemo(() => buildFindPillDescriptors(state), [state]);
 
@@ -173,7 +191,11 @@ export default function FindScreen() {
         }}
       />
       <ThemedView style={styles.list}>
-        {visibleEvents.length === 0 ? (
+        {isLoading ? (
+          <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
+            Loading events…
+          </ThemedText>
+        ) : visibleEvents.length === 0 ? (
           <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
             No events match your filters.
           </ThemedText>
