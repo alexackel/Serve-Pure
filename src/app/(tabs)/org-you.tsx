@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { useFocusEffect } from 'expo-router';
@@ -17,11 +17,9 @@ import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { type HistoryStatus } from '@/context/history-context';
-import { type NewEventDraft, useOrgHistory } from '@/context/org-history-context';
+import { type NewEventDraft, type OrgHistoryRecord, useOrgHistory } from '@/context/org-history-context';
 import { useOrganization } from '@/context/organization-context';
 import type { EventDetail } from '@/data/mock-events';
-import type { OrgHistoryRecord } from '@/data/mock-org-history';
-import { getUser } from '@/data/mock-users';
 import { useTheme } from '@/hooks/use-theme';
 import { useToggleSet } from '@/hooks/use-toggle-set';
 import { parseEventDateTime } from '@/utils/dates';
@@ -63,14 +61,17 @@ function buildEventGroups(records: OrgHistoryRecord[], events: EventDetail[]): E
     if (!HISTORY_VISIBLE_STATUSES.has(record.status)) {
       continue;
     }
-    const existing = groups.get(record.eventId);
+    // Unlinked self-reports have no eventId to share — each one forms its
+    // own singleton group, keyed by its own record id instead.
+    const groupKey = record.eventId ?? record.id;
+    const existing = groups.get(groupKey);
     if (existing) {
       existing.records.push(record);
     } else {
-      groups.set(record.eventId, {
-        eventId: record.eventId,
+      groups.set(groupKey, {
+        eventId: groupKey,
         eventTitle: record.eventTitle,
-        event: events.find((event) => event.id === record.eventId),
+        event: record.eventId ? events.find((event) => event.id === record.eventId) : undefined,
         records: [record],
       });
     }
@@ -241,7 +242,7 @@ function SelfUploadedActions({
   orgEvents: EventDetail[];
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
-  onLinkToEvent: (id: string, event: EventDetail) => void;
+  onLinkToEvent: (id: string, eventId: string) => void;
   onCreateEvent: (id: string, draft: NewEventDraft) => void;
 }) {
   const theme = useTheme();
@@ -284,7 +285,7 @@ function SelfUploadedActions({
         <EventPicker
           events={orgEvents}
           onSelect={(event) => {
-            onLinkToEvent(record.id, event);
+            onLinkToEvent(record.id, event.id);
             closePanel();
           }}
         />
@@ -317,11 +318,10 @@ function ApprovalCard({
   orgEvents: EventDetail[];
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
-  onLinkToEvent: (id: string, event: EventDetail) => void;
+  onLinkToEvent: (id: string, eventId: string) => void;
   onCreateEvent: (id: string, draft: NewEventDraft) => void;
 }) {
   const theme = useTheme();
-  const volunteer = getUser(record.volunteerId);
 
   return (
     <ThemedView type="backgroundElement" style={[styles.approveCard, CardShadow]}>
@@ -330,9 +330,9 @@ function ApprovalCard({
         <View style={styles.approveHeaderInfo}>
           <View style={styles.nameRow}>
             <ThemedText type="bodyBold" numberOfLines={1}>
-              {volunteer?.name ?? 'Unknown volunteer'}
+              {record.volunteerName}
             </ThemedText>
-            {volunteer?.verified && <VerifiedBadge size="sm" />}
+            {record.volunteerVerified && <VerifiedBadge size="sm" />}
           </View>
           <ThemedText type="caption" themeColor="textSecondary">
             {record.date}
@@ -402,7 +402,7 @@ function ApproveTab({
   orgEvents: EventDetail[];
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
-  onLinkToEvent: (id: string, event: EventDetail) => void;
+  onLinkToEvent: (id: string, eventId: string) => void;
   onCreateEvent: (id: string, draft: NewEventDraft) => void;
 }) {
   const pending = records.filter((record) => NEEDS_ACTION_STATUSES.has(record.status));
@@ -421,7 +421,7 @@ function ApproveTab({
             <ApprovalCard
               key={record.id}
               record={record}
-              event={eventsById.get(record.eventId)}
+              event={record.eventId ? eventsById.get(record.eventId) : undefined}
               orgEvents={orgEvents}
               onApprove={onApprove}
               onReject={onReject}
@@ -435,15 +435,24 @@ function ApproveTab({
   );
 }
 
-function RosterRow({ volunteerId, hours, status }: { volunteerId: string; hours?: number; status: HistoryStatus }) {
-  const volunteer = getUser(volunteerId);
+function RosterRow({
+  volunteerName,
+  volunteerVerified,
+  hours,
+  status,
+}: {
+  volunteerName: string;
+  volunteerVerified: boolean;
+  hours?: number;
+  status: HistoryStatus;
+}) {
   return (
     <ThemedView type="backgroundElement" style={styles.rosterRow}>
       <View style={styles.rosterNameRow}>
         <ThemedText type="bodyBold" numberOfLines={1}>
-          {volunteer?.name ?? 'Unknown volunteer'}
+          {volunteerName}
         </ThemedText>
-        {volunteer?.verified && <VerifiedBadge size="sm" />}
+        {volunteerVerified && <VerifiedBadge size="sm" />}
       </View>
       {hours !== undefined && (
         <ThemedText type="caption" themeColor="textSecondary">
@@ -495,7 +504,8 @@ function HistoryTab({ records, events }: { records: OrgHistoryRecord[]; events: 
                     {visibleRecords.map((record) => (
                       <RosterRow
                         key={record.id}
-                        volunteerId={record.volunteerId}
+                        volunteerName={record.volunteerName}
+                        volunteerVerified={record.volunteerVerified}
                         hours={record.hours}
                         status={record.status}
                       />
@@ -516,12 +526,38 @@ export default function OrgYouScreen() {
   const { activeOrganization } = useOrganization();
   const { records, getOrgEvents, approveRecord, rejectRecord, linkRecordToEvent, createEventFromRecord } =
     useOrgHistory();
+  const [orgEvents, setOrgEvents] = useState<EventDetail[]>([]);
 
   useFocusEffect(
     useCallback(() => {
       return () => setActiveTab('approve');
     }, []),
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (!activeOrganization) {
+        if (!cancelled) setOrgEvents([]);
+        return;
+      }
+      try {
+        const events = await getOrgEvents(activeOrganization.id);
+        if (!cancelled) setOrgEvents(events);
+      } catch (error) {
+        console.error('Failed to load org events', error);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // Also refetches whenever `records` changes (e.g. after
+    // createEventFromRecord posts a new event) so a just-created event shows
+    // up without navigating away and back.
+  }, [activeOrganization, getOrgEvents, records]);
 
   if (!activeOrganization) {
     return (
@@ -537,9 +573,7 @@ export default function OrgYouScreen() {
     );
   }
 
-  const orgEvents = getOrgEvents(activeOrganization.id);
-
-  const handleCreateEvent = (id: string, draft: NewEventDraft) => createEventFromRecord(id, activeOrganization, draft);
+  const orgRecords = records.filter((record) => record.orgId === activeOrganization.id);
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -555,15 +589,15 @@ export default function OrgYouScreen() {
 
       {activeTab === 'approve' && (
         <ApproveTab
-          records={records}
+          records={orgRecords}
           orgEvents={orgEvents}
           onApprove={approveRecord}
           onReject={rejectRecord}
           onLinkToEvent={linkRecordToEvent}
-          onCreateEvent={handleCreateEvent}
+          onCreateEvent={createEventFromRecord}
         />
       )}
-      {activeTab === 'history' && <HistoryTab records={records} events={orgEvents} />}
+      {activeTab === 'history' && <HistoryTab records={orgRecords} events={orgEvents} />}
     </ScreenScrollView>
   );
 }

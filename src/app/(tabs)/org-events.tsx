@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { router } from 'expo-router';
@@ -16,10 +16,32 @@ import { parseEventDateTime } from '@/utils/dates';
 export default function OrgEventsScreen() {
   const { activeOrganization } = useOrganization();
   const { getOrgEvents } = useOrgHistory();
+  const [orgEvents, setOrgEvents] = useState<EventDetail[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (!activeOrganization) {
+        if (!cancelled) setOrgEvents([]);
+        return;
+      }
+      try {
+        const events = await getOrgEvents(activeOrganization.id);
+        if (!cancelled) setOrgEvents(events);
+      } catch (error) {
+        console.error('Failed to load org events', error);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganization, getOrgEvents]);
 
   const now = useMemo(() => new Date(), []);
   const { upcomingEvents, pastEvents } = useMemo(() => {
-    const orgEvents = activeOrganization ? getOrgEvents(activeOrganization.id) : [];
     const upcoming: EventDetail[] = [];
     const past: EventDetail[] = [];
     for (const event of orgEvents) {
@@ -27,7 +49,7 @@ export default function OrgEventsScreen() {
       target.push(event);
     }
     return { upcomingEvents: upcoming, pastEvents: past };
-  }, [activeOrganization, getOrgEvents, now]);
+  }, [orgEvents, now]);
 
   if (!activeOrganization) {
     return (

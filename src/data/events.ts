@@ -88,3 +88,16 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
   if (error) throw error;
   return data ? mapEventRow(data as unknown as EventRow) : null;
 }
+
+// An org's own event management view — unlike listEvents(), this includes
+// cancelled/completed events too, since an org needs to see its full history.
+export async function listOrgEvents(organizationId: string): Promise<EventDetail[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select(EVENT_SELECT)
+    .eq('org_id', organizationId)
+    .order('start_at', { ascending: false });
+
+  if (error) throw error;
+  return ((data ?? []) as unknown as EventRow[]).map(mapEventRow);
+}

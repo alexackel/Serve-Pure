@@ -1,9 +1,12 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import type { MockOrganization } from '@/context/organization-context';
+import { useSession } from '@/context/auth-context';
+import type { HistoryStatus } from '@/context/history-context';
+import { useOrganization } from '@/context/organization-context';
+import { listOrgEvents } from '@/data/events';
 import type { EventDetail } from '@/data/mock-events';
-import { MOCK_EVENTS } from '@/data/mock-events';
-import { MOCK_ORG_HISTORY, type OrgHistoryRecord } from '@/data/mock-org-history';
+import { supabase } from '@/lib/supabase';
+import { formatShortDate, parseRecordDate } from '@/utils/dates';
 
 export type NewEventDraft = {
   title: string;
@@ -13,82 +16,210 @@ export type NewEventDraft = {
   description?: string;
 };
 
+export type OrgHistoryRecord = {
+  id: string;
+  orgId: string;
+  volunteerId: string;
+  volunteerName: string;
+  volunteerVerified: boolean;
+  eventId: string | null;
+  eventTitle: string;
+  date: string;
+  status: HistoryStatus;
+  hours?: number;
+  note?: string;
+};
+
+const RECORD_SELECT =
+  'id, org_id, user_id, event_id, activity_title, status, hours_claimed, hours_awarded, source, notes, created_at, profiles!user_id(full_name, identity_verified), events(title, start_at)';
+
+type AttendanceStatus = 'pending' | 'verified' | 'partial' | 'no_show' | 'appealed' | 'rejected' | 'cancelled';
+
+type RecordRow = {
+  id: string;
+  org_id: string;
+  user_id: string;
+  event_id: string | null;
+  activity_title: string | null;
+  status: AttendanceStatus;
+  hours_claimed: number | null;
+  hours_awarded: number | null;
+  source: 'platform_registration' | 'self_reported';
+  notes: string | null;
+  created_at: string;
+  profiles: { full_name: string; identity_verified: boolean } | null;
+  events: { title: string; start_at: string } | null;
+};
+
+// Simpler than history-context's mapper: an org's own view has no need for
+// the 'admin-approved' (group-admin) distinction.
+function mapStatus(row: RecordRow): HistoryStatus {
+  switch (row.status) {
+    case 'pending':
+      return row.source === 'self_reported' ? 'self-uploaded' : 'pending';
+    case 'verified':
+    case 'partial':
+      return 'verified';
+    case 'no_show':
+    case 'rejected':
+      return 'no-show';
+    case 'appealed':
+      return 'appealed';
+    case 'cancelled':
+      return 'cancelled';
+  }
+}
+
+function mapRecord(row: RecordRow): OrgHistoryRecord {
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    volunteerId: row.user_id,
+    volunteerName: row.profiles?.full_name ?? 'Unknown volunteer',
+    volunteerVerified: row.profiles?.identity_verified ?? false,
+    eventId: row.event_id,
+    eventTitle: row.events?.title ?? row.activity_title ?? 'Self-reported activity',
+    date: formatShortDate(new Date(row.events?.start_at ?? row.created_at)),
+    status: mapStatus(row),
+    hours: row.hours_awarded ?? row.hours_claimed ?? undefined,
+    note: row.notes ?? undefined,
+  };
+}
+
 type OrgHistoryContextValue = {
   records: OrgHistoryRecord[];
-  customEvents: EventDetail[];
-  getOrgEvents: (organizationId: string) => EventDetail[];
-  approveRecord: (id: string) => void;
-  rejectRecord: (id: string) => void;
-  linkRecordToEvent: (id: string, event: EventDetail) => void;
-  createEventFromRecord: (id: string, organization: MockOrganization, draft: NewEventDraft) => void;
+  isLoading: boolean;
+  getOrgEvents: (organizationId: string) => Promise<EventDetail[]>;
+  approveRecord: (id: string) => Promise<{ error: string | null }>;
+  rejectRecord: (id: string) => Promise<{ error: string | null }>;
+  linkRecordToEvent: (id: string, eventId: string) => Promise<{ error: string | null }>;
+  createEventFromRecord: (id: string, draft: NewEventDraft) => Promise<{ error: string | null }>;
 };
 
 const OrgHistoryContext = createContext<OrgHistoryContextValue | null>(null);
 
-function slugify(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-}
-
 export function OrgHistoryProvider({ children }: { children: ReactNode }) {
-  const [records, setRecords] = useState<OrgHistoryRecord[]>(MOCK_ORG_HISTORY);
-  const [customEvents, setCustomEvents] = useState<EventDetail[]>([]);
+  const { session } = useSession();
+  const { organizations, activeOrganization } = useOrganization();
+  const [records, setRecords] = useState<OrgHistoryRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const getOrgEvents = useCallback(
-    (organizationId: string) =>
-      [...MOCK_EVENTS, ...customEvents].filter((event) => event.organizationId === organizationId),
-    [customEvents],
+  const adminOrgIds = useMemo(() => organizations.map((organization) => organization.id), [organizations]);
+  const adminOrgIdsKey = adminOrgIds.join(',');
+
+  const refetch = useCallback(async () => {
+    if (!session || adminOrgIds.length === 0) {
+      setRecords([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .select(RECORD_SELECT)
+      .in('org_id', adminOrgIds)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Failed to load org history', error);
+      return;
+    }
+    setRecords(((data ?? []) as unknown as RecordRow[]).map(mapRecord));
+    // adminOrgIds is a fresh array each render; adminOrgIdsKey is its stable identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, adminOrgIdsKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      await refetch();
+      if (!cancelled) setIsLoading(false);
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [refetch]);
+
+  const getOrgEvents = useCallback((organizationId: string) => listOrgEvents(organizationId), []);
+
+  const approveRecord = useCallback(
+    async (id: string) => {
+      if (!session) return { error: 'You must be signed in.' };
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({ status: 'verified', verified_by: session.user.id, verified_by_role: 'org_admin', verified_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) return { error: error.message };
+      await refetch();
+      return { error: null };
+    },
+    [session, refetch],
   );
 
-  const approveRecord = useCallback((id: string) => {
-    setRecords((current) => current.map((record) => (record.id === id ? { ...record, status: 'verified' } : record)));
-  }, []);
+  const rejectRecord = useCallback(
+    async (id: string) => {
+      if (!session) return { error: 'You must be signed in.' };
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({ status: 'no_show', verified_by: session.user.id, verified_by_role: 'org_admin', verified_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) return { error: error.message };
+      await refetch();
+      return { error: null };
+    },
+    [session, refetch],
+  );
 
-  const rejectRecord = useCallback((id: string) => {
-    setRecords((current) => current.map((record) => (record.id === id ? { ...record, status: 'no-show' } : record)));
-  }, []);
-
-  const linkRecordToEvent = useCallback((id: string, event: EventDetail) => {
-    setRecords((current) =>
-      current.map((record) =>
-        record.id === id ? { ...record, status: 'verified', eventId: event.id, eventTitle: event.title } : record,
-      ),
-    );
-  }, []);
+  const linkRecordToEvent = useCallback(
+    async (id: string, eventId: string) => {
+      if (!session) return { error: 'You must be signed in.' };
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({ event_id: eventId, status: 'verified', linked_by: session.user.id, linked_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) return { error: error.message };
+      await refetch();
+      return { error: null };
+    },
+    [session, refetch],
+  );
 
   const createEventFromRecord = useCallback(
-    (id: string, organization: MockOrganization, draft: NewEventDraft) => {
-      const newEvent: EventDetail = {
-        id: `${slugify(draft.title)}-${Date.now()}`,
-        title: draft.title,
-        organization: organization.name,
-        organizationId: organization.id,
-        date: draft.date,
-        hours: draft.hours,
-        location: draft.location,
-        description: draft.description,
-        status: 'verified',
-      };
+    async (id: string, draft: NewEventDraft) => {
+      if (!session) return { error: 'You must be signed in.' };
+      if (!activeOrganization) return { error: 'No active organization.' };
 
-      setCustomEvents((current) => [...current, newEvent]);
-      linkRecordToEvent(id, newEvent);
+      const startDate = parseRecordDate(draft.date, new Date());
+      if (Number.isNaN(startDate.getTime())) {
+        return { error: 'Enter the date as e.g. "Aug 5".' };
+      }
+      startDate.setHours(9, 0, 0, 0);
+      const endDate = new Date(startDate.getTime() + (draft.hours ?? 1) * 60 * 60 * 1000);
+
+      const { data, error } = await supabase
+        .from('events')
+        .insert({
+          org_id: activeOrganization.id,
+          created_by: session.user.id,
+          title: draft.title,
+          description: draft.description ?? null,
+          address: draft.location,
+          start_at: startDate.toISOString(),
+          end_at: endDate.toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (error) return { error: error.message };
+      return linkRecordToEvent(id, data.id);
     },
-    [linkRecordToEvent],
+    [session, activeOrganization, linkRecordToEvent],
   );
 
   const value = useMemo(
-    () => ({
-      records,
-      customEvents,
-      getOrgEvents,
-      approveRecord,
-      rejectRecord,
-      linkRecordToEvent,
-      createEventFromRecord,
-    }),
-    [records, customEvents, getOrgEvents, approveRecord, rejectRecord, linkRecordToEvent, createEventFromRecord],
+    () => ({ records, isLoading, getOrgEvents, approveRecord, rejectRecord, linkRecordToEvent, createEventFromRecord }),
+    [records, isLoading, getOrgEvents, approveRecord, rejectRecord, linkRecordToEvent, createEventFromRecord],
   );
 
   return <OrgHistoryContext.Provider value={value}>{children}</OrgHistoryContext.Provider>;
