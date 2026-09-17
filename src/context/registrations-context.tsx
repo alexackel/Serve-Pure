@@ -44,7 +44,7 @@ function mapRegistrationRow(row: RegistrationRow): RegistrationWithEvent {
 // volunteer can actually hit into something readable.
 function friendlyRegistrationError(error: PostgrestError): string {
   if (error.code === '23514' || error.message.includes('self_dealing_violation')) {
-    return "You can't register for an event you created.";
+    return "You can't register for an event created by you or your organization.";
   }
   if (error.message.includes('is a minor with no guardian on file')) {
     return 'Guardian info is required before you can register for events. Please add a guardian in your profile.';

@@ -32,13 +32,17 @@ function formatEventTime(isoString: string): string {
   return new Date(isoString).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
-// event_lifecycle_status has 'cancelled'/'completed' states EventCard's
-// StatusIndicator doesn't render (Find only ever lists available/full events;
-// a single past/cancelled event fetched via getEvent doesn't use this field
-// for anything — event/[id].tsx never reads `.status`). Collapse both to
-// 'full' rather than widening EventStatus for two states nothing displays.
+// listOrgEvents (below) deliberately fetches an org's full history including
+// cancelled/completed events, and that feeds org-events.tsx's Upcoming list
+// and org-you.tsx's History tab, both of which render `.status` directly —
+// so 'cancelled' must round-trip as 'cancelled', not collapse into 'full'.
+// 'completed' still collapses into 'full' for now: EventStatus already has a
+// separate 'completed' member used elsewhere for a volunteer's own completed
+// registration, a different meaning than an event's lifecycle status.
 function mapEventStatus(status: EventRow['status']): EventDetail['status'] {
-  return status === 'available' ? 'available' : 'full';
+  if (status === 'available') return 'available';
+  if (status === 'cancelled') return 'cancelled';
+  return 'full';
 }
 
 function mapRequirements(row: EventRow): EventRequirements | undefined {

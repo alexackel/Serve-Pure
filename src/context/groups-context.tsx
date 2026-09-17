@@ -266,9 +266,29 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
   const approveMemberRecord = useCallback(
     async (_groupId: string, _memberId: string, recordId: string) => {
       if (!session) return { error: 'You must be signed in.' };
+
+      // hours_awarded is never set on creation (only hours_claimed, what the
+      // volunteer entered) — approving must award something, or a verified
+      // record silently displays no hours forever. attendance_update_group_admin
+      // RLS restricts this path to source = 'self_reported' rows only, so
+      // hours_claimed is always what was self-reported (no event-duration
+      // fallback needed, unlike org-history-context.tsx's approveRecord).
+      const { data: record, error: fetchError } = await supabase
+        .from('attendance_records')
+        .select('hours_claimed')
+        .eq('id', recordId)
+        .single();
+      if (fetchError) return { error: fetchError.message };
+
       const { error } = await supabase
         .from('attendance_records')
-        .update({ status: 'verified', verified_by: session.user.id, verified_by_role: 'group_admin', verified_at: new Date().toISOString() })
+        .update({
+          status: 'verified',
+          hours_awarded: record.hours_claimed,
+          verified_by: session.user.id,
+          verified_by_role: 'group_admin',
+          verified_at: new Date().toISOString(),
+        })
         .eq('id', recordId);
       return { error: error ? error.message : null };
     },

@@ -15,6 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 export type EventStatus =
   | 'available'
   | 'full'
+  | 'cancelled'
   | 'completed'
   | 'registered'
   | 'pending'
@@ -56,6 +57,8 @@ function StatusIndicator({ status }: { status: EventStatus }) {
           </ThemedText>
         </View>
       );
+    case 'cancelled':
+      return <VerificationBadge status="cancelled" />;
     case 'completed':
       return (
         <View style={[styles.neutralPill, { backgroundColor: theme.backgroundSelected }]}>

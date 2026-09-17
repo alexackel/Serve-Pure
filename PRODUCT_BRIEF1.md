@@ -75,4 +75,9 @@ Organization context uses a different nav entirely — see Roles & Navigation Mo
 - New organizations (first 5 events) show a non-alarmist safety notice to volunteers.
 - Verified hours (🟢) and self-reported hours (🟡) must always be visually distinguishable — no complicated badge system.
 - Minors: guardian info collected only if birthday indicates under 18; guardian auto-notified on event registration.
-- An event's creator can never register as a volunteer for their own event (self-dealing block).
+- An event's creator can never register as a volunteer for their own event (self-dealing block). This also applies to any other admin of the organization that posted the event — not just the literal creator.
+
+## Open Product Decisions (not yet implemented)
+
+- **Subgroup membership inheritance:** groups support a parent/subgroup structure, but it's undefined whether joining a subgroup should also join the parent group (or vice versa), or whether a parent group's admins should have implicit admin/visibility rights over a subgroup. Currently these are fully independent — subgroup membership has no effect on the parent group and vice versa. Needs a product decision before any inheritance behavior is built.
+- **New-organization safety notice threshold:** "first 5 events" is fully computable from existing data (an org's event count), but the notice's UI/copy/placement hasn't been designed yet.

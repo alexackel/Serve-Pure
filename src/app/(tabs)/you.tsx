@@ -297,7 +297,10 @@ export default function YouScreen() {
         .select('identity_verified')
         .eq('id', session.user.id)
         .maybeSingle();
-      if (!cancelled && !error && data) {
+      if (cancelled) return;
+      if (error) {
+        console.error('Failed to load identity_verified', error);
+      } else if (data) {
         setIdentityVerified(data.identity_verified);
       }
     }

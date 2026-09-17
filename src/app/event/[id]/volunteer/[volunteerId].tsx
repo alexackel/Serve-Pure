@@ -29,6 +29,7 @@ export default function EventVolunteerDetailScreen() {
         .maybeSingle();
       if (cancelled) return;
       if (error || !data) {
+        if (error) console.error('Failed to load volunteer profile', error);
         setVolunteer(null);
       } else {
         setVolunteer({ name: data.full_name, verified: data.identity_verified });
