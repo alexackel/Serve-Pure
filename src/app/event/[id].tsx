@@ -146,7 +146,7 @@ export default function EventDetailScreen() {
 
   const { maxVolunteers } = event;
   const signedUp = isRegistered(event.id);
-  const volunteerCount = roster.length;
+  const volunteerCount = event.volunteers ?? roster.length;
   const hasCapacity = maxVolunteers !== undefined;
   const isFull = hasCapacity && volunteerCount >= maxVolunteers;
 
@@ -274,7 +274,7 @@ export default function EventDetailScreen() {
             style={[styles.registrantToggle, { backgroundColor: theme.backgroundElement }]}>
             <ThemedText type="h3" style={styles.registrantToggleText}>
               Registered Volunteers
-              {maxVolunteers !== undefined && ` (${roster.length}/${maxVolunteers})`}
+              {maxVolunteers !== undefined && ` (${volunteerCount}/${maxVolunteers})`}
             </ThemedText>
             <Ionicons
               name={rosterExpanded ? 'chevron-up' : 'chevron-down'}

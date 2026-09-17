@@ -295,6 +295,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   headerInfo: {
+    flex: 1,
+    minWidth: 0,
     gap: Spacing.half,
   },
   adminBadge: {

@@ -15,6 +15,7 @@ import { useTheme } from '@/hooks/use-theme';
 export type EventStatus =
   | 'available'
   | 'full'
+  | 'completed'
   | 'registered'
   | 'pending'
   | 'verified'
@@ -52,6 +53,14 @@ function StatusIndicator({ status }: { status: EventStatus }) {
         <View style={[styles.neutralPill, { backgroundColor: theme.backgroundSelected }]}>
           <ThemedText type="label" themeColor="textSecondary">
             Full
+          </ThemedText>
+        </View>
+      );
+    case 'completed':
+      return (
+        <View style={[styles.neutralPill, { backgroundColor: theme.backgroundSelected }]}>
+          <ThemedText type="label" themeColor="textSecondary">
+            Completed
           </ThemedText>
         </View>
       );

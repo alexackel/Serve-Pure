@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Avatar } from '@/components/avatar';
+import { AccountAvatarButton } from '@/components/account-avatar-button';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -36,9 +36,7 @@ export function HomeHeader() {
   return (
     <View style={styles.row}>
       <View style={styles.icons}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Profile" style={styles.avatarButton}>
-          <Avatar icon="person" iconSize={18} />
-        </Pressable>
+        <AccountAvatarButton />
         <IconButton icon="search-outline" accessibilityLabel="Search" />
       </View>
 
@@ -71,12 +69,6 @@ const styles = StyleSheet.create({
   upgradeSlot: {
     flex: 1,
     alignItems: 'center',
-  },
-  avatarButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   upgradeButton: {
     paddingHorizontal: Spacing.three,

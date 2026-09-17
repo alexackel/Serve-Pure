@@ -51,11 +51,13 @@ type EventGroup = {
   eventId: string;
   eventTitle: string;
   event?: EventDetail;
+  isPast: boolean;
   records: OrgHistoryRecord[];
 };
 
 function buildEventGroups(records: OrgHistoryRecord[], events: EventDetail[]): EventGroup[] {
   const groups = new Map<string, EventGroup>();
+  const now = new Date();
 
   for (const record of records) {
     if (!HISTORY_VISIBLE_STATUSES.has(record.status)) {
@@ -68,16 +70,22 @@ function buildEventGroups(records: OrgHistoryRecord[], events: EventDetail[]): E
     if (existing) {
       existing.records.push(record);
     } else {
+      const event = record.eventId ? events.find((event) => event.id === record.eventId) : undefined;
+      // A record exists the moment someone registers, so this list also
+      // includes upcoming events with a pending signup — only an event whose
+      // end time has already passed should read as "Completed" rather than
+      // "Available"/"Full".
+      const isPast = event ? parseEventDateTime(event.date, event.endTime ?? event.startTime, now) < now : true;
       groups.set(groupKey, {
         eventId: groupKey,
         eventTitle: record.eventTitle,
-        event: record.eventId ? events.find((event) => event.id === record.eventId) : undefined,
+        event,
+        isPast,
         records: [record],
       });
     }
   }
 
-  const now = new Date();
   return Array.from(groups.values()).sort((a, b) => {
     const aTime = a.event ? parseEventDateTime(a.event.date, a.event.startTime, now).getTime() : 0;
     const bTime = b.event ? parseEventDateTime(b.event.date, b.event.startTime, now).getTime() : 0;
@@ -493,7 +501,12 @@ function HistoryTab({ records, events }: { records: OrgHistoryRecord[]; events: 
             return (
               <View key={group.eventId} style={styles.eventGroup}>
                 {group.event ? (
-                  <EventCard {...group.event} time={group.event.startTime} onPress={toggleExpanded} />
+                  <EventCard
+                    {...group.event}
+                    time={group.event.startTime}
+                    status={group.isPast ? 'completed' : group.event.status}
+                    onPress={toggleExpanded}
+                  />
                 ) : (
                   <Pressable onPress={toggleExpanded} style={styles.fallbackEventCard}>
                     <ThemedText type="h3">{group.eventTitle}</ThemedText>

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { EventCard } from '@/components/cards';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -18,27 +18,31 @@ export default function OrgEventsScreen() {
   const { getOrgEvents } = useOrgHistory();
   const [orgEvents, setOrgEvents] = useState<EventDetail[]>([]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      if (!activeOrganization) {
-        if (!cancelled) setOrgEvents([]);
-        return;
-      }
-      try {
-        const events = await getOrgEvents(activeOrganization.id);
-        if (!cancelled) setOrgEvents(events);
-      } catch (error) {
-        console.error('Failed to load org events', error);
-      }
+  const refetchEvents = useCallback(async () => {
+    if (!activeOrganization) {
+      setOrgEvents([]);
+      return;
     }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const events = await getOrgEvents(activeOrganization.id);
+      setOrgEvents(events);
+    } catch (error) {
+      console.error('Failed to load org events', error);
+    }
   }, [activeOrganization, getOrgEvents]);
+
+  useEffect(() => {
+    refetchEvents();
+  }, [refetchEvents]);
+
+  // Also refetches on every return to this tab, so a volunteer registering/
+  // unregistering elsewhere is reflected in registered_count/"Full" here
+  // without a manual pull (same pattern as find.tsx).
+  useFocusEffect(
+    useCallback(() => {
+      refetchEvents();
+    }, [refetchEvents]),
+  );
 
   const now = useMemo(() => new Date(), []);
   const { upcomingEvents, pastEvents } = useMemo(() => {
@@ -103,6 +107,7 @@ export default function OrgEventsScreen() {
                 key={event.id}
                 {...event}
                 time={event.startTime}
+                status="completed"
                 onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
               />
             ))}

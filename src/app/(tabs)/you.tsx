@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
-import { Avatar } from '@/components/avatar';
+import { AccountAvatarButton } from '@/components/account-avatar-button';
 import { EventCard, RecordCard, StatCard } from '@/components/cards';
 import { HistoryFilterChips } from '@/components/history-filter-chips';
 import { PillIconButton } from '@/components/pill-icon-button';
@@ -18,7 +18,7 @@ import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
-import { CURRENT_USER } from '@/data/current-user';
+import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
 import { useToggleSet } from '@/hooks/use-toggle-set';
 import { endOfDay, formatDateInput, formatShortDate, parseDateInput, parseRecordDate, startOfDay } from '@/utils/dates';
@@ -284,8 +284,28 @@ export default function YouScreen() {
   const [timeRange, setTimeRange] = useState<TimeRangeKey>(TIME_RANGES[0]);
   const [customRange, setCustomRange] = useState<CustomRange | null>(null);
   const { records: historyRecords, reliabilityScore } = useHistory();
-  const { signOut } = useSession();
+  const { session } = useSession();
   const theme = useTheme();
+  const [identityVerified, setIdentityVerified] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProfile() {
+      if (!session) return;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('identity_verified')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      if (!cancelled && !error && data) {
+        setIdentityVerified(data.identity_verified);
+      }
+    }
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -306,11 +326,11 @@ export default function YouScreen() {
     <ScreenScrollView containerStyle={styles.container}>
       <View style={styles.titleRow}>
         <View style={styles.identityRow}>
-          <Avatar size={32} icon="person" iconSize={16} />
+          <AccountAvatarButton size={32} />
           <ThemedText type="h1" style={styles.pageTitle}>
             You
           </ThemedText>
-          {CURRENT_USER.verified && <VerifiedBadge />}
+          {identityVerified && <VerifiedBadge />}
         </View>
         <View style={styles.reliabilityBadge}>
           <Ionicons name="star" size={16} color={theme.warning} />
@@ -350,7 +370,6 @@ export default function YouScreen() {
         </ThemedView>
 
         <PillIconButton icon="download-outline" label="Export Verified Transcript" />
-        <PillIconButton icon="log-out-outline" label="Sign Out" onPress={() => signOut()} />
       </ThemedView>
 
       <SegmentedTabs tabs={YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />

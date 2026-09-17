@@ -46,7 +46,8 @@ export function RecordCard({ organization, hours, date, status, hasPhoto, likes,
           </ThemedText>
         ) : (
           <ThemedText type="body" style={styles.sentence}>
-            You volunteered at <ThemedText type="bodyBold">{organization}</ThemedText> for {hours} hrs
+            You volunteered at <ThemedText type="bodyBold">{organization}</ThemedText>
+            {hours !== undefined ? ` for ${hours} hrs` : ''}
           </ThemedText>
         )}
 

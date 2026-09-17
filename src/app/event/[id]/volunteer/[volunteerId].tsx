@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { useLocalSearchParams } from 'expo-router';
@@ -9,11 +10,44 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { getUser } from '@/data/mock-users';
+import { supabase } from '@/lib/supabase';
+
+type Volunteer = { name: string; verified: boolean };
 
 export default function EventVolunteerDetailScreen() {
   const { id, volunteerId } = useLocalSearchParams<{ id: string; volunteerId: string }>();
-  const volunteer = getUser(volunteerId);
+  const [volunteer, setVolunteer] = useState<Volunteer | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setVolunteer(undefined);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, identity_verified')
+        .eq('id', volunteerId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        setVolunteer(null);
+      } else {
+        setVolunteer({ name: data.full_name, verified: data.identity_verified });
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [volunteerId]);
+
+  if (volunteer === undefined) {
+    return (
+      <ScreenScrollView containerStyle={styles.container}>
+        <BackButton fallbackHref={{ pathname: '/event/[id]', params: { id: id ?? '' } }} />
+        <ThemedText type="h3">Loading…</ThemedText>
+      </ScreenScrollView>
+    );
+  }
 
   if (!volunteer) {
     return (

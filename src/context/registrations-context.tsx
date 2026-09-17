@@ -116,6 +116,26 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (error) {
+        // A 23505 here means a row for (event_id, user_id) already exists —
+        // if it's a previously cancelled registration, revive it instead of
+        // reporting a false "already registered" (see uq_registrations_active,
+        // 0014_fix_registration_rejoin_and_visibility.sql).
+        if (error.code === '23505') {
+          const { data: revived, error: reviveError } = await supabase
+            .from('registrations')
+            .update({ status: 'pending_confirmation' })
+            .eq('event_id', eventId)
+            .eq('user_id', session.user.id)
+            .eq('status', 'cancelled')
+            .select(REGISTRATION_SELECT)
+            .single();
+
+          if (!reviveError && revived) {
+            const mapped = mapRegistrationRow(revived as unknown as RegistrationRow);
+            setRegistrations((current) => [mapped, ...current.filter((registration) => registration.id !== mapped.id)]);
+            return { error: null };
+          }
+        }
         return { error: friendlyRegistrationError(error) };
       }
 

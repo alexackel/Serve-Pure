@@ -146,9 +146,36 @@ export function OrgHistoryProvider({ children }: { children: ReactNode }) {
   const approveRecord = useCallback(
     async (id: string) => {
       if (!session) return { error: 'You must be signed in.' };
+
+      // hours_awarded is never set on creation: self-reported rows only carry
+      // hours_claimed (what the volunteer entered), and platform_registration
+      // rows carry no hours at all until now. Approving must award something,
+      // or a verified record silently displays no hours forever (visible as
+      // "Verified ... for  hrs" in the volunteer's History).
+      const { data: record, error: fetchError } = await supabase
+        .from('attendance_records')
+        .select('source, hours_claimed, events(start_at, end_at)')
+        .eq('id', id)
+        .single();
+      if (fetchError) return { error: fetchError.message };
+
+      const eventRow = record.events as unknown as { start_at: string; end_at: string } | null;
+      const hoursAwarded =
+        record.source === 'self_reported'
+          ? record.hours_claimed
+          : eventRow
+            ? Math.round(((new Date(eventRow.end_at).getTime() - new Date(eventRow.start_at).getTime()) / (1000 * 60 * 60)) * 10) / 10
+            : null;
+
       const { error } = await supabase
         .from('attendance_records')
-        .update({ status: 'verified', verified_by: session.user.id, verified_by_role: 'org_admin', verified_at: new Date().toISOString() })
+        .update({
+          status: 'verified',
+          hours_awarded: hoursAwarded,
+          verified_by: session.user.id,
+          verified_by_role: 'org_admin',
+          verified_at: new Date().toISOString(),
+        })
         .eq('id', id);
       if (error) return { error: error.message };
       await refetch();

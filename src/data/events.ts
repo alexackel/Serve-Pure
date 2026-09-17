@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { EventDetail } from '@/data/mock-events';
+import type { EventDetail, EventRequirements } from '@/data/mock-events';
 import { formatShortDate } from '@/utils/dates';
 
 export const EVENT_SELECT = '*, organizations(name, verification_status)';
@@ -23,6 +23,8 @@ export type EventRow = {
   status: 'available' | 'full' | 'cancelled' | 'completed';
   registered_count: number;
   posted_at: string;
+  min_age: number | null;
+  requirements: { skills?: string[]; physical?: string; what_to_bring?: string[] } | null;
   organizations: { name: string; verification_status: string } | null;
 };
 
@@ -37,6 +39,17 @@ function formatEventTime(isoString: string): string {
 // 'full' rather than widening EventStatus for two states nothing displays.
 function mapEventStatus(status: EventRow['status']): EventDetail['status'] {
   return status === 'available' ? 'available' : 'full';
+}
+
+function mapRequirements(row: EventRow): EventRequirements | undefined {
+  const { min_age, requirements } = row;
+  const skills = requirements?.skills?.length ? requirements.skills.join(', ') : undefined;
+  const whatToBring = requirements?.what_to_bring?.length ? requirements.what_to_bring.join(', ') : undefined;
+  const physical = requirements?.physical || undefined;
+  const age = min_age != null ? `${min_age}+` : undefined;
+
+  if (!age && !skills && !physical && !whatToBring) return undefined;
+  return { age, skills, physical, whatToBring };
 }
 
 export function mapEventRow(row: EventRow): EventDetail {
@@ -57,6 +70,7 @@ export function mapEventRow(row: EventRow): EventDetail {
     hours,
     location: row.address ?? 'Location TBD',
     description: row.description ?? undefined,
+    requirements: mapRequirements(row),
     contactInfo: row.contact_email ?? row.contact_phone ?? undefined,
     website: row.website ?? undefined,
     volunteers: row.registered_count,
