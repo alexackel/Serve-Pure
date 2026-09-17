@@ -2,7 +2,7 @@ import type { EventDetail } from '@/data/mock-events';
 import { addDays, endOfDay, parseEventDateTime, startOfDay } from '@/utils/dates';
 import { getDistanceMiles } from '@/utils/geo';
 
-// Shape-compatible with `UserLocation` from `use-user-location.ts`, kept local
+// Shape-compatible with `UserLocation` from `use-user-location.tsx`, kept local
 // so this file (pure filter/sort logic) doesn't depend on a hook module.
 export type UserCoordinates = { latitude: number | null; longitude: number | null };
 

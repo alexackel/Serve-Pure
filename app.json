@@ -8,7 +8,10 @@
     "scheme": "servepure",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Serve Pure uses your location to find volunteer opportunities and organizations near you."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -33,7 +36,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Serve Pure to use your location to find volunteer opportunities near you."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

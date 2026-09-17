@@ -3,18 +3,23 @@ import { StyleSheet } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
-import { EventCard } from '@/components/cards';
-import { FilterSheet, FindPillRow } from '@/components/find';
+import { AiOrgCard, AiOrgCardSkeleton, EventCard } from '@/components/cards';
+import { CategoryChipRow, FilterSheet, FindPillRow } from '@/components/find';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SearchBar } from '@/components/search-bar';
+import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useAiDiscovery } from '@/context/ai-discovery-context';
+import { useOrganization } from '@/context/organization-context';
 import { useRegistrations } from '@/context/registrations-context';
+import type { AiOrgCategory } from '@/data/ai-orgs';
 import type { EventDetail } from '@/data/mock-events';
 import { listEvents } from '@/data/events';
 import { useFindFilters, type FindFiltersAction } from '@/hooks/use-find-filters';
 import { useUserLocation } from '@/hooks/use-user-location';
+import { AI_ORG_CATEGORY_OPTIONS, sortAiOrgsByDistance } from '@/utils/ai-orgs';
 import {
   AVAILABILITY_OPTIONS,
   DATE_OPTIONS,
@@ -32,6 +37,73 @@ import {
   type FindFiltersState,
   type FindPillKey,
 } from '@/utils/find-filters';
+
+type FindTabKey = 'events' | 'ai-discovered';
+
+const FIND_TABS: readonly { key: FindTabKey; label: string }[] = [
+  { key: 'events', label: 'Events' },
+  { key: 'ai-discovered', label: 'AI Discovered' },
+];
+
+type AiCategoryKey = AiOrgCategory | 'all';
+
+const AI_CATEGORY_CHIPS: readonly { key: AiCategoryKey; label: string }[] = [
+  { key: 'all', label: 'All' },
+  ...AI_ORG_CATEGORY_OPTIONS,
+];
+
+// AI Discovered pane: reads the app-launch preload's shared state (see
+// AiDiscoveryProvider) instead of fetching on its own, so a cache hit from
+// that preload costs this screen nothing.
+function AiDiscoveredPane() {
+  const { orgs, status } = useAiDiscovery();
+  const userLocation = useUserLocation();
+  const [categoryFilter, setCategoryFilter] = useState<AiCategoryKey>('all');
+
+  const filteredOrgs = useMemo(
+    () => (categoryFilter === 'all' ? orgs : orgs.filter((org) => org.category === categoryFilter)),
+    [orgs, categoryFilter],
+  );
+  const sortedOrgs = useMemo(() => sortAiOrgsByDistance(filteredOrgs, userLocation), [filteredOrgs, userLocation]);
+
+  return (
+    <>
+      <CategoryChipRow chips={AI_CATEGORY_CHIPS} activeKey={categoryFilter} onChange={setCategoryFilter} />
+      <ThemedView style={styles.list}>
+        {status === 'loading' && orgs.length === 0 ? (
+          <>
+            <AiOrgCardSkeleton />
+            <AiOrgCardSkeleton />
+            <AiOrgCardSkeleton />
+          </>
+        ) : status === 'error' && orgs.length === 0 ? (
+          <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
+            Couldn&apos;t load AI-discovered organizations. Try again later.
+          </ThemedText>
+        ) : sortedOrgs.length === 0 ? (
+          <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
+            No AI-discovered organizations match your filters.
+          </ThemedText>
+        ) : (
+          sortedOrgs.map((org) => (
+            <AiOrgCard
+              key={org.id}
+              name={org.name}
+              address={org.address}
+              category={org.category}
+              description={org.description}
+              distanceMiles={org.distanceMiles}
+              onPress={() => router.push({ pathname: '/ai-org/[id]', params: { id: org.id } })}
+            />
+          ))
+        )}
+      </ThemedView>
+      <ThemedText type="caption" themeColor="textSecondary" style={styles.braveAttribution}>
+        POWERED BY BRAVE
+      </ThemedText>
+    </>
+  );
+}
 
 type SheetConfig = {
   title: string;
@@ -122,6 +194,8 @@ export default function FindScreen() {
   const [searchValue, setSearchValue] = useState('');
   const { isRegistered } = useRegistrations();
   const userLocation = useUserLocation();
+  const { viewMode } = useOrganization();
+  const [activeTab, setActiveTab] = useState<FindTabKey>('events');
   const { state, dispatch, isDefault } = useFindFilters();
   const [activeSheet, setActiveSheet] = useState<FindPillKey | null>(null);
   // Keeps rendering the last-opened pill's sheet content while it slides out,
@@ -169,47 +243,63 @@ export default function FindScreen() {
   );
 
   const sheetConfig = getSheetConfig(lastSheetKey, state, categoryOptions, dispatch);
+  // Org/Organizer context keeps Find exactly as it is today — no segmented
+  // control, no AI Discovered pane, since discovering third-party orgs
+  // isn't relevant to managing your own.
+  const showEventsPane = viewMode !== 'personal' || activeTab === 'events';
+  const showAiPane = viewMode === 'personal' && activeTab === 'ai-discovered';
 
   return (
     <ScreenScrollView>
       <ThemedText type="h1" style={styles.pageTitle}>
         Find
       </ThemedText>
-      <SearchBar
-        placeholder="Search events"
-        value={searchValue}
-        onChangeText={setSearchValue}
-        containerStyle={styles.searchBar}
-      />
-      <FindPillRow
-        pills={pills}
-        onPressPill={setActiveSheet}
-        showClearAll={!isDefault}
-        onClearAll={() => {
-          dispatch({ type: 'clear-all' });
-          setActiveSheet(null);
-        }}
-      />
-      <ThemedView style={styles.list}>
-        {isLoading ? (
-          <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
-            Loading events…
-          </ThemedText>
-        ) : visibleEvents.length === 0 ? (
-          <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
-            No events match your filters.
-          </ThemedText>
-        ) : (
-          visibleEvents.map((event) => (
-            <EventCard
-              key={event.id}
-              {...event}
-              status={isRegistered(event.id) ? 'registered' : event.status}
-              onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
-            />
-          ))
-        )}
-      </ThemedView>
+      {viewMode === 'personal' && (
+        <ThemedView style={styles.segmentedTabs}>
+          <SegmentedTabs tabs={FIND_TABS} activeKey={activeTab} onChange={setActiveTab} />
+        </ThemedView>
+      )}
+      {showEventsPane && (
+        <>
+          <SearchBar
+            placeholder="Search events"
+            value={searchValue}
+            onChangeText={setSearchValue}
+            containerStyle={styles.searchBar}
+          />
+          <FindPillRow
+            pills={pills}
+            onPressPill={setActiveSheet}
+            showClearAll={!isDefault}
+            onClearAll={() => {
+              dispatch({ type: 'clear-all' });
+              setActiveSheet(null);
+            }}
+          />
+          <ThemedView style={styles.list}>
+            {isLoading ? (
+              <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
+                Loading events…
+              </ThemedText>
+            ) : visibleEvents.length === 0 ? (
+              <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
+                No events match your filters.
+              </ThemedText>
+            ) : (
+              visibleEvents.map((event) => (
+                <EventCard
+                  key={event.id}
+                  {...event}
+                  status={isRegistered(event.id) ? 'registered' : event.status}
+                  onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+                />
+              ))
+            )}
+          </ThemedView>
+        </>
+      )}
+
+      {showAiPane && <AiDiscoveredPane />}
 
       <FilterSheet
         visible={activeSheet !== null}
@@ -229,6 +319,9 @@ const styles = StyleSheet.create({
   pageTitle: {
     marginBottom: Spacing.three,
   },
+  segmentedTabs: {
+    marginBottom: Spacing.three,
+  },
   searchBar: {
     marginBottom: Spacing.three,
   },
@@ -239,5 +332,10 @@ const styles = StyleSheet.create({
   emptyState: {
     textAlign: 'center',
     paddingVertical: Spacing.five,
+  },
+  braveAttribution: {
+    textAlign: 'center',
+    marginTop: Spacing.three,
+    letterSpacing: 0.5,
   },
 });

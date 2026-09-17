@@ -77,6 +77,16 @@ Organization context uses a different nav entirely — see Roles & Navigation Mo
 - Minors: guardian info collected only if birthday indicates under 18; guardian auto-notified on event registration.
 - An event's creator can never register as a volunteer for their own event (self-dealing block). This also applies to any other admin of the organization that posted the event — not just the literal creator.
 
+## AI-Powered Volunteer Org Discovery ("AI Discovered" tab)
+
+A second, independent discovery channel on the Find page, alongside the existing org-verified/self-reported events tab. Instead of events posted on-platform, this surfaces volunteer *organizations* found via live web search — for areas where the platform doesn't yet have organic coverage.
+
+- Find gets a second tappable tab, "AI Discovered," next to the existing (unchanged) events tab. Card list of AI-found orgs, sorted by distance, with category filter chips (fixed enum: food, environment, youth, seniors, animals, education, health, disaster_relief, other).
+- **Cost control via region bucketing:** the platform never re-searches per exact zip code. A user's location is geocoded and checked against already-searched "metro buckets" (~15-20 mile radius); if one exists nearby, its cached results are reused. Only a genuinely new area triggers a fresh web search (Brave Search, free tier) + AI extraction (Claude Haiku, cheapest current model) + geocoding (Mapbox). This keeps the feature at near-$0 operating cost regardless of user count.
+- **Preloading:** the bucket-check-and-search flow kicks off in the background as soon as the app opens and location resolves, so results are typically already cached by the time a volunteer taps the tab. A subtle loading indicator only appears if the background fetch hasn't finished yet.
+- **Role visibility:** shown whenever a volunteer is in their personal context (the same shell Group Admins already use) — hidden only when viewing Find from an Organization's admin context, since discovering third-party orgs isn't relevant to managing your own.
+- **Trust/moderation:** each AI-discovered org has a lightweight "Report incorrect info" control that increments a flag counter. No review queue or auto-removal yet — this is a soft signal for future moderation tooling, not an enforcement mechanism.
+
 ## Open Product Decisions (not yet implemented)
 
 - **Subgroup membership inheritance:** groups support a parent/subgroup structure, but it's undefined whether joining a subgroup should also join the parent group (or vice versa), or whether a parent group's admins should have implicit admin/visibility rights over a subgroup. Currently these are fully independent — subgroup membership has no effect on the parent group and vice versa. Needs a product decision before any inheritance behavior is built.
