@@ -104,3 +104,10 @@ export async function reportAiOrg(orgId: string): Promise<void> {
   const { error } = await supabase.rpc('fn_flag_ai_org', { p_org_id: orgId });
   if (error) throw error;
 }
+
+// Undoes a volunteer's own report from the Reported Posts screen. See
+// fn_unflag_ai_org in the 0028 migration.
+export async function unreportAiOrg(orgId: string): Promise<void> {
+  const { error } = await supabase.rpc('fn_unflag_ai_org', { p_org_id: orgId });
+  if (error) throw error;
+}

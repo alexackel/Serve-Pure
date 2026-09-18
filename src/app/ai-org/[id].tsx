@@ -6,6 +6,7 @@ import { useLocalSearchParams } from 'expo-router';
 
 import { Avatar } from '@/components/avatar';
 import { BackButton } from '@/components/back-button';
+import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
 import { MetaRow } from '@/components/meta-row';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -49,9 +50,10 @@ function LinkRow({ icon, text, url }: { icon: keyof typeof Ionicons.glyphMap; te
 export default function AiOrgDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
-  const { orgs, status, reportedIds, reportOrg } = useAiDiscovery();
+  const { orgs, status, reportedIds, reportOrg, unreportOrg } = useAiDiscovery();
   const userLocation = useUserLocation();
   const [reportError, setReportError] = useState<string | null>(null);
+  const [confirmingReport, setConfirmingReport] = useState(false);
 
   const org = useMemo(() => orgs.find((candidate) => candidate.id === id), [orgs, id]);
 
@@ -75,9 +77,18 @@ export default function AiOrgDetailScreen() {
 
   const handleReport = () => {
     setReportError(null);
+    setConfirmingReport(false);
     reportOrg(org.id).catch((error) => {
       console.error('Failed to report AI org', error);
       setReportError('Could not submit report. Try again.');
+    });
+  };
+
+  const handleUndoReport = () => {
+    setReportError(null);
+    unreportOrg(org.id).catch((error) => {
+      console.error('Failed to undo AI org report', error);
+      setReportError('Could not undo report. Try again.');
     });
   };
 
@@ -169,15 +180,31 @@ export default function AiOrgDetailScreen() {
         </View>
       )}
 
-      <Pressable
-        disabled={reported}
-        onPress={handleReport}
-        style={[styles.reportButton, { borderColor: reported ? theme.error : theme.border }]}>
-        <Ionicons name={reported ? 'flag' : 'flag-outline'} size={16} color={reported ? theme.error : theme.textSecondary} />
-        <ThemedText type="bodyBold" themeColor={reported ? 'error' : 'textSecondary'}>
-          {reported ? 'Reported' : 'Report incorrect info'}
-        </ThemedText>
-      </Pressable>
+      {confirmingReport ? (
+        <ThemedView type="backgroundElement" style={styles.reportConfirm}>
+          <ThemedText type="body">Report this organization&apos;s info as incorrect?</ThemedText>
+          <ConfirmCancelRow
+            confirmLabel="Report"
+            confirmColor="error"
+            onCancel={() => setConfirmingReport(false)}
+            onConfirm={handleReport}
+          />
+        </ThemedView>
+      ) : reported ? (
+        <Pressable onPress={handleUndoReport} style={[styles.reportButton, { borderColor: theme.error }]}>
+          <Ionicons name="flag" size={16} color={theme.error} />
+          <ThemedText type="bodyBold" themeColor="error">
+            Reported · Undo
+          </ThemedText>
+        </Pressable>
+      ) : (
+        <Pressable onPress={() => setConfirmingReport(true)} style={[styles.reportButton, { borderColor: theme.border }]}>
+          <Ionicons name="flag-outline" size={16} color={theme.textSecondary} />
+          <ThemedText type="bodyBold" themeColor="textSecondary">
+            Report incorrect info
+          </ThemedText>
+        </Pressable>
+      )}
     </ScreenScrollView>
   );
 }
@@ -247,5 +274,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     paddingVertical: Spacing.three,
+  },
+  reportConfirm: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.three,
+    gap: Spacing.two,
   },
 });

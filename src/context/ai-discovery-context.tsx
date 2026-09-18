@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useSession } from '@/context/auth-context';
-import { discoverAiOrgs, reportAiOrg, type AiDiscoveredOrg } from '@/data/ai-orgs';
+import { discoverAiOrgs, reportAiOrg, unreportAiOrg, type AiDiscoveredOrg } from '@/data/ai-orgs';
 import { useUserLocation } from '@/hooks/use-user-location';
 
 export type AiDiscoveryStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -13,6 +13,7 @@ type AiDiscoveryContextValue = {
   refetch: () => void;
   reportedIds: Set<string>;
   reportOrg: (orgId: string) => Promise<void>;
+  unreportOrg: (orgId: string) => Promise<void>;
 };
 
 const AiDiscoveryContext = createContext<AiDiscoveryContextValue | null>(null);
@@ -57,29 +58,69 @@ export function AiDiscoveryProvider({ children }: { children: ReactNode }) {
     runDiscovery(latitude, longitude);
   }, [latitude, longitude, runDiscovery]);
 
+  // Keeps each org's flaggedCount in sync locally on report/undo, since
+  // there's no refetch to pick up the server-side count (see refetch above
+  // — orgs are fetched once per app session, on purpose, to keep the
+  // discover-ai-orgs edge function's Brave/Haiku/Mapbox calls near-$0).
+  // Floored at 0 defensively, though fn_unflag_ai_org already floors server-side.
+  const adjustFlaggedCount = useCallback((orgId: string, delta: number) => {
+    setOrgs((prev) =>
+      prev.map((org) => (org.id === orgId ? { ...org, flaggedCount: Math.max(org.flaggedCount + delta, 0) } : org)),
+    );
+  }, []);
+
   // Optimistic add, rolled back on failure — shared by the AI Discovered
   // card list and the org detail screen so both reflect the same "did I
   // report this" state instantly.
-  const reportOrg = useCallback((orgId: string) => {
-    setReportedIds((prev) => {
-      if (prev.has(orgId)) return prev;
-      const next = new Set(prev);
-      next.add(orgId);
-      return next;
-    });
-    return reportAiOrg(orgId).catch((error) => {
+  const reportOrg = useCallback(
+    (orgId: string) => {
       setReportedIds((prev) => {
+        if (prev.has(orgId)) return prev;
+        const next = new Set(prev);
+        next.add(orgId);
+        return next;
+      });
+      adjustFlaggedCount(orgId, 1);
+      return reportAiOrg(orgId).catch((error) => {
+        setReportedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(orgId);
+          return next;
+        });
+        adjustFlaggedCount(orgId, -1);
+        throw error;
+      });
+    },
+    [adjustFlaggedCount],
+  );
+
+  // Undoes a report from the Reported Posts screen — same optimistic/
+  // rollback shape as reportOrg, in the opposite direction.
+  const unreportOrg = useCallback(
+    (orgId: string) => {
+      setReportedIds((prev) => {
+        if (!prev.has(orgId)) return prev;
         const next = new Set(prev);
         next.delete(orgId);
         return next;
       });
-      throw error;
-    });
-  }, []);
+      adjustFlaggedCount(orgId, -1);
+      return unreportAiOrg(orgId).catch((error) => {
+        setReportedIds((prev) => {
+          const next = new Set(prev);
+          next.add(orgId);
+          return next;
+        });
+        adjustFlaggedCount(orgId, 1);
+        throw error;
+      });
+    },
+    [adjustFlaggedCount],
+  );
 
   const value = useMemo(
-    () => ({ orgs, status, metroId, refetch, reportedIds, reportOrg }),
-    [orgs, status, metroId, refetch, reportedIds, reportOrg],
+    () => ({ orgs, status, metroId, refetch, reportedIds, reportOrg, unreportOrg }),
+    [orgs, status, metroId, refetch, reportedIds, reportOrg, unreportOrg],
   );
 
   return <AiDiscoveryContext.Provider value={value}>{children}</AiDiscoveryContext.Provider>;
