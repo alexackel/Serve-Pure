@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { useSession } from '@/context/auth-context';
-import { discoverAiOrgs, type AiDiscoveredOrg } from '@/data/ai-orgs';
+import { discoverAiOrgs, reportAiOrg, type AiDiscoveredOrg } from '@/data/ai-orgs';
 import { useUserLocation } from '@/hooks/use-user-location';
 
 export type AiDiscoveryStatus = 'idle' | 'loading' | 'ready' | 'error';
@@ -11,6 +11,8 @@ type AiDiscoveryContextValue = {
   status: AiDiscoveryStatus;
   metroId: string | null;
   refetch: () => void;
+  reportedIds: Set<string>;
+  reportOrg: (orgId: string) => Promise<void>;
 };
 
 const AiDiscoveryContext = createContext<AiDiscoveryContextValue | null>(null);
@@ -27,6 +29,7 @@ export function AiDiscoveryProvider({ children }: { children: ReactNode }) {
   const [orgs, setOrgs] = useState<AiDiscoveredOrg[]>([]);
   const [status, setStatus] = useState<AiDiscoveryStatus>('idle');
   const [metroId, setMetroId] = useState<string | null>(null);
+  const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const firedRef = useRef(false);
 
   const runDiscovery = useCallback((lat: number, lng: number) => {
@@ -54,7 +57,30 @@ export function AiDiscoveryProvider({ children }: { children: ReactNode }) {
     runDiscovery(latitude, longitude);
   }, [latitude, longitude, runDiscovery]);
 
-  const value = useMemo(() => ({ orgs, status, metroId, refetch }), [orgs, status, metroId, refetch]);
+  // Optimistic add, rolled back on failure — shared by the AI Discovered
+  // card list and the org detail screen so both reflect the same "did I
+  // report this" state instantly.
+  const reportOrg = useCallback((orgId: string) => {
+    setReportedIds((prev) => {
+      if (prev.has(orgId)) return prev;
+      const next = new Set(prev);
+      next.add(orgId);
+      return next;
+    });
+    return reportAiOrg(orgId).catch((error) => {
+      setReportedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(orgId);
+        return next;
+      });
+      throw error;
+    });
+  }, []);
+
+  const value = useMemo(
+    () => ({ orgs, status, metroId, refetch, reportedIds, reportOrg }),
+    [orgs, status, metroId, refetch, reportedIds, reportOrg],
+  );
 
   return <AiDiscoveryContext.Provider value={value}>{children}</AiDiscoveryContext.Provider>;
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch } from 'react';
-import { StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
@@ -10,7 +11,7 @@ import { SearchBar } from '@/components/search-bar';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useAiDiscovery } from '@/context/ai-discovery-context';
 import { useOrganization } from '@/context/organization-context';
 import { useRegistrations } from '@/context/registrations-context';
@@ -18,6 +19,7 @@ import type { AiOrgCategory } from '@/data/ai-orgs';
 import type { EventDetail } from '@/data/mock-events';
 import { listEvents } from '@/data/events';
 import { useFindFilters, type FindFiltersAction } from '@/hooks/use-find-filters';
+import { useTheme } from '@/hooks/use-theme';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { AI_ORG_CATEGORY_OPTIONS, sortAiOrgsByDistance } from '@/utils/ai-orgs';
 import {
@@ -56,8 +58,9 @@ const AI_CATEGORY_CHIPS: readonly { key: AiCategoryKey; label: string }[] = [
 // AiDiscoveryProvider) instead of fetching on its own, so a cache hit from
 // that preload costs this screen nothing.
 function AiDiscoveredPane() {
-  const { orgs, status } = useAiDiscovery();
+  const { orgs, status, reportedIds } = useAiDiscovery();
   const userLocation = useUserLocation();
+  const theme = useTheme();
   const [categoryFilter, setCategoryFilter] = useState<AiCategoryKey>('all');
 
   const filteredOrgs = useMemo(
@@ -65,6 +68,8 @@ function AiDiscoveredPane() {
     [orgs, categoryFilter],
   );
   const sortedOrgs = useMemo(() => sortAiOrgsByDistance(filteredOrgs, userLocation), [filteredOrgs, userLocation]);
+  const mainOrgs = useMemo(() => sortedOrgs.filter((org) => !reportedIds.has(org.id)), [sortedOrgs, reportedIds]);
+  const hasReportedOrgs = reportedIds.size > 0;
 
   return (
     <>
@@ -80,12 +85,12 @@ function AiDiscoveredPane() {
           <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
             Couldn&apos;t load AI-discovered organizations. Try again later.
           </ThemedText>
-        ) : sortedOrgs.length === 0 ? (
+        ) : mainOrgs.length === 0 ? (
           <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
             No AI-discovered organizations match your filters.
           </ThemedText>
         ) : (
-          sortedOrgs.map((org) => (
+          mainOrgs.map((org) => (
             <AiOrgCard
               key={org.id}
               name={org.name}
@@ -98,6 +103,18 @@ function AiDiscoveredPane() {
           ))
         )}
       </ThemedView>
+
+      {hasReportedOrgs && (
+        <Pressable
+          onPress={() => router.push('/ai-org/reported')}
+          style={[styles.reportedTab, { borderColor: theme.border }]}>
+          <Ionicons name="flag-outline" size={16} color={theme.textSecondary} />
+          <ThemedText type="bodyBold" themeColor="textSecondary">
+            Reported Posts
+          </ThemedText>
+        </Pressable>
+      )}
+
       <ThemedText type="caption" themeColor="textSecondary" style={styles.braveAttribution}>
         POWERED BY BRAVE
       </ThemedText>
@@ -332,6 +349,16 @@ const styles = StyleSheet.create({
   emptyState: {
     textAlign: 'center',
     paddingVertical: Spacing.five,
+  },
+  reportedTab: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    paddingVertical: Spacing.three,
+    marginTop: Spacing.three,
   },
   braveAttribution: {
     textAlign: 'center',

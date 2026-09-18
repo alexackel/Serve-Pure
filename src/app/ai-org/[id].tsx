@@ -12,7 +12,6 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useAiDiscovery } from '@/context/ai-discovery-context';
-import { reportAiOrg } from '@/data/ai-orgs';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { aiOrgCategoryLabel } from '@/utils/ai-orgs';
@@ -50,9 +49,8 @@ function LinkRow({ icon, text, url }: { icon: keyof typeof Ionicons.glyphMap; te
 export default function AiOrgDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
-  const { orgs, status } = useAiDiscovery();
+  const { orgs, status, reportedIds, reportOrg } = useAiDiscovery();
   const userLocation = useUserLocation();
-  const [reported, setReported] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
 
   const org = useMemo(() => orgs.find((candidate) => candidate.id === id), [orgs, id]);
@@ -73,13 +71,12 @@ export default function AiOrgDetailScreen() {
 
   const hasContactSection = Boolean(org.contactInfo) || Boolean(org.website) || Boolean(org.sourceUrl);
   const hasDetailsSection = Boolean(org.timeCommitment) || Boolean(org.eligibility);
+  const reported = reportedIds.has(org.id);
 
   const handleReport = () => {
     setReportError(null);
-    setReported(true);
-    reportAiOrg(org.id).catch((error) => {
+    reportOrg(org.id).catch((error) => {
       console.error('Failed to report AI org', error);
-      setReported(false);
       setReportError('Could not submit report. Try again.');
     });
   };
@@ -175,9 +172,9 @@ export default function AiOrgDetailScreen() {
       <Pressable
         disabled={reported}
         onPress={handleReport}
-        style={[styles.reportButton, { borderColor: theme.border }]}>
-        <Ionicons name="flag-outline" size={16} color={theme.textSecondary} />
-        <ThemedText type="bodyBold" themeColor="textSecondary">
+        style={[styles.reportButton, { borderColor: reported ? theme.error : theme.border }]}>
+        <Ionicons name={reported ? 'flag' : 'flag-outline'} size={16} color={reported ? theme.error : theme.textSecondary} />
+        <ThemedText type="bodyBold" themeColor={reported ? 'error' : 'textSecondary'}>
           {reported ? 'Reported' : 'Report incorrect info'}
         </ThemedText>
       </Pressable>

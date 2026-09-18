@@ -20,6 +20,11 @@ const CORS_HEADERS = {
 
 const DEFAULT_RADIUS_MILES = 17.5;
 
+// Once an org's flagged_count (see fn_flag_ai_org, 0025 migration) reaches
+// this, it stops being served to anyone — enforced below as a read-side
+// filter on the cached-bucket query.
+const FLAG_HIDE_THRESHOLD = 5;
+
 // A cached metro bucket is only re-searched once it's this old...
 const STALE_MS = 90 * 24 * 60 * 60 * 1000; // ~3 months
 // ...and only if it's also seen real traffic this recently — a single
@@ -754,10 +759,15 @@ Deno.serve(async (req: Request) => {
 
     await supabase.from('searched_metros').update({ last_active_at: new Date().toISOString() }).eq('id', existingMetroId);
 
+    // TODO: no notification exists yet for when an org crosses
+    // FLAG_HIDE_THRESHOLD and silently drops out of these results — the
+    // team should be notified (e.g. Slack webhook/email) so someone can
+    // review it, but that function hasn't been built.
     const { data: orgs, error: orgsError } = await supabase
       .from('ai_discovered_orgs')
       .select('*')
-      .eq('metro_id', existingMetroId);
+      .eq('metro_id', existingMetroId)
+      .lt('flagged_count', FLAG_HIDE_THRESHOLD);
     if (orgsError) {
       return jsonResponse({ status: 'error', metroId: existingMetroId, orgs: [], error: orgsError.message });
     }

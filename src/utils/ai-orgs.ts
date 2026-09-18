@@ -46,6 +46,14 @@ export function sortAiOrgsByDistance(
   }));
 
   return withDistance.sort((a, b) => {
+    // Any report at all (from any user, not just the current viewer) drops
+    // an org below every unreported one, before distance is even
+    // considered — a soft "less trusted" ranking signal distinct from the
+    // hard 5-report removal enforced server-side in discover-ai-orgs.
+    const flaggedA = a.flaggedCount > 0 ? 1 : 0;
+    const flaggedB = b.flaggedCount > 0 ? 1 : 0;
+    if (flaggedA !== flaggedB) return flaggedA - flaggedB;
+
     if (a.distanceMiles === null && b.distanceMiles === null) return completenessScore(b) - completenessScore(a);
     if (a.distanceMiles === null) return 1;
     if (b.distanceMiles === null) return -1;
