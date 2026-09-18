@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
@@ -31,11 +31,7 @@ export default function OrgEventsScreen() {
     }
   }, [activeOrganization, getOrgEvents]);
 
-  useEffect(() => {
-    refetchEvents();
-  }, [refetchEvents]);
-
-  // Also refetches on every return to this tab, so a volunteer registering/
+  // Refetches on initial load and every return to this tab, so a volunteer registering/
   // unregistering elsewhere is reflected in registered_count/"Full" here
   // without a manual pull (same pattern as find.tsx).
   useFocusEffect(
