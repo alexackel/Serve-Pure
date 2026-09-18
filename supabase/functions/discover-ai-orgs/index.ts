@@ -9,7 +9,7 @@
 // to be publicly invokable, to keep the free-tier Brave/Anthropic quotas
 // from being spent by anything outside the app.
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -271,8 +271,16 @@ async function extractOrgsWithHaiku(braveResults: BraveResult[], anthropicApiKey
   return parsed.orgs;
 }
 
+// TS infers different default generics for a bare `typeof createClient`
+// reference vs. an actual call (createClient has overloaded signatures), so
+// `ReturnType<typeof createClient>` doesn't structurally match the client
+// built below — route both through this factory so they share one inferred type.
+function createSupabaseClient() {
+  return createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+}
+
 async function dedupeAgainstExisting(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createSupabaseClient>,
   candidates: GeocodedOrg[],
 ): Promise<GeocodedOrg[]> {
   const { data: existing } = await supabase.from('ai_discovered_orgs').select('name, address');
@@ -308,7 +316,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ status: 'error', metroId: null, orgs: [], error: 'lat/lng must be numbers' }, 400);
   }
 
-  const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const supabase = createSupabaseClient();
 
   const { data: existingMetroId } = await supabase.rpc('fn_find_metro_for_point', { p_lat: lat, p_lng: lng });
 
