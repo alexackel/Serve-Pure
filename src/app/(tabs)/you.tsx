@@ -20,11 +20,21 @@ import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
+import { listMyIndividualEvents } from '@/data/events';
+import type { EventDetail } from '@/data/mock-events';
 import { deleteSelfReport } from '@/data/self-reports';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
 import { useToggleSet } from '@/hooks/use-toggle-set';
-import { endOfDay, formatDateInput, formatShortDate, parseDateInput, parseRecordDate, startOfDay } from '@/utils/dates';
+import {
+  endOfDay,
+  formatDateInput,
+  formatShortDate,
+  parseDateInput,
+  parseEventDateTime,
+  parseRecordDate,
+  startOfDay,
+} from '@/utils/dates';
 
 const TIME_RANGES = ['All Time', 'Last 365 Days', 'Last 30 Days', 'Last 7 Days'] as const;
 
@@ -39,17 +49,22 @@ const RANGE_DAYS: Record<Exclude<(typeof TIME_RANGES)[number], typeof ALL_TIME_L
   'Last 7 Days': 7,
 };
 
-const YOU_TABS = [
+// 'Past' only shows up once you've created at least one individual post —
+// see hasCreatedPost in YouScreen. Everyone else keeps the plain
+// Upcoming/History pair.
+const YOU_TABS_ALL = [
   { key: 'upcoming', label: 'Upcoming' },
+  { key: 'past', label: 'Past' },
   { key: 'history', label: 'History' },
 ] as const;
 
-type TabKey = (typeof YOU_TABS)[number]['key'];
+type TabKey = (typeof YOU_TABS_ALL)[number]['key'];
 
 const HISTORY_FILTERS = [
   { key: 'verified', label: 'Verified' },
   { key: 'pending', label: 'Pending' },
   { key: 'self-uploaded', label: 'Self-Uploaded' },
+  { key: 'personal', label: 'Personal' },
   { key: 'no-show', label: 'No-Show' },
   { key: 'appealed', label: 'Appealed' },
   { key: 'cancelled', label: 'Cancelled' },
@@ -262,6 +277,34 @@ function UpcomingTab() {
   );
 }
 
+// Your own past casual posts — tapping one opens its roster, where
+// event/[id]/volunteer/[volunteerId].tsx exposes Approve/Deny for a
+// registrant once the event has ended.
+function PastPostsTab({ posts }: { posts: EventDetail[] }) {
+  return (
+    <ThemedView style={styles.section}>
+      <ThemedText type="h3">Past Posts</ThemedText>
+      <ThemedView style={styles.list}>
+        {posts.length === 0 ? (
+          <ThemedText type="body" themeColor="textSecondary">
+            None of your posts have happened yet.
+          </ThemedText>
+        ) : (
+          posts.map((event) => (
+            <EventCard
+              key={event.id}
+              {...event}
+              time={event.startTime}
+              status={event.status}
+              onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+            />
+          ))
+        )}
+      </ThemedView>
+    </ThemedView>
+  );
+}
+
 function HistoryTab({ records, onDeleteRecord }: { records: HistoryRecord[]; onDeleteRecord: (id: string) => void }) {
   const [activeFilters, toggleFilter] = useToggleSet(ALL_HISTORY_FILTERS);
 
@@ -295,6 +338,7 @@ export default function YouScreen() {
   const theme = useTheme();
   const [identityVerified, setIdentityVerified] = useState(false);
   const [createSheetVisible, setCreateSheetVisible] = useState(false);
+  const [myPosts, setMyPosts] = useState<EventDetail[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,6 +362,23 @@ export default function YouScreen() {
     };
   }, [session]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMyPosts() {
+      if (!session) return;
+      try {
+        const posts = await listMyIndividualEvents(session.user.id);
+        if (!cancelled) setMyPosts(posts);
+      } catch (error) {
+        console.error('Failed to load your posts', error);
+      }
+    }
+    loadMyPosts();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
   useFocusEffect(
     useCallback(() => {
       return () => setActiveTab('upcoming');
@@ -332,6 +393,13 @@ export default function YouScreen() {
   const verifiedHours = useMemo(() => sumVerifiedHours(rangeRecords), [rangeRecords]);
   const pendingHours = useMemo(() => sumHoursByStatus(rangeRecords, 'pending'), [rangeRecords]);
   const selfUploadedHours = useMemo(() => sumHoursByStatus(rangeRecords, 'self-uploaded'), [rangeRecords]);
+
+  const hasCreatedPost = myPosts.length > 0;
+  const pastPosts = useMemo(() => {
+    const now = new Date();
+    return myPosts.filter((event) => parseEventDateTime(event.date, event.endTime ?? event.startTime, now) < now);
+  }, [myPosts]);
+  const youTabs = hasCreatedPost ? YOU_TABS_ALL : YOU_TABS_ALL.filter((tab) => tab.key !== 'past');
 
   return (
     <View style={styles.flex}>
@@ -384,9 +452,10 @@ export default function YouScreen() {
           <PillIconButton icon="download-outline" label="Export Verified Transcript" />
         </ThemedView>
 
-        <SegmentedTabs tabs={YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
+        <SegmentedTabs tabs={youTabs} activeKey={activeTab} onChange={setActiveTab} />
 
         {activeTab === 'upcoming' && <UpcomingTab />}
+        {activeTab === 'past' && <PastPostsTab posts={pastPosts} />}
         {activeTab === 'history' && (
           <HistoryTab
             records={rangeRecords}

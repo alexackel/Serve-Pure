@@ -9,6 +9,7 @@ export type HistoryStatus =
   | 'pending'
   | 'self-uploaded'
   | 'admin-approved'
+  | 'personal'
   | 'no-show'
   | 'appealed'
   | 'cancelled';
@@ -47,7 +48,11 @@ type AttendanceRow = {
 
 // verification_status (DB) -> HistoryStatus (UI). A group-admin-verified row
 // is surfaced as 'admin-approved' rather than plain 'verified' so Analytics/
-// filter views can still break it out, matching the old mock behavior.
+// filter views can still break it out, matching the old mock behavior. An
+// event-organizer-verified row (the creator of an individual/casual post
+// confirming a registrant's attendance) is surfaced as 'personal' — treated
+// like a self-upload in that it still awaits a real admin's final word
+// before it counts as Verified hours; see attendance_update_event_organizer.
 // 'rejected' (a declined self-report) has no distinct UI bucket — treated as
 // 'no-show' since both mean "not credited."
 function mapHistoryStatus(row: AttendanceRow): HistoryStatus {
@@ -56,7 +61,11 @@ function mapHistoryStatus(row: AttendanceRow): HistoryStatus {
       return row.source === 'self_reported' ? 'self-uploaded' : 'pending';
     case 'verified':
     case 'partial':
-      return row.verified_by_role === 'group_admin' ? 'admin-approved' : 'verified';
+      return row.verified_by_role === 'event_organizer'
+        ? 'personal'
+        : row.verified_by_role === 'group_admin'
+          ? 'admin-approved'
+          : 'verified';
     case 'no_show':
     case 'rejected':
       return 'no-show';

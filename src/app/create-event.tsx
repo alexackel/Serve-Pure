@@ -18,7 +18,7 @@ import { useSession } from '@/context/auth-context';
 import { createEvent, geocodeAddress } from '@/data/events';
 import { useTheme } from '@/hooks/use-theme';
 import { loadLastAddress, saveLastAddress } from '@/utils/last-address';
-import { parseTimeInput } from '@/utils/dates';
+import { addDays, parseTimeInput, startOfDay } from '@/utils/dates';
 import { pickAndUploadPhoto } from '@/utils/photo-upload';
 
 type PhysicalLevel = 'Light' | 'Moderate' | 'Hard' | '';
@@ -111,6 +111,10 @@ export default function CreateEventScreen() {
     }
     if (end <= start) {
       setError('End time must be after start time.');
+      return;
+    }
+    if (start < startOfDay(addDays(new Date(), 1))) {
+      setError('Events must be scheduled for tomorrow or later.');
       return;
     }
 

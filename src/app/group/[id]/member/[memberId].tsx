@@ -115,6 +115,7 @@ export default function GroupMemberDetailScreen() {
     'admin-approved': theme.chartSuccess,
     pending: theme.chartWarning,
     'self-uploaded': theme.chartWarning,
+    personal: theme.chartWarning,
     'no-show': theme.chartError,
     appealed: theme.chartError,
     cancelled: theme.chartError,

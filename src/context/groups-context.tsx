@@ -53,7 +53,11 @@ function mapMemberStatus(row: MemberRecordRow): HistoryStatus {
       return row.source === 'self_reported' ? 'self-uploaded' : 'pending';
     case 'verified':
     case 'partial':
-      return row.verified_by_role === 'group_admin' ? 'admin-approved' : 'verified';
+      return row.verified_by_role === 'event_organizer'
+        ? 'personal'
+        : row.verified_by_role === 'group_admin'
+          ? 'admin-approved'
+          : 'verified';
     case 'no_show':
     case 'rejected':
       return 'no-show';

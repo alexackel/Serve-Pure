@@ -5,7 +5,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { startOfDay } from '@/utils/dates';
+import { addDays, startOfDay } from '@/utils/dates';
 
 export type DatePickerFieldProps = {
   label: string;
@@ -28,7 +28,9 @@ function isSameDay(a: Date, b: Date) {
 export function DatePickerField({ label, value, onChange, placeholder = 'Select a date', required }: DatePickerFieldProps) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
-  const today = useMemo(() => startOfDay(new Date()), []);
+  // Events can't be posted for the same day they happen — only tomorrow and
+  // later is selectable.
+  const minSelectableDate = useMemo(() => startOfDay(addDays(new Date(), 1)), []);
   const [viewMonth, setViewMonth] = useState(() => {
     const base = value ?? new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);
@@ -101,7 +103,7 @@ export function DatePickerField({ label, value, onChange, placeholder = 'Select 
                 <View key={i} style={styles.weekRow}>
                   {week.map((day, j) => {
                     if (!day) return <View key={j} style={styles.cell} />;
-                    const disabled = day < today;
+                    const disabled = day < minSelectableDate;
                     const selected = value !== null && isSameDay(day, value);
                     return (
                       <Pressable

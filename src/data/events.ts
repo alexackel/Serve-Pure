@@ -126,6 +126,22 @@ export async function listOrgEvents(organizationId: string): Promise<EventDetail
   return ((data ?? []) as unknown as EventRow[]).map(mapEventRow);
 }
 
+// An individual's own casual posts (org_id null) — unlike listEvents(), this
+// includes past ones too, since it backs the You tab's Past tab (the only
+// place a creator can get back to their own casual event's roster to
+// approve/deny attendance; Find deliberately hides past events).
+export async function listMyIndividualEvents(userId: string): Promise<EventDetail[]> {
+  const { data, error } = await supabase
+    .from('events')
+    .select(EVENT_SELECT)
+    .eq('created_by', userId)
+    .is('org_id', null)
+    .order('start_at', { ascending: false });
+
+  if (error) throw error;
+  return ((data ?? []) as unknown as EventRow[]).map(mapEventRow);
+}
+
 export type CreateEventInput = {
   title: string;
   description?: string;
@@ -208,5 +224,78 @@ export async function geocodeAddress(address: string): Promise<GeocodedAddress |
 // status flips. No hard delete exists (or is needed) for events.
 export async function cancelEvent(eventId: string): Promise<void> {
   const { error } = await supabase.from('events').update({ status: 'cancelled' }).eq('id', eventId);
+  if (error) throw error;
+}
+
+export type EventAttendanceRecord = {
+  id: string;
+  status: 'pending' | 'verified' | 'partial' | 'no_show' | 'appealed' | 'rejected' | 'cancelled';
+  verifiedByRole: string | null;
+};
+
+// The event creator's view of one registrant's attendance record — backs the
+// Approve/Deny action on the volunteer-detail screen for an individual/casual
+// post. attendance_select_event_organizer RLS (migration 0006) already scopes
+// this select to the event's own creator.
+export async function getAttendanceRecordForVolunteer(
+  eventId: string,
+  volunteerId: string,
+): Promise<EventAttendanceRecord | null> {
+  const { data, error } = await supabase
+    .from('attendance_records')
+    .select('id, status, verified_by_role')
+    .eq('event_id', eventId)
+    .eq('user_id', volunteerId)
+    .eq('source', 'platform_registration')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return { id: data.id, status: data.status, verifiedByRole: data.verified_by_role };
+}
+
+// The event creator confirming a registrant's attendance on their own
+// individual/casual post. Surfaced client-side as the 'personal' HistoryStatus
+// (see history-context.tsx's mapHistoryStatus) rather than plain 'verified' —
+// it still awaits a platform admin's final sign-off before counting toward
+// Verified hours, guarding against the creator and a friend colluding for
+// free hours. hours_awarded is computed from the event's duration, the same
+// way org-history-context.tsx's approveRecord does for non-self-reported rows
+// (platform_registration records never carry hours_claimed).
+export async function approveEventAttendance(userId: string, recordId: string): Promise<void> {
+  const { data: record, error: fetchError } = await supabase
+    .from('attendance_records')
+    .select('events(start_at, end_at)')
+    .eq('id', recordId)
+    .single();
+  if (fetchError) throw fetchError;
+
+  const eventRow = record.events as unknown as { start_at: string; end_at: string } | null;
+  const hoursAwarded = eventRow
+    ? Math.round(((new Date(eventRow.end_at).getTime() - new Date(eventRow.start_at).getTime()) / (1000 * 60 * 60)) * 10) / 10
+    : null;
+
+  const { error } = await supabase
+    .from('attendance_records')
+    .update({
+      status: 'verified',
+      hours_awarded: hoursAwarded,
+      verified_by: userId,
+      verified_by_role: 'event_organizer',
+      verified_at: new Date().toISOString(),
+    })
+    .eq('id', recordId);
+  if (error) throw error;
+}
+
+export async function denyEventAttendance(userId: string, recordId: string): Promise<void> {
+  const { error } = await supabase
+    .from('attendance_records')
+    .update({
+      status: 'no_show',
+      verified_by: userId,
+      verified_by_role: 'event_organizer',
+      verified_at: new Date().toISOString(),
+    })
+    .eq('id', recordId);
   if (error) throw error;
 }
