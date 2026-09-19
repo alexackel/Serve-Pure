@@ -68,7 +68,10 @@ export const Spacing = {
   six: 64,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80, web: 100 }) ?? 0;
+// The floating pill tab bar's own rendered height (app-tabs.tsx's
+// tabListContainer padding + innerContainer padding + button content),
+// excluding safe-area inset — callers add safe-area bottom separately.
+export const BottomTabInset = 100;
 export const MaxContentWidth = 800;
 
 export const Typography = {

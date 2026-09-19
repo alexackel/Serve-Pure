@@ -2,11 +2,12 @@ import { supabase } from '@/lib/supabase';
 import type { EventDetail, EventRequirements } from '@/data/mock-events';
 import { formatShortDate } from '@/utils/dates';
 
-export const EVENT_SELECT = '*, organizations(name, verification_status)';
+export const EVENT_SELECT = '*, organizations(name, verification_status), profiles!created_by(full_name)';
 
 export type EventRow = {
   id: string;
   org_id: string | null;
+  created_by: string;
   title: string;
   description: string | null;
   category: string | null;
@@ -25,7 +26,9 @@ export type EventRow = {
   posted_at: string;
   min_age: number | null;
   requirements: { skills?: string[]; physical?: string; what_to_bring?: string[] } | null;
+  photo_url: string | null;
   organizations: { name: string; verification_status: string } | null;
+  profiles: { full_name: string } | null;
 };
 
 function formatEventTime(isoString: string): string {
@@ -64,9 +67,11 @@ export function mapEventRow(row: EventRow): EventDetail {
   return {
     id: row.id,
     title: row.title,
-    organization: row.organizations?.name ?? 'Individual event',
+    organization: row.organizations?.name ?? 'Individual',
     organizationId: row.org_id ?? undefined,
     organizationVerified: row.organizations?.verification_status === 'verified',
+    createdBy: row.created_by,
+    creatorName: row.org_id ? undefined : (row.profiles?.full_name ?? undefined),
     category: row.category ?? undefined,
     date: formatShortDate(start),
     startTime: formatEventTime(row.start_at),
@@ -84,6 +89,7 @@ export function mapEventRow(row: EventRow): EventDetail {
     longitude: row.longitude ?? undefined,
     postedAt: row.posted_at,
     recurring: row.is_recurring,
+    photoUrl: row.photo_url ?? undefined,
   };
 }
 
@@ -118,4 +124,89 @@ export async function listOrgEvents(organizationId: string): Promise<EventDetail
 
   if (error) throw error;
   return ((data ?? []) as unknown as EventRow[]).map(mapEventRow);
+}
+
+export type CreateEventInput = {
+  title: string;
+  description?: string;
+  category?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  startAt: string;
+  endAt: string;
+  capacity?: number;
+  minAge?: number;
+  requirements?: { skills?: string[]; physical?: string; whatToBring?: string[] };
+  contactEmail?: string;
+  contactPhone?: string;
+  website?: string;
+  photoUrl?: string;
+  // null = individual/casual post (no organization).
+  orgId: string | null;
+};
+
+// Used for both an individual's casual post and an org's event — org_id is
+// the only thing that differs; the events_insert_own RLS policy already
+// allows any authenticated user to insert with created_by = auth.uid(), and
+// a DB trigger separately rejects org_id being set unless created_by admins
+// that org (see migration 0003).
+export async function createEvent(userId: string, input: CreateEventInput): Promise<EventDetail> {
+  const { data, error } = await supabase
+    .from('events')
+    .insert({
+      org_id: input.orgId,
+      created_by: userId,
+      title: input.title,
+      description: input.description ?? null,
+      category: input.category ?? null,
+      address: input.address ?? null,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      start_at: input.startAt,
+      end_at: input.endAt,
+      capacity: input.capacity ?? null,
+      min_age: input.minAge ?? null,
+      requirements: input.requirements
+        ? {
+            skills: input.requirements.skills,
+            physical: input.requirements.physical,
+            what_to_bring: input.requirements.whatToBring,
+          }
+        : null,
+      contact_email: input.contactEmail ?? null,
+      contact_phone: input.contactPhone ?? null,
+      website: input.website ?? null,
+      photo_url: input.photoUrl ?? null,
+      is_recurring: false,
+      status: 'available',
+    })
+    .select(EVENT_SELECT)
+    .single();
+
+  if (error) throw error;
+  return mapEventRow(data as unknown as EventRow);
+}
+
+export type GeocodedAddress = { latitude: number; longitude: number; formattedAddress: string };
+
+// Validate-on-submit, not live-as-you-type autocomplete (deliberately —
+// autocomplete is Mapbox's session-billed Search Box API; this is the much
+// cheaper per-request Geocoding API, proxied server-side in
+// supabase/functions/geocode-address so the Mapbox token stays secret).
+// Returns null (non-throwing) when the address doesn't resolve — the caller
+// treats that as "couldn't verify," not a hard failure.
+export async function geocodeAddress(address: string): Promise<GeocodedAddress | null> {
+  const { data, error } = await supabase.functions.invoke('geocode-address', { body: { address } });
+  if (error || !data || 'error' in data) return null;
+  return data as GeocodedAddress;
+}
+
+// "Delete" an event means cancel it — events_update_owner RLS already lets
+// the creator or an org admin do this, and trg_cascade_event_cancellation
+// (migration 0021) auto-cancels every registrant with no penalty the moment
+// status flips. No hard delete exists (or is needed) for events.
+export async function cancelEvent(eventId: string): Promise<void> {
+  const { error } = await supabase.from('events').update({ status: 'cancelled' }).eq('id', eventId);
+  if (error) throw error;
 }

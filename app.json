@@ -42,6 +42,12 @@
         {
           "locationWhenInUsePermission": "Allow Serve Pure to use your location to find volunteer opportunities near you."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Serve Pure uses your photo library to attach a photo to an event or a self-reported volunteer activity."
+        }
       ]
     ],
     "experiments": {

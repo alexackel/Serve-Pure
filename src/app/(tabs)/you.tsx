@@ -6,6 +6,8 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { AccountAvatarButton } from '@/components/account-avatar-button';
 import { EventCard, RecordCard, StatCard } from '@/components/cards';
+import { CreateFab } from '@/components/create-fab';
+import { CreatePostSheet } from '@/components/create-post-sheet';
 import { HistoryFilterChips } from '@/components/history-filter-chips';
 import { PillIconButton } from '@/components/pill-icon-button';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -18,6 +20,7 @@ import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
+import { deleteSelfReport } from '@/data/self-reports';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
 import { useToggleSet } from '@/hooks/use-toggle-set';
@@ -259,7 +262,7 @@ function UpcomingTab() {
   );
 }
 
-function HistoryTab({ records }: { records: HistoryRecord[] }) {
+function HistoryTab({ records, onDeleteRecord }: { records: HistoryRecord[]; onDeleteRecord: (id: string) => void }) {
   const [activeFilters, toggleFilter] = useToggleSet(ALL_HISTORY_FILTERS);
 
   const visibleRecords = records.filter((record) =>
@@ -272,7 +275,11 @@ function HistoryTab({ records }: { records: HistoryRecord[] }) {
       <HistoryFilterChips filters={HISTORY_FILTERS} active={activeFilters} onToggle={toggleFilter} />
       <ThemedView style={styles.list}>
         {visibleRecords.map(({ id, ...record }) => (
-          <RecordCard key={id} {...record} />
+          <RecordCard
+            key={id}
+            {...record}
+            onDelete={record.status === 'self-uploaded' ? () => onDeleteRecord(id) : undefined}
+          />
         ))}
       </ThemedView>
     </ThemedView>
@@ -283,10 +290,11 @@ export default function YouScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
   const [timeRange, setTimeRange] = useState<TimeRangeKey>(TIME_RANGES[0]);
   const [customRange, setCustomRange] = useState<CustomRange | null>(null);
-  const { records: historyRecords, reliabilityScore } = useHistory();
+  const { records: historyRecords, reliabilityScore, refetch: refetchHistory } = useHistory();
   const { session } = useSession();
   const theme = useTheme();
   const [identityVerified, setIdentityVerified] = useState(false);
+  const [createSheetVisible, setCreateSheetVisible] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -326,64 +334,81 @@ export default function YouScreen() {
   const selfUploadedHours = useMemo(() => sumHoursByStatus(rangeRecords, 'self-uploaded'), [rangeRecords]);
 
   return (
-    <ScreenScrollView containerStyle={styles.container}>
-      <View style={styles.titleRow}>
-        <View style={styles.identityRow}>
-          <AccountAvatarButton size={32} />
-          <ThemedText type="h1" style={styles.pageTitle}>
-            You
-          </ThemedText>
-          {identityVerified && <VerifiedBadge />}
+    <View style={styles.flex}>
+      <ScreenScrollView containerStyle={styles.container}>
+        <View style={styles.titleRow}>
+          <View style={styles.identityRow}>
+            <AccountAvatarButton size={32} />
+            <ThemedText type="h1" style={styles.pageTitle}>
+              You
+            </ThemedText>
+            {identityVerified && <VerifiedBadge />}
+          </View>
+          <View style={styles.reliabilityBadge}>
+            <Ionicons name="star" size={16} color={theme.warning} />
+            <ThemedText type="bodyBold">{reliabilityScore !== null ? reliabilityScore.toFixed(1) : '—'}</ThemedText>
+            <ThemedText type="caption" themeColor="textSecondary">
+              Reliability
+            </ThemedText>
+          </View>
         </View>
-        <View style={styles.reliabilityBadge}>
-          <Ionicons name="star" size={16} color={theme.warning} />
-          <ThemedText type="bodyBold">{reliabilityScore !== null ? reliabilityScore.toFixed(1) : '—'}</ThemedText>
-          <ThemedText type="caption" themeColor="textSecondary">
-            Reliability
-          </ThemedText>
-        </View>
-      </View>
 
-      <SwitchViewModeButton target="organization" />
+        <SwitchViewModeButton target="organization" />
 
-      <ThemedView style={styles.statsSection}>
-        <TimeRangeSelector
-          selected={timeRange}
-          onSelect={setTimeRange}
-          customRange={customRange}
-          onApplyCustomRange={setCustomRange}
-        />
-
-        <StatCard
-          label="Total Hours"
-          value={totalHours}
-          icon="ribbon-outline"
-          accentColor="primary"
-          variant="headline"
-        />
-        <ThemedView style={styles.statGrid}>
-          <StatCard label="Verified" value={verifiedHours} icon="checkmark-circle-outline" accentColor="success" />
-          <StatCard label="Pending" value={pendingHours} icon="hourglass-outline" accentColor="warning" />
-          <StatCard
-            label="Self-Uploaded"
-            value={selfUploadedHours}
-            icon="create-outline"
-            accentColor="warning"
+        <ThemedView style={styles.statsSection}>
+          <TimeRangeSelector
+            selected={timeRange}
+            onSelect={setTimeRange}
+            customRange={customRange}
+            onApplyCustomRange={setCustomRange}
           />
+
+          <StatCard
+            label="Total Hours"
+            value={totalHours}
+            icon="ribbon-outline"
+            accentColor="primary"
+            variant="headline"
+          />
+          <ThemedView style={styles.statGrid}>
+            <StatCard label="Verified" value={verifiedHours} icon="checkmark-circle-outline" accentColor="success" />
+            <StatCard label="Pending" value={pendingHours} icon="hourglass-outline" accentColor="warning" />
+            <StatCard
+              label="Self-Uploaded"
+              value={selfUploadedHours}
+              icon="create-outline"
+              accentColor="warning"
+            />
+          </ThemedView>
+
+          <PillIconButton icon="download-outline" label="Export Verified Transcript" />
         </ThemedView>
 
-        <PillIconButton icon="download-outline" label="Export Verified Transcript" />
-      </ThemedView>
+        <SegmentedTabs tabs={YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
 
-      <SegmentedTabs tabs={YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
+        {activeTab === 'upcoming' && <UpcomingTab />}
+        {activeTab === 'history' && (
+          <HistoryTab
+            records={rangeRecords}
+            onDeleteRecord={(id) => {
+              deleteSelfReport(id)
+                .then(refetchHistory)
+                .catch((error) => console.error('Failed to delete self-report', error));
+            }}
+          />
+        )}
+      </ScreenScrollView>
 
-      {activeTab === 'upcoming' && <UpcomingTab />}
-      {activeTab === 'history' && <HistoryTab records={rangeRecords} />}
-    </ScreenScrollView>
+      <CreateFab onPress={() => setCreateSheetVisible(true)} />
+      <CreatePostSheet visible={createSheetVisible} onDismiss={() => setCreateSheetVisible(false)} showSelfUpload />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: {
     gap: Spacing.four,
   },

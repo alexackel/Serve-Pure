@@ -14,6 +14,14 @@ export type EventDetail = {
   organization: string;
   organizationId?: string;
   organizationVerified?: boolean;
+  // Always present — the raw creator id, used to check "can the signed-in
+  // user manage this event" (distinct from creatorName, which is display-only).
+  createdBy?: string;
+  // Populated only for individual (org_id-less) events, from a profiles join
+  // on created_by — `organization` itself is always the literal string
+  // 'Individual' for these so cards/lists never leak the creator's name;
+  // only the event detail screen reads this field to show "Posted by X".
+  creatorName?: string;
   category?: string;
   date: string;
   startTime?: string;
@@ -42,6 +50,7 @@ export type EventDetail = {
   longitude?: number;
   postedAt?: string;
   recurring?: boolean;
+  photoUrl?: string;
 };
 
 // Deterministic, non-repeating (within a single event) slice of the shared

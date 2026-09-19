@@ -58,6 +58,25 @@ export function parseEventDateTime(dateLabel: string, timeLabel: string | undefi
   return parsed;
 }
 
+// Parses a "9:00 AM" style time-of-day input, applying it onto `date`'s
+// year/month/day. Shares EVENT_TIME_PATTERN's shape (see parseEventDateTime
+// above) since it's the same label format events already render/store.
+export function parseTimeInput(date: Date, text: string): Date | null {
+  const match = EVENT_TIME_PATTERN.exec(text.trim());
+  if (!match) {
+    return null;
+  }
+
+  const rawHours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const isPM = match[3].toUpperCase() === 'PM';
+  const hours = (rawHours % 12) + (isPM ? 12 : 0);
+
+  const result = new Date(date);
+  result.setHours(hours, minutes, 0, 0);
+  return result;
+}
+
 export function parseDateInput(text: string): Date | null {
   const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text.trim());
   if (!match) {
@@ -96,6 +115,49 @@ export function startOfDay(date: Date) {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);
   return start;
+}
+
+// The three independent columns TimePickerField's picker scrolls: hour
+// (12-hour clock), minute (15-minute increments), and AM/PM.
+export function generateHourOptions(): number[] {
+  return Array.from({ length: 12 }, (_, i) => i + 1);
+}
+
+export function generateMinuteOptions(): string[] {
+  return ['00', '15', '30', '45'];
+}
+
+export const PERIOD_OPTIONS = ['AM', 'PM'] as const;
+export type Period = (typeof PERIOD_OPTIONS)[number];
+
+// Splits a "9:00 AM" label into TimePickerField's three column values, so
+// reopening the picker (or seeding a minTime comparison) can start from
+// the label already stored on the event rather than re-deriving it.
+export function parseTimeLabel(label: string): { hour: number; minute: string; period: Period } | null {
+  const match = EVENT_TIME_PATTERN.exec(label.trim());
+  if (!match) {
+    return null;
+  }
+  return { hour: Number(match[1]), minute: match[2], period: match[3].toUpperCase() as Period };
+}
+
+export function composeTimeLabel(hour: number, minute: string, period: Period): string {
+  return `${hour}:${minute} ${period}`;
+}
+
+// Parses the same "9:00 AM" label format as EVENT_TIME_PATTERN into
+// minutes-of-day, so TimePickerField can compare a pending selection
+// against a minimum (e.g. an event's start time) without touching Date.
+export function timeLabelToMinutes(label: string): number | null {
+  const match = EVENT_TIME_PATTERN.exec(label.trim());
+  if (!match) {
+    return null;
+  }
+  const rawHours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const isPM = match[3].toUpperCase() === 'PM';
+  const hours = (rawHours % 12) + (isPM ? 12 : 0);
+  return hours * 60 + minutes;
 }
 
 export function endOfDay(date: Date) {

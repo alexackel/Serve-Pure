@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
 import { AiOrgCard, AiOrgCardSkeleton, EventCard } from '@/components/cards';
+import { CreateFab } from '@/components/create-fab';
+import { CreatePostSheet } from '@/components/create-post-sheet';
 import { CategoryChipRow, FilterSheet, FindPillRow } from '@/components/find';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SearchBar } from '@/components/search-bar';
@@ -215,6 +217,7 @@ export default function FindScreen() {
   const [activeTab, setActiveTab] = useState<FindTabKey>('events');
   const { state, dispatch, isDefault } = useFindFilters();
   const [activeSheet, setActiveSheet] = useState<FindPillKey | null>(null);
+  const [createSheetVisible, setCreateSheetVisible] = useState(false);
   // Keeps rendering the last-opened pill's sheet content while it slides out,
   // instead of unmounting it (which would cut the exit animation short).
   const [lastSheetKey, setLastSheetKey] = useState<FindPillKey>('sort');
@@ -267,72 +270,84 @@ export default function FindScreen() {
   const showAiPane = viewMode === 'personal' && activeTab === 'ai-discovered';
 
   return (
-    <ScreenScrollView>
-      <ThemedText type="h1" style={styles.pageTitle}>
-        Find
-      </ThemedText>
-      {viewMode === 'personal' && (
-        <ThemedView style={styles.segmentedTabs}>
-          <SegmentedTabs tabs={FIND_TABS} activeKey={activeTab} onChange={setActiveTab} />
-        </ThemedView>
-      )}
-      {showEventsPane && (
-        <>
-          <SearchBar
-            placeholder="Search events"
-            value={searchValue}
-            onChangeText={setSearchValue}
-            containerStyle={styles.searchBar}
-          />
-          <FindPillRow
-            pills={pills}
-            onPressPill={setActiveSheet}
-            showClearAll={!isDefault}
-            onClearAll={() => {
-              dispatch({ type: 'clear-all' });
-              setActiveSheet(null);
-            }}
-          />
-          <ThemedView style={styles.list}>
-            {isLoading ? (
-              <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
-                Loading events…
-              </ThemedText>
-            ) : visibleEvents.length === 0 ? (
-              <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
-                No events match your filters.
-              </ThemedText>
-            ) : (
-              visibleEvents.map((event) => (
-                <EventCard
-                  key={event.id}
-                  {...event}
-                  status={isRegistered(event.id) ? 'registered' : event.status}
-                  onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
-                />
-              ))
-            )}
+    <View style={styles.flex}>
+      <ScreenScrollView>
+        <ThemedText type="h1" style={styles.pageTitle}>
+          Find
+        </ThemedText>
+        {viewMode === 'personal' && (
+          <ThemedView style={styles.segmentedTabs}>
+            <SegmentedTabs tabs={FIND_TABS} activeKey={activeTab} onChange={setActiveTab} />
           </ThemedView>
-        </>
-      )}
+        )}
+        {showEventsPane && (
+          <>
+            <SearchBar
+              placeholder="Search events"
+              value={searchValue}
+              onChangeText={setSearchValue}
+              containerStyle={styles.searchBar}
+            />
+            <FindPillRow
+              pills={pills}
+              onPressPill={setActiveSheet}
+              showClearAll={!isDefault}
+              onClearAll={() => {
+                dispatch({ type: 'clear-all' });
+                setActiveSheet(null);
+              }}
+            />
+            <ThemedView style={styles.list}>
+              {isLoading ? (
+                <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
+                  Loading events…
+                </ThemedText>
+              ) : visibleEvents.length === 0 ? (
+                <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
+                  No events match your filters.
+                </ThemedText>
+              ) : (
+                visibleEvents.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    {...event}
+                    status={isRegistered(event.id) ? 'registered' : event.status}
+                    onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+                  />
+                ))
+              )}
+            </ThemedView>
+          </>
+        )}
 
-      {showAiPane && <AiDiscoveredPane />}
+        {showAiPane && <AiDiscoveredPane />}
 
-      <FilterSheet
-        visible={activeSheet !== null}
-        title={sheetConfig.title}
-        mode={sheetConfig.mode}
-        options={sheetConfig.options}
-        selected={sheetConfig.selected}
-        defaultValue={sheetConfig.defaultValue}
-        onApply={sheetConfig.onApply}
-        onDismiss={() => setActiveSheet(null)}
+        <FilterSheet
+          visible={activeSheet !== null}
+          title={sheetConfig.title}
+          mode={sheetConfig.mode}
+          options={sheetConfig.options}
+          selected={sheetConfig.selected}
+          defaultValue={sheetConfig.defaultValue}
+          onApply={sheetConfig.onApply}
+          onDismiss={() => setActiveSheet(null)}
+        />
+      </ScreenScrollView>
+
+      <CreateFab onPress={() => setCreateSheetVisible(true)} />
+      <CreatePostSheet
+        visible={createSheetVisible}
+        onDismiss={() => setCreateSheetVisible(false)}
+        showSelfUpload={viewMode === 'personal'}
       />
-    </ScreenScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   pageTitle: {
     marginBottom: Spacing.three,
   },

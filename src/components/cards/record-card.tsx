@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { PostActions, PostPhoto } from '@/components/cards/post-card-shared';
 import { VerificationBadge, VerificationStatus } from '@/components/cards/verification-badge';
+import { OverflowMenu } from '@/components/overflow-menu';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
@@ -12,13 +13,18 @@ export type RecordCardProps = {
   hours?: number;
   date: string;
   status: VerificationStatus;
-  hasPhoto?: boolean;
+  photoUrl?: string;
   likes?: number;
   note?: string;
   onPress?: () => void;
+  // Only the record's own submitter can delete it, and only while it's
+  // still pending (attendance_delete_self_report RLS, migration 0030) — the
+  // caller decides when that's true and passes this, rather than RecordCard
+  // guessing from status alone.
+  onDelete?: () => void;
 };
 
-export function RecordCard({ organization, hours, date, status, hasPhoto, likes, note, onPress }: RecordCardProps) {
+export function RecordCard({ organization, hours, date, status, photoUrl, likes, note, onPress, onDelete }: RecordCardProps) {
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <ThemedView type="backgroundElement" style={styles.card}>
@@ -27,9 +33,12 @@ export function RecordCard({ organization, hours, date, status, hasPhoto, likes,
             <Avatar icon="person" iconSize={18} />
             <VerificationBadge status={status} size="sm" />
           </View>
-          <ThemedText type="caption" themeColor="textSecondary">
-            {date}
-          </ThemedText>
+          <View style={styles.headerRight}>
+            <ThemedText type="caption" themeColor="textSecondary">
+              {date}
+            </ThemedText>
+            {onDelete && <OverflowMenu actions={[{ label: 'Delete', destructive: true, onPress: onDelete }]} />}
+          </View>
         </View>
 
         {status === 'no-show' ? (
@@ -51,7 +60,7 @@ export function RecordCard({ organization, hours, date, status, hasPhoto, likes,
           </ThemedText>
         )}
 
-        {hasPhoto && <PostPhoto />}
+        {photoUrl && <PostPhoto uri={photoUrl} />}
 
         <PostActions likes={likes} />
       </ThemedView>
@@ -74,6 +83,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
   sentence: {},
 });

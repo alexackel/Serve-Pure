@@ -7,13 +7,17 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Avatar } from '@/components/avatar';
 import { BackButton } from '@/components/back-button';
 import { VerificationBadge } from '@/components/cards/verification-badge';
+import { ExpandablePhoto } from '@/components/expandable-photo';
+import { OverflowMenu } from '@/components/overflow-menu';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { useSession } from '@/context/auth-context';
+import { useOrganization } from '@/context/organization-context';
 import { useRegistrations } from '@/context/registrations-context';
-import { getEvent } from '@/data/events';
+import { cancelEvent, getEvent } from '@/data/events';
 import type { EventDetail } from '@/data/mock-events';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
@@ -100,6 +104,8 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<EventDetail | null | undefined>(undefined);
   const [roster, setRoster] = useState<Registrant[]>([]);
   const { isRegistered, register, unregister } = useRegistrations();
+  const { session } = useSession();
+  const { organizations } = useOrganization();
 
   const [confirmingUnregister, setConfirmingUnregister] = useState(false);
   const [rosterExpanded, setRosterExpanded] = useState(false);
@@ -186,20 +192,49 @@ export default function EventDetailScreen() {
 
   const handleCancelUnregister = () => setConfirmingUnregister(false);
 
+  // Mirrors events_update_owner RLS exactly: the creator, or an admin of the
+  // org that posted it. Cancelling (not deleting — see cancelEvent) is the
+  // only management action exposed here.
+  const canManageEvent =
+    session !== null &&
+    (event.createdBy === session.user.id ||
+      (event.organizationId !== undefined && organizations.some((org) => org.id === event.organizationId)));
+
+  const handleCancelEvent = async () => {
+    setSubmitError(null);
+    try {
+      await cancelEvent(event.id);
+      router.replace('/find');
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Failed to cancel event.');
+    }
+  };
+
   const { age, skills, physical, whatToBring } = event.requirements ?? {};
   const hasRequirements = Boolean(age || skills || physical || whatToBring);
   const hasContactSection = event.contactInfo || event.website;
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
-      <BackButton fallbackHref="/find" />
+      <View style={styles.headerRow}>
+        <BackButton fallbackHref="/find" />
+        {canManageEvent && (
+          <OverflowMenu actions={[{ label: 'Cancel Event', destructive: true, onPress: handleCancelEvent }]} />
+        )}
+      </View>
 
       <View style={styles.orgRow}>
-        <Avatar size={40} icon="business-outline" iconSize={22} />
+        <Avatar size={40} icon={event.organizationId ? 'business-outline' : 'person-outline'} iconSize={22} />
         <View style={styles.orgInfo}>
-          <ThemedText type="bodyBold">{event.organization}</ThemedText>
-          {event.organizationVerified && (
-            <VerificationBadge status="verified" label="Verified Organization" size="sm" />
+          {event.organizationId ? (
+            <>
+              <ThemedText type="bodyBold">{event.organization}</ThemedText>
+              {event.organizationVerified && (
+                <VerificationBadge status="verified" label="Verified Organization" size="sm" />
+              )}
+            </>
+          ) : (
+            <ThemedText type="bodyBold">Posted by {event.creatorName ?? 'Unknown'}</ThemedText>
           )}
         </View>
       </View>
@@ -227,15 +262,18 @@ export default function EventDetailScreen() {
         )}
       </View>
 
+      {event.photoUrl && <ExpandablePhoto uri={event.photoUrl} style={styles.photo} />}
       <ThemedView style={styles.section}>
         <ThemedText type="h3">Location</ThemedText>
         <InfoRow icon="location-outline" text={event.location} />
-        <View style={[styles.mapPlaceholder, { backgroundColor: theme.backgroundSelected }]}>
-          <Ionicons name="map-outline" size={28} color={theme.textSecondary} />
-          <ThemedText type="caption" themeColor="textSecondary">
-            Map view coming soon
-          </ThemedText>
-        </View>
+        {!event.photoUrl && (
+          <View style={[styles.mapPlaceholder, { backgroundColor: theme.backgroundSelected }]}>
+            <Ionicons name="map-outline" size={28} color={theme.textSecondary} />
+            <ThemedText type="caption" themeColor="textSecondary">
+              Map view coming soon
+            </ThemedText>
+          </View>
+        )}
       </ThemedView>
 
       {event.description && (
@@ -294,6 +332,16 @@ export default function EventDetailScreen() {
         hasCapacity && (
           <InfoRow icon="people-outline" text={`${volunteerCount}/${maxVolunteers} volunteers registered`} />
         )
+      )}
+
+      {!event.organizationId && (
+        <View style={[styles.warningBanner, { backgroundColor: theme.errorBackground }]}>
+          <Ionicons name="warning-outline" size={16} color={theme.error} />
+          <ThemedText type="body" themeColor="error" style={styles.warningText}>
+            This event was posted by an individual volunteer, not a verified organization. Use caution and meet in
+            public places.
+          </ThemedText>
+        </View>
       )}
 
       {submitError && (
@@ -357,6 +405,11 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   orgRow: {
     flexDirection: 'row',
@@ -427,6 +480,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.one,
+  },
+  photo: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: BorderRadius.lg,
   },
   cta: {
     borderRadius: BorderRadius.lg,

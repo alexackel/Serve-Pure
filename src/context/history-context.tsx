@@ -19,12 +19,14 @@ export type HistoryRecord = {
   date: string;
   status: HistoryStatus;
   hours?: number;
-  hasPhoto?: boolean;
+  category?: string;
+  photoUrl?: string;
   likes?: number;
   note?: string;
 };
 
-const ATTENDANCE_SELECT = 'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, created_at, events(start_at, organizations(name))';
+const ATTENDANCE_SELECT =
+  'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, category, photo_url, created_at, events(start_at, organizations(name))';
 
 type AttendanceSource = 'platform_registration' | 'self_reported';
 type AttendanceStatus = 'pending' | 'verified' | 'partial' | 'no_show' | 'appealed' | 'rejected' | 'cancelled';
@@ -37,6 +39,8 @@ type AttendanceRow = {
   hours_claimed: number | null;
   hours_awarded: number | null;
   verified_by_role: string | null;
+  category: string | null;
+  photo_url: string | null;
   created_at: string;
   events: { start_at: string; organizations: { name: string } | null } | null;
 };
@@ -74,6 +78,8 @@ function mapHistoryRecord(row: AttendanceRow): HistoryRecord {
     date,
     status,
     hours: row.hours_awarded ?? row.hours_claimed ?? undefined,
+    category: row.category ?? undefined,
+    photoUrl: row.photo_url ?? undefined,
     note: status === 'cancelled' ? `You cancelled your registration for ${organization}` : undefined,
   };
 }
@@ -82,6 +88,7 @@ type HistoryContextValue = {
   records: HistoryRecord[];
   isLoading: boolean;
   reliabilityScore: number | null;
+  refetch: () => void;
 };
 
 const HistoryContext = createContext<HistoryContextValue | null>(null);
@@ -91,6 +98,10 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
   const [records, setRecords] = useState<HistoryRecord[]>([]);
   const [reliabilityScore, setReliabilityScore] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Bumped by refetch() to re-run the effect below on demand (e.g. after
+  // deleting a self-report) without calling a hoisted setState-containing
+  // function directly from inside an effect body.
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,10 +146,10 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [session, reloadNonce]);
 
   const value = useMemo(
-    () => ({ records, isLoading, reliabilityScore }),
+    () => ({ records, isLoading, reliabilityScore, refetch: () => setReloadNonce((n) => n + 1) }),
     [records, isLoading, reliabilityScore],
   );
 

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ExpandablePhoto } from '@/components/expandable-photo';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -38,9 +39,12 @@ export function PostActions({ likes }: { likes?: number }) {
   );
 }
 
-/** Placeholder photo tile shared by ActivityPostCard and RecordCard. */
-export function PostPhoto() {
+/** Photo tile shared by ActivityPostCard and RecordCard — renders `uri` when given, else a placeholder. */
+export function PostPhoto({ uri }: { uri?: string }) {
   const theme = useTheme();
+  if (uri) {
+    return <ExpandablePhoto uri={uri} style={styles.photo} />;
+  }
   return (
     <View style={[styles.photo, { backgroundColor: theme.backgroundSelected }]}>
       <Ionicons name="image-outline" size={28} color={theme.textSecondary} />
@@ -62,7 +66,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
   },
   photo: {
-    height: 160,
+    width: '100%',
+    aspectRatio: 1,
     borderRadius: BorderRadius.md,
     alignItems: 'center',
     justifyContent: 'center',
