@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomBarShadow, Spacing } from '@/constants/theme';
 import { useOrganization, type ViewMode } from '@/context/organization-context';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -146,11 +146,13 @@ export function CustomTabList(props: TabListProps) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View {...props} style={[styles.tabListContainer, { paddingBottom: Spacing.three + insets.bottom }]}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        {props.children}
-      </ThemedView>
-    </View>
+    <ThemedView
+      type="backgroundElement"
+      {...props}
+      style={[styles.tabListContainer, { paddingBottom: insets.bottom }]}
+    >
+      {props.children}
+    </ThemedView>
   );
 }
 
@@ -158,21 +160,14 @@ const styles = StyleSheet.create({
   tabListContainer: {
     position: 'absolute',
     bottom: 0,
-    width: '100%',
-    padding: Spacing.three,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-  },
-  innerContainer: {
-    paddingVertical: Spacing.two,
+    left: 0,
+    right: 0,
+    paddingTop: Spacing.two,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.five,
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-around',
-    flexGrow: 1,
-    maxWidth: MaxContentWidth,
+    alignItems: 'center',
+    flexDirection: 'row',
+    ...BottomBarShadow,
   },
   pressed: {
     opacity: 0.7,

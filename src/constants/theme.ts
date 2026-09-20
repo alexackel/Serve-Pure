@@ -68,10 +68,10 @@ export const Spacing = {
   six: 64,
 } as const;
 
-// The floating pill tab bar's own rendered height (app-tabs.tsx's
-// tabListContainer padding + innerContainer padding + button content),
-// excluding safe-area inset — callers add safe-area bottom separately.
-export const BottomTabInset = 100;
+// The bottom tab bar's own rendered height (app-tabs.tsx's tabListContainer
+// top padding + button content), excluding safe-area inset — callers add
+// safe-area bottom separately.
+export const BottomTabInset = 60;
 export const MaxContentWidth = 800;
 
 export const Typography = {
@@ -96,4 +96,18 @@ export const CardShadow = Platform.select({
     shadowOffset: { width: 0, height: 2 },
   },
   default: { elevation: 2 },
+});
+
+// Negative/upward offset since this bar sits flush against the bottom edge —
+// the shadow needs to read on its top edge, not underneath it, to separate
+// it from content scrolling behind it.
+export const BottomBarShadow = Platform.select({
+  web: { boxShadow: '0px -2px 6px rgba(15, 23, 42, 0.12)' },
+  ios: {
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: -2 },
+  },
+  default: { elevation: 8 },
 });
