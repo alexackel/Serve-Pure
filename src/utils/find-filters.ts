@@ -19,11 +19,11 @@ export type SortKey = (typeof SORT_OPTIONS)[number]['key'];
 export const DEFAULT_SORT: SortKey = 'soonest';
 
 // Find never shows anything beyond MAX_EVENT_DISTANCE_MILES (see
-// applyMaxRadius below), so "any distance" really means "up to the platform
-// ceiling" and a 50mi preset would be a dead no-op — hence only presets at or
-// under that ceiling are offered here.
+// applyMaxRadius below) — a 50mi preset would be a dead no-op — hence only
+// presets at or under that ceiling are offered here. '25' (the platform
+// ceiling itself) is the default/selected preset rather than an 'any'
+// option, since the two were functionally identical.
 export const DISTANCE_OPTIONS = [
-  { key: 'any', label: 'Up to 25 mi', miles: null },
   { key: '5', label: 'Within 5 mi', miles: 5 },
   { key: '10', label: 'Within 10 mi', miles: 10 },
   { key: '25', label: 'Within 25 mi', miles: 25 },
@@ -70,7 +70,7 @@ export type FindFilters = {
 };
 
 export const DEFAULT_FIND_FILTERS: FindFilters = {
-  distance: 'any',
+  distance: '25',
   date: 'any',
   duration: 'any',
   categories: new Set(),
@@ -121,7 +121,7 @@ export function applyMaxRadius(events: EventDetail[], userLocation: UserCoordina
 }
 
 export function filterByDistance(events: EventDetail[], key: DistanceKey, userLocation: UserCoordinates): EventDetail[] {
-  if (key === 'any' || userLocation.latitude == null || userLocation.longitude == null) {
+  if (userLocation.latitude == null || userLocation.longitude == null) {
     return events;
   }
 
@@ -265,8 +265,8 @@ export function buildFindPillDescriptors(state: FindFiltersState): FindPillDescr
     {
       key: 'distance',
       label: 'Distance',
-      active: filters.distance !== 'any',
-      valueHint: filters.distance !== 'any' ? findLabel(DISTANCE_OPTIONS, filters.distance) : undefined,
+      active: filters.distance !== DEFAULT_FIND_FILTERS.distance,
+      valueHint: filters.distance !== DEFAULT_FIND_FILTERS.distance ? findLabel(DISTANCE_OPTIONS, filters.distance) : undefined,
     },
     { key: 'date', label: 'Date', active: filters.date !== 'any', valueHint: filters.date !== 'any' ? findLabel(DATE_OPTIONS, filters.date) : undefined },
     {
@@ -295,7 +295,7 @@ export function isFindFiltersDefault(state: FindFiltersState): boolean {
   const { sort, filters } = state;
   return (
     sort === DEFAULT_SORT &&
-    filters.distance === 'any' &&
+    filters.distance === DEFAULT_FIND_FILTERS.distance &&
     filters.date === 'any' &&
     filters.duration === 'any' &&
     filters.categories.size === 0 &&

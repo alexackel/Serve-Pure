@@ -310,7 +310,9 @@ export default function FindScreen() {
                 </ThemedText>
               ) : visibleEvents.length === 0 ? (
                 <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
-                  No events match your filters.
+                  {viewMode === 'personal'
+                    ? 'No events match your filters. Check out AI Discovered for more nearby organizations.'
+                    : 'No events match your filters.'}
                 </ThemedText>
               ) : (
                 visibleEvents.map((event) => (
