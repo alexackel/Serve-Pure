@@ -1,5 +1,6 @@
 import type { EventDetail } from '@/data/mock-events';
 import { addDays, endOfDay, parseEventDateTime, startOfDay } from '@/utils/dates';
+import { MAX_EVENT_DISTANCE_MILES } from '@/utils/distance-limits';
 import { getDistanceMiles } from '@/utils/geo';
 
 // Shape-compatible with `UserLocation` from `use-user-location.tsx`, kept local
@@ -17,12 +18,15 @@ export type SortKey = (typeof SORT_OPTIONS)[number]['key'];
 // useUserLocation resolves) still shows a sensible order.
 export const DEFAULT_SORT: SortKey = 'soonest';
 
+// Find never shows anything beyond MAX_EVENT_DISTANCE_MILES (see
+// applyMaxRadius below), so "any distance" really means "up to the platform
+// ceiling" and a 50mi preset would be a dead no-op — hence only presets at or
+// under that ceiling are offered here.
 export const DISTANCE_OPTIONS = [
-  { key: 'any', label: 'Any distance', miles: null },
+  { key: 'any', label: 'Up to 25 mi', miles: null },
   { key: '5', label: 'Within 5 mi', miles: 5 },
   { key: '10', label: 'Within 10 mi', miles: 10 },
   { key: '25', label: 'Within 25 mi', miles: 25 },
-  { key: '50', label: 'Within 50 mi', miles: 50 },
 ] as const;
 export type DistanceKey = (typeof DISTANCE_OPTIONS)[number]['key'];
 
@@ -95,6 +99,25 @@ export function getCategoryOptions(events: EventDetail[]): string[] {
 // `org-events.tsx` uses to split an organization's own event list.
 export function excludePastEvents(events: EventDetail[], now: Date): EventDetail[] {
   return events.filter((event) => parseEventDateTime(event.date, event.startTime, now) >= now);
+}
+
+// Always-on ceiling, independent of the user-adjustable Distance pill below
+// — mirrors buildMapPins' identical hard cap on the Map tab (same shared
+// constant), so Find never lists something the user could never find
+// plotted on the map. Runs first inside applyFindFilters so it's
+// non-bypassable by construction, not just an opt-in filter step.
+export function applyMaxRadius(events: EventDetail[], userLocation: UserCoordinates): EventDetail[] {
+  const { latitude, longitude } = userLocation;
+  if (latitude == null || longitude == null) {
+    return events;
+  }
+
+  return events.filter(
+    (event) =>
+      event.latitude !== undefined &&
+      event.longitude !== undefined &&
+      getDistanceMiles(latitude, longitude, event.latitude, event.longitude) <= MAX_EVENT_DISTANCE_MILES,
+  );
 }
 
 export function filterByDistance(events: EventDetail[], key: DistanceKey, userLocation: UserCoordinates): EventDetail[] {
@@ -172,7 +195,8 @@ export function filterByRecurrence(events: EventDetail[], key: RecurrenceKey): E
 }
 
 export function applyFindFilters(events: EventDetail[], filters: FindFilters, userLocation: UserCoordinates, now?: Date): EventDetail[] {
-  let result = filterByDistance(events, filters.distance, userLocation);
+  let result = applyMaxRadius(events, userLocation);
+  result = filterByDistance(result, filters.distance, userLocation);
   result = filterByDate(result, filters.date, now);
   result = filterByDuration(result, filters.duration);
   result = filterByCategories(result, filters.categories);

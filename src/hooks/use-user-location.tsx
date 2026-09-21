@@ -35,7 +35,14 @@ export function UserLocationProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        // Highest, not Balanced — this reading drives the "you are here"
+        // pin on the event/org location maps, where a ~100m Balanced-tier
+        // fix is visibly wrong at street-level zoom (looks like it's next
+        // to the wrong building entirely). Distance sort/filter on Find
+        // don't need this precision, but they share this single fetch by
+        // design (see the comment on UserLocationContext above), so both
+        // get the more precise fix.
+        const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
         if (cancelled) return;
         setLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude, loading: false, error: null });
       } catch {

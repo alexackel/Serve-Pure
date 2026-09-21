@@ -1,11 +1,10 @@
 import type { AiDiscoveredOrg } from '@/data/ai-orgs';
 import type { EventDetail } from '@/data/mock-events';
 import { aiOrgCategoryLabel } from '@/utils/ai-orgs';
+import { MAX_EVENT_DISTANCE_MILES } from '@/utils/distance-limits';
 import { getDistanceMiles } from '@/utils/geo';
 
 export type MapPinKind = 'org-event' | 'individual-event' | 'ai-org';
-
-const MAX_PIN_DISTANCE_MILES = 25;
 
 export type MapPin = {
   id: string;
@@ -19,7 +18,7 @@ export type MapPin = {
   aiOrg?: AiDiscoveredOrg;
 };
 
-function eventToPin(event: EventDetail): MapPin | null {
+export function eventToPin(event: EventDetail): MapPin | null {
   if (event.latitude == null || event.longitude == null) return null;
 
   const isIndividual = event.organizationId == null;
@@ -35,7 +34,7 @@ function eventToPin(event: EventDetail): MapPin | null {
   };
 }
 
-function aiOrgToPin(org: AiDiscoveredOrg): MapPin | null {
+export function aiOrgToPin(org: AiDiscoveredOrg): MapPin | null {
   if (org.lat == null || org.lng == null) return null;
 
   return {
@@ -73,7 +72,7 @@ export function buildMapPins(
       ...pin,
       distanceMiles: getDistanceMiles(latitude, longitude, pin.latitude, pin.longitude),
     }))
-    .filter((pin) => pin.distanceMiles <= MAX_PIN_DISTANCE_MILES);
+    .filter((pin) => pin.distanceMiles <= MAX_EVENT_DISTANCE_MILES);
 
   return withDistance.sort((a, b) => (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity));
 }

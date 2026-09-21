@@ -1,3 +1,4 @@
+export * from './location-map-card';
 export * from './map-pin-marker';
 export * from './map-pin-row';
 export * from './map-sheet';

@@ -9,19 +9,9 @@ import { USER_LOCATION_MARKER_SIZE, UserLocationMarker } from '@/components/map/
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { clampToMaxRequestSize, FALLBACK_ZOOM, getMapboxStaticImageUrl, MAX_ZOOM, MIN_ZOOM } from '@/utils/mapbox-static-image';
 import type { MapPin } from '@/utils/map-pins';
 import { computeFit, projectToPixel } from '@/utils/map-projection';
-
-// Mapbox's Static Images API caps requested width/height at 1280px each
-// (the @2x retina modifier scales the *output* pixels, not the requested
-// size, so it's safe to always request @2x on top of this cap).
-const MAX_REQUEST_SIZE = 1280;
-// z9 ~= metro scale (a safety floor, rarely hit since buildMapPins already
-// caps pins at 25mi), z16 ~= street scale ceiling, z14 is the fallback used
-// when there are no nearby pins to fit around.
-const MIN_ZOOM = 9;
-const MAX_ZOOM = 16;
-const FALLBACK_ZOOM = 14;
 
 export type MapStaticSurfaceProps = {
   userLocation: { latitude: number; longitude: number };
@@ -44,6 +34,17 @@ export function MapStaticSurface({ userLocation, pins, onPressPin }: MapStaticSu
     setSize({ width: Math.round(width), height: Math.round(height) });
   };
 
+  // The measured container can be wider/taller than Mapbox's Static Images
+  // API will ever render (MAX_REQUEST_SIZE per side — easily exceeded by
+  // this full-bleed tab on a wide desktop browser window). Every
+  // projectToPixel call below uses this clamped size, matching the actual
+  // requested/rendered image exactly, and the image is rendered at this
+  // size (centered within the measured container) rather than stretched to
+  // fill it — otherwise pins land where they'd be on the *unclamped*
+  // container while the real image underneath is smaller and stretched,
+  // offsetting every marker by an amount that depends on zoom.
+  const requestSize = size ? clampToMaxRequestSize(size) : null;
+
   // As tight a zoom as fits every current pin clear of the edges, with a
   // cushion on the bottom matching the sheet's own peeked height (see
   // sheet-layout.ts) so pins never sit under it. Deliberately NOT anchored
@@ -53,7 +54,7 @@ export function MapStaticSurface({ userLocation, pins, onPressPin }: MapStaticSu
   // The user's location only matters here as the fallback center when
   // there's nothing nearby to fit around.
   const fit = useMemo(() => {
-    if (!size) return { center: { latitude: userLocation.latitude, longitude: userLocation.longitude }, zoom: FALLBACK_ZOOM };
+    if (!requestSize) return { center: { latitude: userLocation.latitude, longitude: userLocation.longitude }, zoom: FALLBACK_ZOOM };
     const padding = {
       left: Spacing.four + footprint.width / 2,
       right: Spacing.four + footprint.width / 2,
@@ -63,36 +64,25 @@ export function MapStaticSurface({ userLocation, pins, onPressPin }: MapStaticSu
     const result = computeFit(
       pins,
       { latitude: userLocation.latitude, longitude: userLocation.longitude },
-      size,
+      requestSize,
       padding,
       { minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM, fallbackZoom: FALLBACK_ZOOM },
     );
     return { center: result.center, zoom: Math.round(result.zoom * 100) / 100 };
-  }, [pins, userLocation.latitude, userLocation.longitude, size, insets.top, insets.bottom, footprint.width, footprint.height]);
+  }, [pins, userLocation.latitude, userLocation.longitude, requestSize, insets.top, insets.bottom, footprint.width, footprint.height]);
 
   const imageUrl = useMemo(() => {
-    if (!size) return null;
-    const token = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
-    if (!token) return null;
-
-    const styleId = colorScheme === 'dark' ? 'dark-v11' : 'streets-v12';
-    const width = Math.min(size.width, MAX_REQUEST_SIZE);
-    const height = Math.min(size.height, MAX_REQUEST_SIZE);
-
-    return (
-      `https://api.mapbox.com/styles/v1/mapbox/${styleId}/static/` +
-      `${fit.center.longitude},${fit.center.latitude},${fit.zoom}/${width}x${height}@2x` +
-      `?access_token=${token}`
-    );
-  }, [size, colorScheme, fit]);
+    if (!requestSize) return null;
+    return getMapboxStaticImageUrl({ center: fit.center, zoom: fit.zoom, size: requestSize, colorScheme });
+  }, [requestSize, colorScheme, fit]);
 
   return (
     <View style={styles.container} onLayout={onLayout}>
-      {imageUrl && size && (
-        <>
+      {imageUrl && requestSize && (
+        <View style={[styles.mapSurface, { width: requestSize.width, height: requestSize.height }]}>
           <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
           {pins.map((pin) => {
-            const { x, y } = projectToPixel(pin, fit.center, fit.zoom, size);
+            const { x, y } = projectToPixel(pin, fit.center, fit.zoom, requestSize);
             return (
               <Pressable
                 key={pin.id}
@@ -103,7 +93,7 @@ export function MapStaticSurface({ userLocation, pins, onPressPin }: MapStaticSu
             );
           })}
           {(() => {
-            const { x, y } = projectToPixel(userLocation, fit.center, fit.zoom, size);
+            const { x, y } = projectToPixel(userLocation, fit.center, fit.zoom, requestSize);
             return (
               <View
                 pointerEvents="none"
@@ -115,7 +105,7 @@ export function MapStaticSurface({ userLocation, pins, onPressPin }: MapStaticSu
               </View>
             );
           })()}
-        </>
+        </View>
       )}
 
       {size && !process.env.EXPO_PUBLIC_MAPBOX_TOKEN && (
@@ -132,6 +122,16 @@ export function MapStaticSurface({ userLocation, pins, onPressPin }: MapStaticSu
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Sized exactly to the clamped request dimensions (see
+  // clampToMaxRequestSize) and centered within `container` by its own
+  // alignItems/justifyContent — never stretched to fill a larger surface,
+  // which is what kept pin overlays misaligned with the actual map image.
+  mapSurface: {
+    position: 'relative',
+    overflow: 'hidden',
   },
   pinAnchor: {
     position: 'absolute',

@@ -5,7 +5,24 @@
 // positions its own markers natively, so this whole file goes away, unused,
 // the moment map-static-surface.tsx is replaced by a real map SDK.
 
-const TILE_SIZE = 256;
+// 512, not the classic slippy-map 256 — Mapbox's GL-style-based Static
+// Images API (`/styles/v1/{user}/{style}/static/...`, what
+// mapbox-static-image.ts requests) renders at Mapbox GL's native 512px tile
+// size, not the legacy raster tile size. Using 256 here made every
+// project()/unproject() call describe a world exactly twice the size Mapbox
+// actually renders at a given zoom — self-consistent (every helper in this
+// file agreed with every other), so it was invisible to eyeballing or to
+// recomputing values by hand, but every pin was off by a factor of 2 in
+// scale from where it actually sits on the fetched image. Only caught by
+// asking Mapbox to render a marker at the same coordinates itself (a
+// `pin-l+color(lon,lat)` overlay baked into the image, independent of this
+// file entirely) and comparing pixel-for-pixel — the discrepancy was exactly
+// a factor of 2, and vanished once this constant matched Mapbox's real tile
+// size. A single, always-self-centered pin (e.g. the collapsed preview
+// card, where the only point IS the image center) can never expose this: the
+// bug only shows up once two distinct points need to be placed relative to
+// each other, like the expanded pin+user view.
+const TILE_SIZE = 512;
 
 function project(latitude: number, longitude: number): { x: number; y: number } {
   const sinLatitude = Math.sin((latitude * Math.PI) / 180);

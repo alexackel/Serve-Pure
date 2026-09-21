@@ -34,6 +34,7 @@ import {
   RECURRENCE_OPTIONS,
   SORT_OPTIONS,
   applyFindFilters,
+  applyMaxRadius,
   buildFindPillDescriptors,
   excludePastEvents,
   getCategoryOptions,
@@ -250,12 +251,17 @@ export default function FindScreen() {
 
   const now = useMemo(() => new Date(), []);
   const upcomingEvents = useMemo(() => excludePastEvents(events, now), [events, now]);
-  const categoryOptions = useMemo(() => getCategoryOptions(upcomingEvents), [upcomingEvents]);
+  // Applied before category derivation too, same as excludePastEvents above
+  // — a mandatory baseline rule, not a user-adjustable facet, so the
+  // Category sheet never offers a chip the volunteer could never actually
+  // select from the (radius-capped) list underneath.
+  const nearbyEvents = useMemo(() => applyMaxRadius(upcomingEvents, userLocation), [upcomingEvents, userLocation]);
+  const categoryOptions = useMemo(() => getCategoryOptions(nearbyEvents), [nearbyEvents]);
   const pills = useMemo(() => buildFindPillDescriptors(state), [state]);
 
   const filteredEvents = useMemo(
-    () => applyFindFilters(upcomingEvents, state.filters, userLocation),
-    [upcomingEvents, state.filters, userLocation],
+    () => applyFindFilters(nearbyEvents, state.filters, userLocation),
+    [nearbyEvents, state.filters, userLocation],
   );
   const visibleEvents = useMemo(
     () => sortEvents(filteredEvents, state.sort, userLocation),

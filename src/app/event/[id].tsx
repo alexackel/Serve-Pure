@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
@@ -8,6 +8,7 @@ import { Avatar } from '@/components/avatar';
 import { BackButton } from '@/components/back-button';
 import { VerificationBadge } from '@/components/cards/verification-badge';
 import { ExpandablePhoto } from '@/components/expandable-photo';
+import { LocationMapCard } from '@/components/map';
 import { OverflowMenu } from '@/components/overflow-menu';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -22,6 +23,7 @@ import type { EventDetail } from '@/data/mock-events';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
 import { parseEventDateTime } from '@/utils/dates';
+import { eventToPin } from '@/utils/map-pins';
 
 type Registrant = { userId: string; fullName: string; verified: boolean };
 
@@ -131,6 +133,8 @@ export default function EventDetailScreen() {
     }
     loadForNewId();
   }, [reload]);
+
+  const eventPin = useMemo(() => (event ? eventToPin(event) : null), [event]);
 
   if (event === undefined) {
     return (
@@ -266,14 +270,7 @@ export default function EventDetailScreen() {
       <ThemedView style={styles.section}>
         <ThemedText type="h3">Location</ThemedText>
         <InfoRow icon="location-outline" text={event.location} />
-        {!event.photoUrl && (
-          <View style={[styles.mapPlaceholder, { backgroundColor: theme.backgroundSelected }]}>
-            <Ionicons name="map-outline" size={28} color={theme.textSecondary} />
-            <ThemedText type="caption" themeColor="textSecondary">
-              Map view coming soon
-            </ThemedText>
-          </View>
-        )}
+        <LocationMapCard pin={eventPin} />
       </ThemedView>
 
       {event.description && (
@@ -473,13 +470,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
-  },
-  mapPlaceholder: {
-    height: 140,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one,
   },
   photo: {
     width: '100%',

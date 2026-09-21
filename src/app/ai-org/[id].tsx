@@ -7,6 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { Avatar } from '@/components/avatar';
 import { BackButton } from '@/components/back-button';
 import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
+import { LocationMapCard } from '@/components/map';
 import { MetaRow } from '@/components/meta-row';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -17,6 +18,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { aiOrgCategoryLabel } from '@/utils/ai-orgs';
 import { getDistanceMiles } from '@/utils/geo';
+import { aiOrgToPin } from '@/utils/map-pins';
 
 function SectionDivider() {
   const theme = useTheme();
@@ -56,6 +58,7 @@ export default function AiOrgDetailScreen() {
   const [confirmingReport, setConfirmingReport] = useState(false);
 
   const org = useMemo(() => orgs.find((candidate) => candidate.id === id), [orgs, id]);
+  const orgPin = useMemo(() => (org ? aiOrgToPin(org) : null), [org]);
 
   const distanceMiles =
     org && userLocation.latitude !== null && userLocation.longitude !== null && org.lat !== null && org.lng !== null
@@ -125,14 +128,7 @@ export default function AiOrgDetailScreen() {
       <ThemedView style={styles.section}>
         <ThemedText type="h3">Location</ThemedText>
         <InfoRow icon="location-outline" text={org.address ?? 'Address unavailable'} />
-        {org.lat !== null && org.lng !== null && (
-          <View style={[styles.mapPlaceholder, { backgroundColor: theme.backgroundSelected }]}>
-            <Ionicons name="map-outline" size={28} color={theme.textSecondary} />
-            <ThemedText type="caption" themeColor="textSecondary">
-              Map view coming soon
-            </ThemedText>
-          </View>
-        )}
+        <LocationMapCard pin={orgPin} />
       </ThemedView>
 
       {org.description && (
@@ -243,13 +239,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
-  },
-  mapPlaceholder: {
-    height: 140,
-    borderRadius: BorderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.one,
   },
   warningBanner: {
     flexDirection: 'row',
