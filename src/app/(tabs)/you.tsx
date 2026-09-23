@@ -469,7 +469,12 @@ export default function YouScreen() {
       </ScreenScrollView>
 
       <CreateFab onPress={() => setCreateSheetVisible(true)} />
-      <CreatePostSheet visible={createSheetVisible} onDismiss={() => setCreateSheetVisible(false)} showSelfUpload />
+      <CreatePostSheet
+        visible={createSheetVisible}
+        onDismiss={() => setCreateSheetVisible(false)}
+        showSelfUpload
+        showDiscoveredPost
+      />
     </View>
   );
 }

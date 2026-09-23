@@ -4,8 +4,8 @@ import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { AiDiscoveryProvider } from '@/context/ai-discovery-context';
 import { AuthProvider, useSession } from '@/context/auth-context';
+import { DiscoveryProvider } from '@/context/discovery-context';
 import { GroupsProvider } from '@/context/groups-context';
 import { HistoryProvider } from '@/context/history-context';
 import { OrganizationProvider } from '@/context/organization-context';
@@ -25,7 +25,7 @@ function RootNavigator() {
   return (
     <OrganizationProvider>
       <UserLocationProvider>
-        <AiDiscoveryProvider>
+        <DiscoveryProvider>
           <RegistrationsProvider>
             <HistoryProvider>
               <OrgHistoryProvider>
@@ -35,7 +35,8 @@ function RootNavigator() {
                     <Stack.Protected guard={!!session}>
                       <Stack.Screen name="(tabs)" />
                       <Stack.Screen name="event/[id]" />
-                      <Stack.Screen name="ai-org/[id]" />
+                      <Stack.Screen name="discovered/ai-org/[id]" />
+                      <Stack.Screen name="discovered/post/[id]" />
                       <Stack.Screen name="group/[id]" />
                       <Stack.Screen name="group/[id]/subgroups" />
                       <Stack.Screen name="group/[id]/member/[memberId]" />
@@ -49,7 +50,7 @@ function RootNavigator() {
               </OrgHistoryProvider>
             </HistoryProvider>
           </RegistrationsProvider>
-        </AiDiscoveryProvider>
+        </DiscoveryProvider>
       </UserLocationProvider>
     </OrganizationProvider>
   );

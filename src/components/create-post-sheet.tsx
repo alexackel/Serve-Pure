@@ -12,12 +12,13 @@ export type CreatePostSheetProps = {
   visible: boolean;
   onDismiss: () => void;
   showSelfUpload: boolean;
+  showDiscoveredPost: boolean;
 };
 
 // Same Modal pattern as FilterSheet (see that file's comment): conditionally
 // mounted rather than toggling `visible`, since RN Web ignores `visible`
 // prop changes on an already-mounted Modal.
-export function CreatePostSheet({ visible, onDismiss, showSelfUpload }: CreatePostSheetProps) {
+export function CreatePostSheet({ visible, onDismiss, showSelfUpload, showDiscoveredPost }: CreatePostSheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -25,7 +26,7 @@ export function CreatePostSheet({ visible, onDismiss, showSelfUpload }: CreatePo
     return null;
   }
 
-  const go = (pathname: '/create-event' | '/self-upload') => {
+  const go = (pathname: '/create-event' | '/self-upload' | '/discovered-post') => {
     onDismiss();
     router.push(pathname);
   };
@@ -63,6 +64,21 @@ export function CreatePostSheet({ visible, onDismiss, showSelfUpload }: CreatePo
               <ThemedText type="bodyBold">Self Upload</ThemedText>
               <ThemedText type="caption" themeColor="textSecondary">
                 Log volunteer hours from outside the app
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+          </Pressable>
+        )}
+
+        {showDiscoveredPost && (
+          <Pressable
+            onPress={() => go('/discovered-post')}
+            style={[styles.option, { backgroundColor: theme.backgroundElement }]}>
+            <Ionicons name="link-outline" size={22} color={theme.primary} />
+            <View style={styles.optionText}>
+              <ThemedText type="bodyBold">Share a Discovered Opportunity</ThemedText>
+              <ThemedText type="caption" themeColor="textSecondary">
+                Point volunteers to an org you know of
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />

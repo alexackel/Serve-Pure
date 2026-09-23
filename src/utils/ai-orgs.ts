@@ -1,5 +1,5 @@
 import type { AiDiscoveredOrg, AiOrgCategory } from '@/data/ai-orgs';
-import { getDistanceMiles } from '@/utils/geo';
+import { rankByTrustAndDistance } from '@/utils/discovery-rank';
 
 export const AI_ORG_CATEGORY_OPTIONS: readonly { key: AiOrgCategory; label: string }[] = [
   { key: 'food', label: 'Food' },
@@ -35,39 +35,9 @@ export function sortAiOrgsByDistance(
   orgs: readonly AiDiscoveredOrg[],
   userLocation: { latitude: number | null; longitude: number | null },
 ): AiOrgWithDistance[] {
-  const { latitude, longitude } = userLocation;
-
-  const withDistance = orgs.map((org) => ({
-    ...org,
-    distanceMiles:
-      latitude !== null && longitude !== null && org.lat !== null && org.lng !== null
-        ? getDistanceMiles(latitude, longitude, org.lat, org.lng)
-        : null,
-  }));
-
-  return withDistance.sort((a, b) => {
-    // Any report at all (from any user, not just the current viewer) drops
-    // an org below every unreported one, before distance is even
-    // considered — a soft "less trusted" ranking signal distinct from the
-    // hard 5-report removal enforced server-side in discover-ai-orgs.
-    const flaggedA = a.flaggedCount > 0 ? 1 : 0;
-    const flaggedB = b.flaggedCount > 0 ? 1 : 0;
-    if (flaggedA !== flaggedB) return flaggedA - flaggedB;
-
-    if (a.distanceMiles === null && b.distanceMiles === null) return completenessScore(b) - completenessScore(a);
-    if (a.distanceMiles === null) return 1;
-    if (b.distanceMiles === null) return -1;
-
-    // Group similarly-distant orgs (same nearest-mile bucket) and rank the
-    // more complete listing first within that group, rather than sorting
-    // on raw distance alone.
-    const bucketA = Math.round(a.distanceMiles);
-    const bucketB = Math.round(b.distanceMiles);
-    if (bucketA !== bucketB) return bucketA - bucketB;
-
-    const completenessDiff = completenessScore(b) - completenessScore(a);
-    if (completenessDiff !== 0) return completenessDiff;
-
-    return a.distanceMiles - b.distanceMiles;
+  return rankByTrustAndDistance(orgs, userLocation, {
+    getLatLng: (org) => [org.lat, org.lng],
+    getFlaggedCount: (org) => org.flaggedCount,
+    getCompleteness: completenessScore,
   });
 }

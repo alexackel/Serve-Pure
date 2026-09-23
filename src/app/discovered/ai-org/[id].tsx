@@ -4,16 +4,16 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { useLocalSearchParams } from 'expo-router';
 
-import { Avatar } from '@/components/avatar';
 import { BackButton } from '@/components/back-button';
 import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
+import { DiscoverySourceTag } from '@/components/discovery-source-tag';
 import { LocationMapCard } from '@/components/map';
 import { MetaRow } from '@/components/meta-row';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { useAiDiscovery } from '@/context/ai-discovery-context';
+import { useDiscovery } from '@/context/discovery-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { aiOrgCategoryLabel } from '@/utils/ai-orgs';
@@ -52,12 +52,12 @@ function LinkRow({ icon, text, url }: { icon: keyof typeof Ionicons.glyphMap; te
 export default function AiOrgDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const theme = useTheme();
-  const { orgs, status, reportedIds, reportOrg, unreportOrg } = useAiDiscovery();
+  const { aiOrgs, aiStatus, reportedAiOrgIds, reportAiOrgById, unreportAiOrgById } = useDiscovery();
   const userLocation = useUserLocation();
   const [reportError, setReportError] = useState<string | null>(null);
   const [confirmingReport, setConfirmingReport] = useState(false);
 
-  const org = useMemo(() => orgs.find((candidate) => candidate.id === id), [orgs, id]);
+  const org = useMemo(() => aiOrgs.find((candidate) => candidate.id === id), [aiOrgs, id]);
   const orgPin = useMemo(() => (org ? aiOrgToPin(org) : null), [org]);
 
   const distanceMiles =
@@ -69,19 +69,19 @@ export default function AiOrgDetailScreen() {
     return (
       <ScreenScrollView containerStyle={styles.container}>
         <BackButton fallbackHref="/find" />
-        <ThemedText type="h3">{status === 'loading' ? 'Loading…' : 'Organization not found'}</ThemedText>
+        <ThemedText type="h3">{aiStatus === 'loading' ? 'Loading…' : 'Organization not found'}</ThemedText>
       </ScreenScrollView>
     );
   }
 
   const hasContactSection = Boolean(org.contactInfo) || Boolean(org.website) || Boolean(org.sourceUrl);
   const hasDetailsSection = Boolean(org.timeCommitment) || Boolean(org.eligibility);
-  const reported = reportedIds.has(org.id);
+  const reported = reportedAiOrgIds.has(org.id);
 
   const handleReport = () => {
     setReportError(null);
     setConfirmingReport(false);
-    reportOrg(org.id).catch((error) => {
+    reportAiOrgById(org.id).catch((error) => {
       console.error('Failed to report AI org', error);
       setReportError('Could not submit report. Try again.');
     });
@@ -89,7 +89,7 @@ export default function AiOrgDetailScreen() {
 
   const handleUndoReport = () => {
     setReportError(null);
-    unreportOrg(org.id).catch((error) => {
+    unreportAiOrgById(org.id).catch((error) => {
       console.error('Failed to undo AI org report', error);
       setReportError('Could not undo report. Try again.');
     });
@@ -99,12 +99,7 @@ export default function AiOrgDetailScreen() {
     <ScreenScrollView containerStyle={styles.container}>
       <BackButton fallbackHref="/find" />
 
-      <View style={styles.orgRow}>
-        <Avatar size={40} icon="sparkles-outline" iconSize={22} />
-        <ThemedText type="caption" themeColor="textSecondary">
-          AI Discovered
-        </ThemedText>
-      </View>
+      <DiscoverySourceTag source="ai" />
 
       <View style={styles.titleBlock}>
         <ThemedText type="h1">{org.name}</ThemedText>
@@ -208,11 +203,6 @@ export default function AiOrgDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
-  },
-  orgRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
   },
   titleBlock: {
     gap: Spacing.two,

@@ -4,10 +4,17 @@ import { StyleSheet, View } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
 import type { MapPinKind } from '@/utils/map-pins';
 
-const PIN_VISUALS: Record<MapPinKind, { icon: keyof typeof Ionicons.glyphMap; colorKey: 'success' | 'warning' | 'primary' }> = {
+const PIN_VISUALS: Record<
+  MapPinKind,
+  { icon: keyof typeof Ionicons.glyphMap; colorKey: 'success' | 'warning' | 'primary' | 'textSecondary' }
+> = {
   'org-event': { icon: 'home', colorKey: 'success' },
   'individual-event': { icon: 'person', colorKey: 'warning' },
-  'ai-org': { icon: 'sparkles', colorKey: 'primary' },
+  // Demoted to grey now that 'discovered-post' takes the elevated primary
+  // slot — keeps the two Discovered-tab pin kinds visually distinguishable
+  // on the map, matching the Find pane's elevate/demote card treatment.
+  'ai-org': { icon: 'sparkles', colorKey: 'textSecondary' },
+  'discovered-post': { icon: 'people', colorKey: 'primary' },
 };
 
 export type MapPinMarkerProps = {

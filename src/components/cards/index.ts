@@ -2,6 +2,7 @@ export * from './verification-badge';
 export * from './event-card';
 export * from './ai-org-card';
 export * from './ai-org-card-skeleton';
+export * from './discovered-post-card';
 export * from './stat-card';
 export * from './friend-suggestion-card';
 export * from './activity-post-card';

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
-import { AiOrgCard, AiOrgCardSkeleton, EventCard } from '@/components/cards';
+import { AiOrgCard, AiOrgCardSkeleton, DiscoveredPostCard, EventCard } from '@/components/cards';
 import { CreateFab } from '@/components/create-fab';
 import { CreatePostSheet } from '@/components/create-post-sheet';
 import { CategoryChipRow, FilterSheet, FindPillRow } from '@/components/find';
@@ -13,13 +13,15 @@ import { SearchBar } from '@/components/search-bar';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, Spacing } from '@/constants/theme';
-import { useAiDiscovery } from '@/context/ai-discovery-context';
+import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { useDiscovery } from '@/context/discovery-context';
 import { useOrganization } from '@/context/organization-context';
 import { useRegistrations } from '@/context/registrations-context';
 import type { AiOrgCategory } from '@/data/ai-orgs';
 import type { EventDetail } from '@/data/mock-events';
 import { listEvents } from '@/data/events';
+import { hasSeenDiscoveredIntro, markDiscoveredIntroSeen } from '@/utils/discovered-intro-seen';
+import { discoveredItemCategory, mergeDiscoveredItems, sortDiscoveredPostsByDistance } from '@/utils/discovered';
 import { useFindFilters, type FindFiltersAction } from '@/hooks/use-find-filters';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserLocation } from '@/hooks/use-user-location';
@@ -43,73 +45,132 @@ import {
   type FindPillKey,
 } from '@/utils/find-filters';
 
-type FindTabKey = 'events' | 'ai-discovered';
+type FindTabKey = 'events' | 'discovered';
 
 const FIND_TABS: readonly { key: FindTabKey; label: string }[] = [
   { key: 'events', label: 'Events' },
-  { key: 'ai-discovered', label: 'AI Discovered' },
+  { key: 'discovered', label: 'Discovered' },
 ];
 
-type AiCategoryKey = AiOrgCategory | 'all';
+type DiscoveryCategoryKey = AiOrgCategory | 'all';
 
-const AI_CATEGORY_CHIPS: readonly { key: AiCategoryKey; label: string }[] = [
+const DISCOVERY_CATEGORY_CHIPS: readonly { key: DiscoveryCategoryKey; label: string }[] = [
   { key: 'all', label: 'All' },
   ...AI_ORG_CATEGORY_OPTIONS,
 ];
 
-// AI Discovered pane: reads the app-launch preload's shared state (see
-// AiDiscoveryProvider) instead of fetching on its own, so a cache hit from
-// that preload costs this screen nothing.
-function AiDiscoveredPane() {
-  const { orgs, status, reportedIds } = useAiDiscovery();
+// One-time explainer shown the first time a volunteer opens the Discovered
+// tab — same conditionally-mounted Modal convention as FilterSheet/
+// CreatePostSheet (transparent, fade, backdrop-tap dismiss).
+function DiscoveredIntroModal({ visible, onDismiss }: { visible: boolean; onDismiss: () => void }) {
+  const theme = useTheme();
+
+  if (!visible) {
+    return null;
+  }
+
+  return (
+    <Modal transparent visible animationType="fade" onRequestClose={onDismiss}>
+      <View style={[StyleSheet.absoluteFill, styles.introBackdrop]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
+      </View>
+      <View style={styles.introCenterer}>
+        <ThemedView style={[styles.introCard, CardShadow]}>
+          <ThemedText type="h2">Discovered</ThemedText>
+          <ThemedText type="body" themeColor="textSecondary">
+            Beyond ServePure&apos;s own events, Discovered surfaces volunteer opportunities from elsewhere —
+            organizations our AI found searching the web, and off-platform opportunities other volunteers have
+            personally come across and shared. Tap through to visit each one&apos;s own site or contact info directly
+            — there&apos;s no in-app registration here, just a pointer to get you started.
+          </ThemedText>
+          <Pressable onPress={onDismiss} style={[styles.introButton, { backgroundColor: theme.primary }]}>
+            <ThemedText type="bodyBold" themeColor="background">
+              Got it
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
+      </View>
+    </Modal>
+  );
+}
+
+// Discovered pane: reads the app-launch preload's shared state (see
+// DiscoveryProvider) instead of fetching on its own, so a cache hit from
+// that preload costs this screen nothing. Merges community-submitted posts
+// (always shown first) with AI-found orgs (demoted below them).
+function DiscoveredPane() {
+  const { aiOrgs, aiStatus, reportedAiOrgIds, userPosts, userPostsStatus, reportedUserPostIds } = useDiscovery();
   const userLocation = useUserLocation();
   const theme = useTheme();
-  const [categoryFilter, setCategoryFilter] = useState<AiCategoryKey>('all');
+  const [categoryFilter, setCategoryFilter] = useState<DiscoveryCategoryKey>('all');
 
-  const filteredOrgs = useMemo(
-    () => (categoryFilter === 'all' ? orgs : orgs.filter((org) => org.category === categoryFilter)),
-    [orgs, categoryFilter],
+  const visibleOrgs = useMemo(() => aiOrgs.filter((org) => !reportedAiOrgIds.has(org.id)), [aiOrgs, reportedAiOrgIds]);
+  const visiblePosts = useMemo(
+    () => userPosts.filter((post) => !reportedUserPostIds.has(post.id)),
+    [userPosts, reportedUserPostIds],
   );
-  const sortedOrgs = useMemo(() => sortAiOrgsByDistance(filteredOrgs, userLocation), [filteredOrgs, userLocation]);
-  const mainOrgs = useMemo(() => sortedOrgs.filter((org) => !reportedIds.has(org.id)), [sortedOrgs, reportedIds]);
-  const hasReportedOrgs = reportedIds.size > 0;
+  const sortedOrgs = useMemo(() => sortAiOrgsByDistance(visibleOrgs, userLocation), [visibleOrgs, userLocation]);
+  const sortedPosts = useMemo(() => sortDiscoveredPostsByDistance(visiblePosts, userLocation), [visiblePosts, userLocation]);
+  const mergedItems = useMemo(() => mergeDiscoveredItems(sortedPosts, sortedOrgs), [sortedPosts, sortedOrgs]);
+  const filteredItems = useMemo(
+    () =>
+      categoryFilter === 'all' ? mergedItems : mergedItems.filter((item) => discoveredItemCategory(item) === categoryFilter),
+    [mergedItems, categoryFilter],
+  );
+
+  const isInitialLoading =
+    (aiStatus === 'loading' && aiOrgs.length === 0) || (userPostsStatus === 'loading' && userPosts.length === 0);
+  const hasError = aiStatus === 'error' && userPostsStatus === 'error' && aiOrgs.length === 0 && userPosts.length === 0;
+  const hasReported = reportedAiOrgIds.size > 0 || reportedUserPostIds.size > 0;
 
   return (
     <>
-      <CategoryChipRow chips={AI_CATEGORY_CHIPS} activeKey={categoryFilter} onChange={setCategoryFilter} />
+      <CategoryChipRow chips={DISCOVERY_CATEGORY_CHIPS} activeKey={categoryFilter} onChange={setCategoryFilter} />
       <ThemedView style={styles.list}>
-        {status === 'loading' && orgs.length === 0 ? (
+        {isInitialLoading ? (
           <>
             <AiOrgCardSkeleton />
             <AiOrgCardSkeleton />
             <AiOrgCardSkeleton />
           </>
-        ) : status === 'error' && orgs.length === 0 ? (
+        ) : hasError ? (
           <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
-            Couldn&apos;t load AI-discovered organizations. Try again later.
+            Couldn&apos;t load Discovered opportunities. Try again later.
           </ThemedText>
-        ) : mainOrgs.length === 0 ? (
+        ) : filteredItems.length === 0 ? (
           <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
-            No AI-discovered organizations match your filters.
+            No Discovered opportunities match your filters.
           </ThemedText>
         ) : (
-          mainOrgs.map((org) => (
-            <AiOrgCard
-              key={org.id}
-              name={org.name}
-              address={org.address}
-              category={org.category}
-              description={org.description}
-              distanceMiles={org.distanceMiles}
-              onPress={() => router.push({ pathname: '/ai-org/[id]', params: { id: org.id } })}
-            />
-          ))
+          filteredItems.map((item) =>
+            item.source === 'user' ? (
+              <DiscoveredPostCard
+                key={item.id}
+                name={item.post.name}
+                address={item.post.address}
+                category={item.post.category}
+                description={item.post.description}
+                distanceMiles={item.post.distanceMiles}
+                onPress={() => router.push({ pathname: '/discovered/post/[id]', params: { id: item.post.id } })}
+              />
+            ) : (
+              <AiOrgCard
+                key={item.id}
+                name={item.org.name}
+                address={item.org.address}
+                category={item.org.category}
+                description={item.org.description}
+                distanceMiles={item.org.distanceMiles}
+                onPress={() => router.push({ pathname: '/discovered/ai-org/[id]', params: { id: item.org.id } })}
+              />
+            ),
+          )
         )}
       </ThemedView>
 
-      {hasReportedOrgs && (
+      {hasReported && (
         <Pressable
-          onPress={() => router.push('/ai-org/reported')}
+          onPress={() => router.push('/discovered/reported')}
           style={[styles.reportedTab, { borderColor: theme.border }]}>
           <Ionicons name="flag-outline" size={16} color={theme.textSecondary} />
           <ThemedText type="bodyBold" themeColor="textSecondary">
@@ -119,7 +180,7 @@ function AiDiscoveredPane() {
       )}
 
       <ThemedText type="caption" themeColor="textSecondary" style={styles.braveAttribution}>
-        POWERED BY BRAVE
+        AI ORG SEARCH POWERED BY BRAVE
       </ThemedText>
     </>
   );
@@ -219,11 +280,25 @@ export default function FindScreen() {
   const { state, dispatch, isDefault } = useFindFilters();
   const [activeSheet, setActiveSheet] = useState<FindPillKey | null>(null);
   const [createSheetVisible, setCreateSheetVisible] = useState(false);
+  const [showDiscoveredIntro, setShowDiscoveredIntro] = useState(false);
   // Keeps rendering the last-opened pill's sheet content while it slides out,
   // instead of unmounting it (which would cut the exit animation short).
   const [lastSheetKey, setLastSheetKey] = useState<FindPillKey>('sort');
   if (activeSheet && activeSheet !== lastSheetKey) {
     setLastSheetKey(activeSheet);
+  }
+
+  // Shows the Discovered explainer the first time a volunteer opens that
+  // tab, once per device (see discovered-intro-seen.ts) — adjusted directly
+  // during render on the activeTab transition, same idiom as lastSheetKey
+  // above, rather than a useEffect (which would setState synchronously on
+  // mount/update and trigger an extra cascading render for no benefit here).
+  const [lastIntroCheckTab, setLastIntroCheckTab] = useState<FindTabKey>('events');
+  if (activeTab !== lastIntroCheckTab) {
+    setLastIntroCheckTab(activeTab);
+    if (activeTab === 'discovered' && !hasSeenDiscoveredIntro()) {
+      setShowDiscoveredIntro(true);
+    }
   }
 
   const [events, setEvents] = useState<EventDetail[]>([]);
@@ -249,6 +324,11 @@ export default function FindScreen() {
     }, [refetchEvents]),
   );
 
+  const dismissDiscoveredIntro = () => {
+    markDiscoveredIntroSeen();
+    setShowDiscoveredIntro(false);
+  };
+
   const now = useMemo(() => new Date(), []);
   const upcomingEvents = useMemo(() => excludePastEvents(events, now), [events, now]);
   // Applied before category derivation too, same as excludePastEvents above
@@ -270,10 +350,10 @@ export default function FindScreen() {
 
   const sheetConfig = getSheetConfig(lastSheetKey, state, categoryOptions, dispatch);
   // Org/Organizer context keeps Find exactly as it is today — no segmented
-  // control, no AI Discovered pane, since discovering third-party orgs
+  // control, no Discovered pane, since discovering third-party orgs/posts
   // isn't relevant to managing your own.
   const showEventsPane = viewMode !== 'personal' || activeTab === 'events';
-  const showAiPane = viewMode === 'personal' && activeTab === 'ai-discovered';
+  const showDiscoveredPane = viewMode === 'personal' && activeTab === 'discovered';
 
   return (
     <View style={styles.flex}>
@@ -311,7 +391,7 @@ export default function FindScreen() {
               ) : visibleEvents.length === 0 ? (
                 <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
                   {viewMode === 'personal'
-                    ? 'No events match your filters. Check out AI Discovered for more nearby organizations.'
+                    ? 'No events match your filters. Check out Discovered for more nearby organizations.'
                     : 'No events match your filters.'}
                 </ThemedText>
               ) : (
@@ -328,7 +408,7 @@ export default function FindScreen() {
           </>
         )}
 
-        {showAiPane && <AiDiscoveredPane />}
+        {showDiscoveredPane && <DiscoveredPane />}
 
         <FilterSheet
           visible={activeSheet !== null}
@@ -342,11 +422,14 @@ export default function FindScreen() {
         />
       </ScreenScrollView>
 
+      <DiscoveredIntroModal visible={showDiscoveredIntro} onDismiss={dismissDiscoveredIntro} />
+
       <CreateFab onPress={() => setCreateSheetVisible(true)} />
       <CreatePostSheet
         visible={createSheetVisible}
         onDismiss={() => setCreateSheetVisible(false)}
         showSelfUpload={viewMode === 'personal'}
+        showDiscoveredPost={viewMode === 'personal'}
       />
     </View>
   );
@@ -387,5 +470,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.three,
     letterSpacing: 0.5,
+  },
+  introBackdrop: {
+    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+  },
+  introCenterer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.four,
+  },
+  introCard: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.four,
+    gap: Spacing.three,
+  },
+  introButton: {
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.three,
+    alignItems: 'center',
   },
 });

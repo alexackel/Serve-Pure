@@ -9,23 +9,23 @@ import type { AiOrgCategory } from '@/data/ai-orgs';
 import { useTheme } from '@/hooks/use-theme';
 import { aiOrgCategoryLabel } from '@/utils/ai-orgs';
 
-export type AiOrgCardProps = {
+export type DiscoveredPostCardProps = {
   name: string;
-  address: string | null;
+  address: string;
   category: AiOrgCategory;
   description: string | null;
   distanceMiles: number | null;
   onPress?: () => void;
 };
 
-export function AiOrgCard({ name, address, category, description, distanceMiles, onPress }: AiOrgCardProps) {
+export function DiscoveredPostCard({ name, address, category, description, distanceMiles, onPress }: DiscoveredPostCardProps) {
   const theme = useTheme();
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
       <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
         <View style={styles.header}>
-          <DiscoverySourceTag source="ai" />
+          <DiscoverySourceTag source="community" />
           {category !== 'other' && (
             <View style={[styles.categoryPill, { backgroundColor: theme.primaryTint }]}>
               <ThemedText type="label" themeColor="primary">
@@ -40,7 +40,7 @@ export function AiOrgCard({ name, address, category, description, distanceMiles,
         </ThemedText>
 
         <View style={styles.metaList}>
-          <MetaRow icon="location-outline" text={address ?? 'Address unavailable'} />
+          <MetaRow icon="location-outline" text={address} />
           {distanceMiles !== null && <MetaRow icon="navigate-outline" text={`${distanceMiles.toFixed(1)} mi away`} />}
         </View>
 

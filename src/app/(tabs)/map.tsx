@@ -7,7 +7,7 @@ import { MapSheet, MapStaticSurface } from '@/components/map';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { useAiDiscovery } from '@/context/ai-discovery-context';
+import { useDiscovery } from '@/context/discovery-context';
 import { listEvents } from '@/data/events';
 import type { EventDetail } from '@/data/mock-events';
 import { useTheme } from '@/hooks/use-theme';
@@ -18,7 +18,7 @@ import { buildMapPins, type MapPin } from '@/utils/map-pins';
 export default function MapScreen() {
   const theme = useTheme();
   const userLocation = useUserLocation();
-  const { orgs: aiOrgs, reportedIds } = useAiDiscovery();
+  const { aiOrgs, reportedAiOrgIds, userPosts, reportedUserPostIds } = useDiscovery();
 
   const [events, setEvents] = useState<EventDetail[]>([]);
 
@@ -42,18 +42,24 @@ export default function MapScreen() {
 
   const now = useMemo(() => new Date(), []);
   const upcomingEvents = useMemo(() => excludePastEvents(events, now), [events, now]);
-  // Same self-hide as Find's AI Discovered pane: an org the current user has
+  // Same self-hide as Find's Discovered pane: an item the current user has
   // already reported drops out of the main list.
-  const visibleAiOrgs = useMemo(() => aiOrgs.filter((org) => !reportedIds.has(org.id)), [aiOrgs, reportedIds]);
+  const visibleAiOrgs = useMemo(() => aiOrgs.filter((org) => !reportedAiOrgIds.has(org.id)), [aiOrgs, reportedAiOrgIds]);
+  const visibleUserPosts = useMemo(
+    () => userPosts.filter((post) => !reportedUserPostIds.has(post.id)),
+    [userPosts, reportedUserPostIds],
+  );
 
   const pins = useMemo(
-    () => buildMapPins(upcomingEvents, visibleAiOrgs, userLocation),
-    [upcomingEvents, visibleAiOrgs, userLocation],
+    () => buildMapPins(upcomingEvents, visibleAiOrgs, visibleUserPosts, userLocation),
+    [upcomingEvents, visibleAiOrgs, visibleUserPosts, userLocation],
   );
 
   const goToPin = (pin: MapPin) => {
     if (pin.kind === 'ai-org' && pin.aiOrg) {
-      router.push({ pathname: '/ai-org/[id]', params: { id: pin.aiOrg.id } });
+      router.push({ pathname: '/discovered/ai-org/[id]', params: { id: pin.aiOrg.id } });
+    } else if (pin.kind === 'discovered-post' && pin.post) {
+      router.push({ pathname: '/discovered/post/[id]', params: { id: pin.post.id } });
     } else if (pin.event) {
       router.push({ pathname: '/event/[id]', params: { id: pin.event.id } });
     }
