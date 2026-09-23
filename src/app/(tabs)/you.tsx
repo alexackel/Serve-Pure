@@ -6,9 +6,9 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { AccountAvatarButton } from '@/components/account-avatar-button';
 import { EventCard, RecordCard, StatCard } from '@/components/cards';
+import { statusColorKey } from '@/components/cards/verification-badge';
 import { CreateFab } from '@/components/create-fab';
 import { CreatePostSheet } from '@/components/create-post-sheet';
-import { HistoryFilterChips } from '@/components/history-filter-chips';
 import { PillIconButton } from '@/components/pill-icon-button';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
@@ -25,7 +25,6 @@ import type { EventDetail } from '@/data/mock-events';
 import { deleteSelfReport } from '@/data/self-reports';
 import { supabase } from '@/lib/supabase';
 import { useTheme } from '@/hooks/use-theme';
-import { useToggleSet } from '@/hooks/use-toggle-set';
 import {
   endOfDay,
   formatDateInput,
@@ -71,8 +70,6 @@ const HISTORY_FILTERS = [
 ] as const;
 
 type HistoryFilterKey = (typeof HISTORY_FILTERS)[number]['key'];
-
-const ALL_HISTORY_FILTERS = new Set<HistoryFilterKey>(HISTORY_FILTERS.map((filter) => filter.key));
 
 type CustomRange = { start: Date; end: Date };
 
@@ -305,17 +302,74 @@ function PastPostsTab({ posts }: { posts: EventDetail[] }) {
   );
 }
 
-function HistoryTab({ records, onDeleteRecord }: { records: HistoryRecord[]; onDeleteRecord: (id: string) => void }) {
-  const [activeFilters, toggleFilter] = useToggleSet(ALL_HISTORY_FILTERS);
+function HistoryStatusDropdown({
+  selected,
+  onSelect,
+}: {
+  selected: HistoryFilterKey | 'all';
+  onSelect: (value: HistoryFilterKey | 'all') => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const theme = useTheme();
 
-  const visibleRecords = records.filter((record) =>
-    record.status === 'admin-approved' ? activeFilters.has('verified') : activeFilters.has(record.status),
+  const options: { key: HistoryFilterKey | 'all'; label: string }[] = [{ key: 'all', label: 'All' }, ...HISTORY_FILTERS];
+  const buttonLabel = selected === 'all' ? 'All' : HISTORY_FILTERS.find((filter) => filter.key === selected)!.label;
+
+  return (
+    <View style={styles.statusFilterContainer}>
+      <Pressable
+        onPress={() => setExpanded((current) => !current)}
+        style={[styles.rangeButton, { backgroundColor: theme.backgroundElement }]}>
+        {selected !== 'all' && (
+          <View style={[styles.filterDot, { backgroundColor: theme[statusColorKey(selected)] }]} />
+        )}
+        <ThemedText type="bodyBold">{buttonLabel}</ThemedText>
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color={theme.textSecondary} />
+      </Pressable>
+
+      {expanded && (
+        <ThemedView style={[CardShadow, styles.rangeOptions, styles.statusOptionsPanel, { borderColor: theme.border }]}>
+          {options.map((option) => (
+            <Pressable
+              key={option.key}
+              onPress={() => {
+                onSelect(option.key);
+                setExpanded(false);
+              }}
+              style={styles.rangeOption}>
+              <View style={styles.statusOptionLabel}>
+                {option.key !== 'all' && (
+                  <View style={[styles.filterDot, { backgroundColor: theme[statusColorKey(option.key)] }]} />
+                )}
+                <ThemedText type="body" themeColor={option.key === selected ? 'primary' : 'text'}>
+                  {option.label}
+                </ThemedText>
+              </View>
+              {option.key === selected && <Ionicons name="checkmark" size={16} color={theme.primary} />}
+            </Pressable>
+          ))}
+        </ThemedView>
+      )}
+    </View>
   );
+}
+
+function HistoryTab({ records, onDeleteRecord }: { records: HistoryRecord[]; onDeleteRecord: (id: string) => void }) {
+  const [statusFilter, setStatusFilter] = useState<HistoryFilterKey | 'all'>('all');
+
+  const visibleRecords =
+    statusFilter === 'all'
+      ? records
+      : records.filter((record) =>
+          statusFilter === 'verified'
+            ? record.status === 'verified' || record.status === 'admin-approved'
+            : record.status === statusFilter,
+        );
 
   return (
     <ThemedView style={styles.section}>
       <ThemedText type="h3">Your Volunteer History</ThemedText>
-      <HistoryFilterChips filters={HISTORY_FILTERS} active={activeFilters} onToggle={toggleFilter} />
+      <HistoryStatusDropdown selected={statusFilter} onSelect={setStatusFilter} />
       <ThemedView style={styles.list}>
         {visibleRecords.map(({ id, ...record }) => (
           <RecordCard
@@ -584,5 +638,23 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: Spacing.three,
+  },
+  statusFilterContainer: {
+    position: 'relative',
+    alignSelf: 'flex-start',
+    zIndex: 10,
+  },
+  statusOptionsPanel: {
+    zIndex: 10,
+  },
+  statusOptionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  filterDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
   },
 });
