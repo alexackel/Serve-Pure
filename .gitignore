@@ -39,6 +39,9 @@ supabase/.temp/
 # typescript
 *.tsbuildinfo
 
+# walkthrough recordings
+scripts/output/
+
 example
 
 # generated native folders

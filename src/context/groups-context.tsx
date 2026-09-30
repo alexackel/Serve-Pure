@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { PostgrestError } from '@supabase/supabase-js';
 
 import { useSession } from '@/context/auth-context';
 import type { HistoryStatus } from '@/context/history-context';
@@ -98,6 +99,47 @@ export function sumHoursByStatusMap(records: GroupMemberRecord[]): Partial<Recor
   );
 }
 
+export type ReviewQueueItem = {
+  reviewId: string;
+  recordId: string;
+  memberId: string;
+  memberName: string;
+  memberVerified: boolean;
+  eventTitle: string;
+  date: string;
+  hours?: number;
+  status: HistoryStatus;
+};
+
+export type ReviewDetail = {
+  reviewId: string;
+  recordId: string;
+  groupId: string;
+  memberName: string;
+  memberVerified: boolean;
+  activityTitle: string;
+  activityOrgName: string | null;
+  category: string | null;
+  date: string;
+  hoursClaimed: number;
+  notes: string | null;
+  photoUrl: string | null;
+  orgContactEmail: string | null;
+  orgContactPhone: string | null;
+  reviewerConflict: boolean;
+};
+
+// Postgres errors from the review-group trigger (self-dealing block) surface
+// as raw exception text — translate the one a group admin can actually hit
+// into something readable, matching registrations-context.tsx's
+// friendlyRegistrationError for the same errcode.
+function friendlyGroupReviewError(error: PostgrestError): string {
+  if (error.code === '23514' || error.message.includes('self_dealing_violation')) {
+    return "You can't review this submission because you're the submitter or their registered guardian. Skip it for another admin to review.";
+  }
+  return error.message;
+}
+
 type GroupsContextValue = {
   groups: Group[];
   myGroupIds: string[];
@@ -108,8 +150,10 @@ type GroupsContextValue = {
   removeMember: (groupId: string, memberId: string) => Promise<{ error: string | null }>;
   isAdmin: (groupId: string) => boolean;
   getGroupMembers: (groupId: string) => Promise<GroupMember[]>;
-  approveMemberRecord: (groupId: string, memberId: string, recordId: string) => Promise<{ error: string | null }>;
-  rejectMemberRecord: (groupId: string, memberId: string, recordId: string) => Promise<{ error: string | null }>;
+  getGroupReviewQueue: (groupId: string) => Promise<ReviewQueueItem[]>;
+  getReviewItem: (reviewId: string) => Promise<ReviewDetail | null>;
+  approveReview: (reviewId: string) => Promise<{ error: string | null }>;
+  denyReview: (reviewId: string, allowReupload: boolean, reason?: string) => Promise<{ error: string | null }>;
 };
 
 const GroupsContext = createContext<GroupsContextValue | null>(null);
@@ -267,49 +311,131 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const approveMemberRecord = useCallback(
-    async (_groupId: string, _memberId: string, recordId: string) => {
-      if (!session) return { error: 'You must be signed in.' };
+  // Sourced from attendance_report_groups (0035) rather than
+  // getGroupMembers' attendance_records list, so a group's queue only ever
+  // shows submissions actually routed to IT — the whole point of explicit
+  // multi-group routing. Oldest-entered-pending-state first, so a fresh
+  // submission and a just-resubmitted one both queue up FIFO.
+  const getGroupReviewQueue = useCallback(async (groupId: string): Promise<ReviewQueueItem[]> => {
+    const { data, error } = await supabase
+      .from('attendance_report_groups')
+      .select(
+        'id, status_updated_at, attendance_records(id, user_id, activity_title, hours_claimed, hours_awarded, created_at, profiles!user_id(full_name, identity_verified))',
+      )
+      .eq('group_id', groupId)
+      .eq('status', 'pending')
+      .order('status_updated_at', { ascending: true });
 
-      // hours_awarded is never set on creation (only hours_claimed, what the
-      // volunteer entered) — approving must award something, or a verified
-      // record silently displays no hours forever. attendance_update_group_admin
-      // RLS restricts this path to source = 'self_reported' rows only, so
-      // hours_claimed is always what was self-reported (no event-duration
-      // fallback needed, unlike org-history-context.tsx's approveRecord).
-      const { data: record, error: fetchError } = await supabase
-        .from('attendance_records')
-        .select('hours_claimed')
-        .eq('id', recordId)
-        .single();
-      if (fetchError) return { error: fetchError.message };
+    if (error) {
+      console.error('Failed to load review queue', error);
+      return [];
+    }
 
-      const { error } = await supabase
-        .from('attendance_records')
-        .update({
-          status: 'verified',
-          hours_awarded: record.hours_claimed,
-          verified_by: session.user.id,
-          verified_by_role: 'group_admin',
-          verified_at: new Date().toISOString(),
-        })
-        .eq('id', recordId);
-      return { error: error ? error.message : null };
-    },
-    [session],
-  );
+    type QueueRow = {
+      id: string;
+      attendance_records: {
+        id: string;
+        user_id: string;
+        activity_title: string | null;
+        hours_claimed: number | null;
+        hours_awarded: number | null;
+        created_at: string;
+        profiles: { full_name: string; identity_verified: boolean } | null;
+      } | null;
+    };
 
-  const rejectMemberRecord = useCallback(
-    async (_groupId: string, _memberId: string, recordId: string) => {
-      if (!session) return { error: 'You must be signed in.' };
-      const { error } = await supabase
-        .from('attendance_records')
-        .update({ status: 'no_show', verified_by: session.user.id, verified_by_role: 'group_admin', verified_at: new Date().toISOString() })
-        .eq('id', recordId);
-      return { error: error ? error.message : null };
-    },
-    [session],
-  );
+    return ((data ?? []) as unknown as QueueRow[])
+      .filter((row): row is QueueRow & { attendance_records: NonNullable<QueueRow['attendance_records']> } => row.attendance_records !== null)
+      .map((row) => ({
+        reviewId: row.id,
+        recordId: row.attendance_records.id,
+        memberId: row.attendance_records.user_id,
+        memberName: row.attendance_records.profiles?.full_name ?? 'Unknown member',
+        memberVerified: row.attendance_records.profiles?.identity_verified ?? false,
+        eventTitle: row.attendance_records.activity_title ?? 'Self-reported activity',
+        date: formatShortDate(new Date(row.attendance_records.created_at)),
+        hours: row.attendance_records.hours_awarded ?? row.attendance_records.hours_claimed ?? undefined,
+        status: 'self-uploaded' as HistoryStatus,
+      }));
+  }, []);
+
+  const getReviewItem = useCallback(async (reviewId: string): Promise<ReviewDetail | null> => {
+    const [{ data, error }, conflictResult] = await Promise.all([
+      supabase
+        .from('attendance_report_groups')
+        .select(
+          'id, group_id, attendance_records(id, user_id, activity_title, activity_org_name, category, hours_claimed, notes, photo_url, created_at, org_contact_email, org_contact_phone, profiles!user_id(full_name, identity_verified))',
+        )
+        .eq('id', reviewId)
+        .maybeSingle(),
+      supabase.rpc('can_review_group_report', { p_report_group_id: reviewId }),
+    ]);
+
+    if (error) {
+      console.error('Failed to load review item', error);
+      return null;
+    }
+    if (!data || !data.attendance_records) return null;
+
+    const record = data.attendance_records as unknown as {
+      id: string;
+      user_id: string;
+      activity_title: string | null;
+      activity_org_name: string | null;
+      category: string | null;
+      hours_claimed: number | null;
+      notes: string | null;
+      photo_url: string | null;
+      created_at: string;
+      org_contact_email: string | null;
+      org_contact_phone: string | null;
+      profiles: { full_name: string; identity_verified: boolean } | null;
+    };
+
+    return {
+      reviewId: data.id,
+      recordId: record.id,
+      groupId: data.group_id,
+      memberName: record.profiles?.full_name ?? 'Unknown member',
+      memberVerified: record.profiles?.identity_verified ?? false,
+      activityTitle: record.activity_title ?? 'Self-reported activity',
+      activityOrgName: record.activity_org_name,
+      category: record.category,
+      date: formatShortDate(new Date(record.created_at)),
+      hoursClaimed: record.hours_claimed ?? 0,
+      notes: record.notes,
+      photoUrl: record.photo_url,
+      orgContactEmail: record.org_contact_email,
+      orgContactPhone: record.org_contact_phone,
+      // Fail open on this proactive check alone (treat an RPC error as "no
+      // conflict") — the actual enforcement is still the DB trigger on
+      // approve/deny, this only decides whether to offer those buttons.
+      reviewerConflict: conflictResult.data === false,
+    };
+  }, []);
+
+  // Both actions go through review_group_report (0036) — a security definer
+  // RPC that does its own group-admin authorization check and is the only
+  // path that can move attendance_report_groups.status (clients get no
+  // UPDATE grant on the table itself), which is also where the self-dealing
+  // hard block (0035) is enforced regardless of call path.
+  const approveReview = useCallback(async (reviewId: string) => {
+    const { error } = await supabase.rpc('review_group_report', {
+      p_report_group_id: reviewId,
+      p_decision: 'approved',
+    });
+    return { error: error ? friendlyGroupReviewError(error) : null };
+  }, []);
+
+  const denyReview = useCallback(async (reviewId: string, allowReupload: boolean, reason?: string) => {
+    const { error } = await supabase.rpc('review_group_report', {
+      p_report_group_id: reviewId,
+      p_decision: 'denied',
+      p_allow_reupload: allowReupload,
+      p_reason: reason ?? null,
+    });
+    return { error: error ? friendlyGroupReviewError(error) : null };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -322,8 +448,10 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
       removeMember,
       isAdmin,
       getGroupMembers,
-      approveMemberRecord,
-      rejectMemberRecord,
+      getGroupReviewQueue,
+      getReviewItem,
+      approveReview,
+      denyReview,
     }),
     [
       groups,
@@ -335,8 +463,10 @@ export function GroupsProvider({ children }: { children: ReactNode }) {
       removeMember,
       isAdmin,
       getGroupMembers,
-      approveMemberRecord,
-      rejectMemberRecord,
+      getGroupReviewQueue,
+      getReviewItem,
+      approveReview,
+      denyReview,
     ],
   );
 

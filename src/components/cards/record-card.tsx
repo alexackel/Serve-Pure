@@ -41,7 +41,15 @@ export function RecordCard({ organization, hours, date, status, photoUrl, likes,
           </View>
         </View>
 
-        {status === 'no-show' ? (
+        {status === 'denied' ? (
+          <ThemedText type="body" style={styles.sentence}>
+            Your submission for <ThemedText type="bodyBold">{organization}</ThemedText> was not approved
+          </ThemedText>
+        ) : status === 'awaiting-resubmission' ? (
+          <ThemedText type="body" style={styles.sentence}>
+            A group asked you to update your submission for <ThemedText type="bodyBold">{organization}</ThemedText>
+          </ThemedText>
+        ) : status === 'no-show' ? (
           <ThemedText type="body" style={styles.sentence}>
             You did not check in at <ThemedText type="bodyBold">{organization}</ThemedText>
           </ThemedText>

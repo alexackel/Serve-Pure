@@ -11,6 +11,8 @@ export type VerificationStatus =
   | 'self-uploaded'
   | 'admin-approved'
   | 'personal'
+  | 'awaiting-resubmission'
+  | 'denied'
   | 'no-show'
   | 'appealed'
   | 'cancelled'
@@ -29,6 +31,8 @@ export const defaultLabels: Record<VerificationStatus, string> = {
   'self-uploaded': 'Self-Uploaded',
   'admin-approved': 'Admin Approved',
   personal: 'Personal',
+  'awaiting-resubmission': 'Needs Update',
+  denied: 'Denied',
   'no-show': 'No-Show',
   appealed: 'Appealed',
   cancelled: 'Cancelled',
@@ -38,7 +42,7 @@ export const defaultLabels: Record<VerificationStatus, string> = {
 export function statusColorKey(status: VerificationStatus): 'success' | 'warning' | 'error' {
   return status === 'verified' || status === 'registered' || status === 'admin-approved'
     ? 'success'
-    : status === 'pending' || status === 'self-uploaded' || status === 'personal'
+    : status === 'pending' || status === 'self-uploaded' || status === 'personal' || status === 'awaiting-resubmission'
       ? 'warning'
       : 'error';
 }

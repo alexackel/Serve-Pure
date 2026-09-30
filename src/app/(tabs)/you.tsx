@@ -63,7 +63,9 @@ const HISTORY_FILTERS = [
   { key: 'verified', label: 'Verified' },
   { key: 'pending', label: 'Pending' },
   { key: 'self-uploaded', label: 'Self-Uploaded' },
+  { key: 'awaiting-resubmission', label: 'Needs Update' },
   { key: 'personal', label: 'Personal' },
+  { key: 'denied', label: 'Denied' },
   { key: 'no-show', label: 'No-Show' },
   { key: 'appealed', label: 'Appealed' },
   { key: 'cancelled', label: 'Cancelled' },
@@ -375,6 +377,11 @@ function HistoryTab({ records, onDeleteRecord }: { records: HistoryRecord[]; onD
           <RecordCard
             key={id}
             {...record}
+            onPress={
+              record.status === 'awaiting-resubmission'
+                ? () => router.push({ pathname: '/self-upload', params: { editRecordId: id } })
+                : undefined
+            }
             onDelete={record.status === 'self-uploaded' ? () => onDeleteRecord(id) : undefined}
           />
         ))}

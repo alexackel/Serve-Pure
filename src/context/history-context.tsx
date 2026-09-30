@@ -10,6 +10,8 @@ export type HistoryStatus =
   | 'self-uploaded'
   | 'admin-approved'
   | 'personal'
+  | 'awaiting-resubmission'
+  | 'denied'
   | 'no-show'
   | 'appealed'
   | 'cancelled';
@@ -27,10 +29,11 @@ export type HistoryRecord = {
 };
 
 const ATTENDANCE_SELECT =
-  'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, category, photo_url, created_at, events(start_at, organizations(name))';
+  'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, category, photo_url, created_at, events(start_at, organizations(name)), attendance_report_groups(status)';
 
 type AttendanceSource = 'platform_registration' | 'self_reported';
 type AttendanceStatus = 'pending' | 'verified' | 'partial' | 'no_show' | 'appealed' | 'rejected' | 'cancelled';
+type GroupReviewStatus = 'pending' | 'approved' | 'awaiting_resubmission' | 'denied_final';
 
 type AttendanceRow = {
   id: string;
@@ -44,6 +47,7 @@ type AttendanceRow = {
   photo_url: string | null;
   created_at: string;
   events: { start_at: string; organizations: { name: string } | null } | null;
+  attendance_report_groups: { status: GroupReviewStatus }[] | null;
 };
 
 // verification_status (DB) -> HistoryStatus (UI). A group-admin-verified row
@@ -53,12 +57,21 @@ type AttendanceRow = {
 // confirming a registrant's attendance) is surfaced as 'personal' — treated
 // like a self-upload in that it still awaits a real admin's final word
 // before it counts as Verified hours; see attendance_update_event_organizer.
-// 'rejected' (a declined self-report) has no distinct UI bucket — treated as
-// 'no-show' since both mean "not credited."
+// A self-report with any group in 'awaiting_resubmission' needs the
+// volunteer to act (edit + resubmit) — surfaced regardless of whether other
+// groups are still on their first, never-yet-reviewed pass, since the
+// available action is the same either way (0035/0036). 'rejected' (every
+// group either denied outright or, for a multi-group submission, all
+// resolved with none approving) is its own terminal 'denied' bucket, not
+// folded into 'no-show' — a declined self-report and a real no-show are
+// different situations for the volunteer.
 function mapHistoryStatus(row: AttendanceRow): HistoryStatus {
   switch (row.status) {
     case 'pending':
-      return row.source === 'self_reported' ? 'self-uploaded' : 'pending';
+      if (row.source !== 'self_reported') return 'pending';
+      return (row.attendance_report_groups ?? []).some((g) => g.status === 'awaiting_resubmission')
+        ? 'awaiting-resubmission'
+        : 'self-uploaded';
     case 'verified':
     case 'partial':
       return row.verified_by_role === 'event_organizer'
@@ -66,8 +79,9 @@ function mapHistoryStatus(row: AttendanceRow): HistoryStatus {
         : row.verified_by_role === 'group_admin'
           ? 'admin-approved'
           : 'verified';
-    case 'no_show':
     case 'rejected':
+      return 'denied';
+    case 'no_show':
       return 'no-show';
     case 'appealed':
       return 'appealed';

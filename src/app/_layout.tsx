@@ -40,6 +40,7 @@ function RootNavigator() {
                       <Stack.Screen name="group/[id]" />
                       <Stack.Screen name="group/[id]/subgroups" />
                       <Stack.Screen name="group/[id]/member/[memberId]" />
+                      <Stack.Screen name="group/[id]/review/[reviewId]" />
                       <Stack.Screen name="org-group/[id]" />
                     </Stack.Protected>
                     <Stack.Protected guard={!session}>

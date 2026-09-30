@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { UploadedRecordCard } from '@/components/cards';
 import { Avatar } from '@/components/avatar';
@@ -16,7 +16,13 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { sumHoursByStatusMap, sumMemberHours, useGroups, type GroupMember } from '@/context/groups-context';
+import {
+  sumHoursByStatusMap,
+  sumMemberHours,
+  useGroups,
+  type GroupMember,
+  type ReviewQueueItem,
+} from '@/context/groups-context';
 import type { HistoryStatus } from '@/context/history-context';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -68,9 +74,10 @@ function RemoveMemberButton({ groupId, memberId, memberName }: { groupId: string
 export default function GroupMemberDetailScreen() {
   const { id, memberId } = useLocalSearchParams<{ id: string; memberId: string }>();
   const theme = useTheme();
-  const { groups, isAdmin, getGroupMembers, approveMemberRecord, rejectMemberRecord } = useGroups();
+  const { groups, isAdmin, getGroupMembers, getGroupReviewQueue } = useGroups();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [member, setMember] = useState<GroupMember | null | undefined>(undefined);
+  const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>([]);
 
   const group = groups.find((item) => item.id === id);
 
@@ -79,9 +86,10 @@ export default function GroupMemberDetailScreen() {
       setMember(null);
       return;
     }
-    const members = await getGroupMembers(group.id);
+    const [members, queue] = await Promise.all([getGroupMembers(group.id), getGroupReviewQueue(group.id)]);
     setMember(members.find((item) => item.id === memberId) ?? null);
-  }, [group, getGroupMembers, memberId]);
+    setReviewQueue(queue.filter((item) => item.memberId === memberId));
+  }, [group, getGroupMembers, getGroupReviewQueue, memberId]);
 
   useEffect(() => {
     // loadMember is async — its setState runs after the await, not
@@ -89,6 +97,16 @@ export default function GroupMemberDetailScreen() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMember();
   }, [loadMember]);
+
+  // Refetches on every return to this screen (same pattern as find.tsx/
+  // map.tsx) — it stays mounted underneath the review screen, so pressing
+  // Back mid-queue would otherwise leave the uploaded list and hours
+  // breakdown showing stale pre-review data.
+  useFocusEffect(
+    useCallback(() => {
+      loadMember();
+    }, [loadMember]),
+  );
 
   if (!group || !isAdmin(group.id) || member === null) {
     return (
@@ -116,6 +134,8 @@ export default function GroupMemberDetailScreen() {
     pending: theme.chartWarning,
     'self-uploaded': theme.chartWarning,
     personal: theme.chartWarning,
+    'awaiting-resubmission': theme.chartWarning,
+    denied: theme.chartError,
     'no-show': theme.chartError,
     appealed: theme.chartError,
     cancelled: theme.chartError,
@@ -126,8 +146,6 @@ export default function GroupMemberDetailScreen() {
     value: hoursByStatus[status] ?? 0,
     color: chartColor[status],
   }));
-
-  const uploaded = member.records.filter((record) => record.status === 'self-uploaded');
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -159,26 +177,21 @@ export default function GroupMemberDetailScreen() {
       {activeTab === 'uploaded' && (
         <ThemedView style={styles.section}>
           <ThemedText type="h3">Self-Uploaded Hours</ThemedText>
-          {uploaded.length === 0 ? (
+          {reviewQueue.length === 0 ? (
             <ThemedText type="body" themeColor="textSecondary">
               No self-uploaded hours yet.
             </ThemedText>
           ) : (
             <ThemedView style={styles.list}>
-              {uploaded.map((record) => (
+              {reviewQueue.map((item) => (
                 <UploadedRecordCard
-                  key={record.id}
+                  key={item.reviewId}
                   memberName={member.fullName}
                   memberVerified={member.verified}
-                  record={record}
-                  onApprove={async () => {
-                    await approveMemberRecord(group.id, member.id, record.id);
-                    loadMember();
-                  }}
-                  onReject={async () => {
-                    await rejectMemberRecord(group.id, member.id, record.id);
-                    loadMember();
-                  }}
+                  record={{ id: item.recordId, eventTitle: item.eventTitle, date: item.date, status: item.status, hours: item.hours }}
+                  onPress={() =>
+                    router.push({ pathname: '/group/[id]/review/[reviewId]', params: { id: group.id, reviewId: item.reviewId } })
+                  }
                 />
               ))}
             </ThemedView>

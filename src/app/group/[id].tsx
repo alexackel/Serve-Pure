@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { MemberRow, RecordCard, UploadedRecordCard } from '@/components/cards';
 import { Avatar } from '@/components/avatar';
@@ -14,7 +14,14 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { sumHoursByStatusMap, sumMemberHours, useGroups, type Group, type GroupMember } from '@/context/groups-context';
+import {
+  sumHoursByStatusMap,
+  sumMemberHours,
+  useGroups,
+  type Group,
+  type GroupMember,
+  type ReviewQueueItem,
+} from '@/context/groups-context';
 import { useHistory } from '@/context/history-context';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -73,59 +80,71 @@ function MembersTab({ groupId, members, isAdmin }: { groupId: string; members: G
   );
 }
 
-function ReportedHoursTab({
-  groupId,
-  members,
-  isAdmin,
-  onMutated,
-}: {
-  groupId: string;
-  members: GroupMember[];
-  isAdmin: boolean;
-  onMutated: () => void;
-}) {
+// Sourced from attendance_report_groups (via getGroupReviewQueue) rather
+// than members' full attendance_records list — a group's queue only ever
+// shows submissions actually routed to it, and review is drill-down-only
+// (no approve/reject button in this list; see group/[id]/review/[reviewId]).
+function AdminReportedHoursTab({ groupId }: { groupId: string }) {
+  const { getGroupReviewQueue } = useGroups();
+  const [queue, setQueue] = useState<ReviewQueueItem[] | null>(null);
+
+  const loadQueue = useCallback(async () => {
+    const result = await getGroupReviewQueue(groupId);
+    setQueue(result);
+  }, [groupId, getGroupReviewQueue]);
+
+  useEffect(() => {
+    // loadQueue is async — its setState runs after the await, not
+    // synchronously during this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadQueue();
+  }, [loadQueue]);
+
+  // Refetches on every return to this tab (same pattern as find.tsx/map.tsx)
+  // — the group screen stays mounted underneath the review screen, so
+  // pressing Back mid-queue (before its own auto-advance fires) would
+  // otherwise leave this list showing the item's stale pre-review status.
+  useFocusEffect(
+    useCallback(() => {
+      loadQueue();
+    }, [loadQueue]),
+  );
+
+  return (
+    <ThemedView style={styles.section}>
+      <ThemedText type="h3">Self-Uploaded Hours</ThemedText>
+      {queue === null ? (
+        <ThemedText type="body" themeColor="textSecondary">
+          Loading…
+        </ThemedText>
+      ) : queue.length === 0 ? (
+        <ThemedText type="body" themeColor="textSecondary">
+          No self-uploaded hours yet.
+        </ThemedText>
+      ) : (
+        <ThemedView style={styles.list}>
+          {queue.map((item) => (
+            <UploadedRecordCard
+              key={item.reviewId}
+              memberName={item.memberName}
+              memberVerified={item.memberVerified}
+              record={{ id: item.recordId, eventTitle: item.eventTitle, date: item.date, status: item.status, hours: item.hours }}
+              onPress={() =>
+                router.push({ pathname: '/group/[id]/review/[reviewId]', params: { id: groupId, reviewId: item.reviewId } })
+              }
+            />
+          ))}
+        </ThemedView>
+      )}
+    </ThemedView>
+  );
+}
+
+function MemberReportedHoursTab() {
   const { records } = useHistory();
-  const { approveMemberRecord, rejectMemberRecord } = useGroups();
-
-  if (isAdmin) {
-    const uploaded = members.flatMap((member) =>
-      member.records
-        .filter((record) => record.status === 'self-uploaded')
-        .map((record) => ({ member, record })),
-    );
-
-    return (
-      <ThemedView style={styles.section}>
-        <ThemedText type="h3">Self-Uploaded Hours</ThemedText>
-        {uploaded.length === 0 ? (
-          <ThemedText type="body" themeColor="textSecondary">
-            No self-uploaded hours yet.
-          </ThemedText>
-        ) : (
-          <ThemedView style={styles.list}>
-            {uploaded.map(({ member, record }) => (
-              <UploadedRecordCard
-                key={record.id}
-                memberName={member.fullName}
-                memberVerified={member.verified}
-                record={record}
-                onApprove={async () => {
-                  await approveMemberRecord(groupId, member.id, record.id);
-                  onMutated();
-                }}
-                onReject={async () => {
-                  await rejectMemberRecord(groupId, member.id, record.id);
-                  onMutated();
-                }}
-              />
-            ))}
-          </ThemedView>
-        )}
-      </ThemedView>
-    );
-  }
-
-  const selfUploaded = records.filter((record) => record.status === 'self-uploaded');
+  const selfUploaded = records.filter(
+    (record) => record.status === 'self-uploaded' || record.status === 'awaiting-resubmission',
+  );
 
   return (
     <ThemedView style={styles.section}>
@@ -137,12 +156,24 @@ function ReportedHoursTab({
       ) : (
         <ThemedView style={styles.list}>
           {selfUploaded.map(({ id, ...record }) => (
-            <RecordCard key={id} {...record} />
+            <RecordCard
+              key={id}
+              {...record}
+              onPress={
+                record.status === 'awaiting-resubmission'
+                  ? () => router.push({ pathname: '/self-upload', params: { editRecordId: id } })
+                  : undefined
+              }
+            />
           ))}
         </ThemedView>
       )}
     </ThemedView>
   );
+}
+
+function ReportedHoursTab({ groupId, isAdmin }: { groupId: string; isAdmin: boolean }) {
+  return isAdmin ? <AdminReportedHoursTab groupId={groupId} /> : <MemberReportedHoursTab />;
 }
 
 function DeleteGroupButton({ groupId }: { groupId: string }) {
@@ -252,9 +283,7 @@ export default function GroupDetailScreen() {
           {isAdmin && <DeleteGroupButton groupId={group.id} />}
         </>
       )}
-      {activeTab === 'reported' && (
-        <ReportedHoursTab groupId={group.id} members={members} isAdmin={isAdmin} onMutated={loadMembers} />
-      )}
+      {activeTab === 'reported' && <ReportedHoursTab groupId={group.id} isAdmin={isAdmin} />}
       {activeTab === 'analytics' && <AnalyticsTab members={members} />}
     </ScreenScrollView>
   );

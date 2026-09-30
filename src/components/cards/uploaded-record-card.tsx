@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { VerificationBadge } from '@/components/cards/verification-badge';
-import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
 import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -16,55 +15,52 @@ export type UploadedRecordCardProps = {
   memberName: string;
   memberVerified?: boolean;
   record: GroupMemberRecord;
-  onApprove: () => void;
-  onReject: () => void;
+  onPress: () => void;
 };
 
-export function UploadedRecordCard({
-  memberName,
-  memberVerified,
-  record,
-  onApprove,
-  onReject,
-}: UploadedRecordCardProps) {
+// No approve/reject buttons here — review is a drill-down-only action
+// (group/[id]/review/[reviewId].tsx), so a queue never has a direct-approve
+// button next to it (per the reviewer flow's design: open the item, then
+// decide).
+export function UploadedRecordCard({ memberName, memberVerified, record, onPress }: UploadedRecordCardProps) {
   const theme = useTheme();
 
   return (
-    <ThemedView type="backgroundElement" style={[styles.card, CardShadow]}>
-      <View style={styles.header}>
-        <Avatar size={40} icon="person" iconSize={18} />
-        <View style={styles.headerInfo}>
-          <View style={styles.nameRow}>
-            <ThemedText type="bodyBold" numberOfLines={1}>
-              {memberName}
-            </ThemedText>
-            {memberVerified && <VerifiedBadge size="sm" />}
-          </View>
-          <ThemedText type="caption" themeColor="textSecondary">
-            {record.date}
-            {record.hours !== undefined ? ` · ${record.hours} hrs` : ''}
-          </ThemedText>
-        </View>
-        <VerificationBadge status={record.status} />
-      </View>
-
-      <View style={styles.eventDetails}>
-        <ThemedText type="bodyBold">{record.eventTitle}</ThemedText>
-        <View style={styles.metaList}>
-          <MetaRow icon="calendar-outline" text={record.date} />
-        </View>
-        {record.note && (
-          <View style={[styles.noteBox, { backgroundColor: theme.background, borderColor: theme.border }]}>
-            <Ionicons name="chatbox-ellipses-outline" size={14} color={theme.textSecondary} />
-            <ThemedText type="caption" themeColor="textSecondary" style={styles.noteText}>
-              {record.note}
+    <Pressable onPress={onPress}>
+      <ThemedView type="backgroundElement" style={[styles.card, CardShadow]}>
+        <View style={styles.header}>
+          <Avatar size={40} icon="person" iconSize={18} />
+          <View style={styles.headerInfo}>
+            <View style={styles.nameRow}>
+              <ThemedText type="bodyBold" numberOfLines={1}>
+                {memberName}
+              </ThemedText>
+              {memberVerified && <VerifiedBadge size="sm" />}
+            </View>
+            <ThemedText type="caption" themeColor="textSecondary">
+              {record.date}
+              {record.hours !== undefined ? ` · ${record.hours} hrs` : ''}
             </ThemedText>
           </View>
-        )}
-      </View>
+          <VerificationBadge status={record.status} />
+        </View>
 
-      <ConfirmCancelRow cancelLabel="Reject" confirmLabel="Approve" onCancel={onReject} onConfirm={onApprove} />
-    </ThemedView>
+        <View style={styles.eventDetails}>
+          <ThemedText type="bodyBold">{record.eventTitle}</ThemedText>
+          <View style={styles.metaList}>
+            <MetaRow icon="calendar-outline" text={record.date} />
+          </View>
+          {record.note && (
+            <View style={[styles.noteBox, { backgroundColor: theme.background, borderColor: theme.border }]}>
+              <Ionicons name="chatbox-ellipses-outline" size={14} color={theme.textSecondary} />
+              <ThemedText type="caption" themeColor="textSecondary" style={styles.noteText}>
+                {record.note}
+              </ThemedText>
+            </View>
+          )}
+        </View>
+      </ThemedView>
+    </Pressable>
   );
 }
 
