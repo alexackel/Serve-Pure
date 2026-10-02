@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { router } from 'expo-router';
+
 import { AccountAvatarButton } from '@/components/account-avatar-button';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { useNotifications } from '@/context/notifications-context';
 import { useTheme } from '@/hooks/use-theme';
 
 type IconButtonProps = {
@@ -32,6 +35,7 @@ function IconButton({ icon, accessibilityLabel, hasUnread, onPress }: IconButton
 
 export function HomeHeader() {
   const theme = useTheme();
+  const { unseenCount } = useNotifications();
 
   return (
     <View style={styles.row}>
@@ -49,7 +53,12 @@ export function HomeHeader() {
       </View>
 
       <View style={styles.icons}>
-        <IconButton icon="notifications-outline" accessibilityLabel="Notifications" hasUnread />
+        <IconButton
+          icon="notifications-outline"
+          accessibilityLabel="Notifications"
+          hasUnread={unseenCount > 0}
+          onPress={() => router.push('/notifications')}
+        />
         <IconButton icon="chatbubble-outline" accessibilityLabel="Messages" hasUnread />
       </View>
     </View>

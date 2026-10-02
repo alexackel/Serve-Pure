@@ -376,6 +376,7 @@ function HistoryTab({ records, onDeleteRecord }: { records: HistoryRecord[]; onD
         {visibleRecords.map(({ id, ...record }) => (
           <RecordCard
             key={id}
+            recordId={id}
             {...record}
             onPress={
               record.status === 'awaiting-resubmission'

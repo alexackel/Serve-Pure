@@ -1,4 +1,7 @@
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
+
+import { router, useFocusEffect } from 'expo-router';
 
 import { ActivityPostCard, FriendSuggestionCard } from '@/components/cards';
 import { HomeHeader } from '@/components/home-header';
@@ -6,88 +9,96 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { getUser } from '@/data/mock-users';
+import { type FeedActivity, type SuggestedPerson, useSocial } from '@/context/social-context';
+import { formatShortDate } from '@/utils/dates';
 
-const SAMPLE_SUGGESTED_FRIENDS = [
-  { userId: 'jordan-ruiz', mutualCount: 4, volunteeredWith: 'GreenFuture Coalition' },
-  { userId: 'm3', mutualCount: 2 },
-  { userId: 'sam-okafor', mutualCount: 3, volunteeredWith: 'Northside Food Bank' },
-  { userId: 'casey-lin', mutualCount: 6, volunteeredWith: 'Coastal Guardians' },
-  { userId: 'morgan-diaz', mutualCount: 1 },
-];
-
-const SAMPLE_ACTIVITY = [
-  {
-    userId: 'jordan-ruiz',
-    organization: 'GreenFuture Coalition',
-    hours: 3,
-    timeAgo: '2h ago',
-    hasPhoto: true,
-    likes: 14,
-  },
-  {
-    userId: 'm3',
-    organization: 'Northside Food Bank',
-    hours: 4,
-    timeAgo: '5h ago',
-    hasPhoto: false,
-    likes: 5,
-  },
-  {
-    userId: 'casey-lin',
-    organization: 'Coastal Guardians',
-    hours: 3,
-    timeAgo: 'Yesterday',
-    hasPhoto: true,
-    likes: 21,
-  },
-  {
-    userId: 'morgan-diaz',
-    organization: 'Central Public Library',
-    hours: 2,
-    timeAgo: '2d ago',
-    hasPhoto: false,
-    likes: 3,
-  },
-];
+function timeAgo(isoDate: string): string {
+  const diffMs = Date.now() - new Date(isoDate).getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  return formatShortDate(new Date(isoDate));
+}
 
 export default function HomeScreen() {
+  const { getActivityFeed, getSuggestedPeople, followUser } = useSocial();
+  const [feed, setFeed] = useState<FeedActivity[]>([]);
+  const [suggested, setSuggested] = useState<SuggestedPerson[]>([]);
+
+  const load = useCallback(async () => {
+    const [feedResult, suggestedResult] = await Promise.all([getActivityFeed(), getSuggestedPeople()]);
+    setFeed(feedResult);
+    setSuggested(suggestedResult);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  const handleAddFriend = async (userId: string) => {
+    const { error } = await followUser(userId);
+    if (error) {
+      console.error('Failed to follow user', error);
+      return;
+    }
+    setSuggested((current) => current.filter((person) => person.userId !== userId));
+  };
+
   return (
     <ScreenScrollView containerStyle={styles.container}>
       <HomeHeader />
 
-      <ThemedView style={styles.section}>
-        <ThemedText type="h3">Suggested Friends</ThemedText>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestedRow}>
-          {SAMPLE_SUGGESTED_FRIENDS.map(({ userId, ...friend }) => {
-            const user = getUser(userId);
-            return (
+      {suggested.length > 0 && (
+        <ThemedView style={styles.section}>
+          <ThemedText type="h3">Suggested Friends</ThemedText>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestedRow}>
+            {suggested.map((person) => (
               <FriendSuggestionCard
-                key={userId}
-                name={user?.name ?? 'Unknown'}
-                verified={user?.verified}
-                {...friend}
+                key={person.userId}
+                name={person.fullName}
+                verified={person.identityVerified}
+                onPress={() => router.push({ pathname: '/profile/[userId]', params: { userId: person.userId, fullName: person.fullName } })}
+                onAddPress={() => handleAddFriend(person.userId)}
               />
-            );
-          })}
-        </ScrollView>
-      </ThemedView>
+            ))}
+          </ScrollView>
+        </ThemedView>
+      )}
 
       <ThemedView style={styles.section}>
         <ThemedText type="h3">Friends Activity</ThemedText>
-        <ThemedView style={styles.activityList}>
-          {SAMPLE_ACTIVITY.map(({ userId, ...post }) => {
-            const user = getUser(userId);
-            return (
+        {feed.length === 0 ? (
+          <ThemedText type="body" themeColor="textSecondary">
+            Follow some friends to see their volunteer activity here.
+          </ThemedText>
+        ) : (
+          <ThemedView style={styles.activityList}>
+            {feed.map((activity) => (
               <ActivityPostCard
-                key={`${userId}-${post.timeAgo}`}
-                name={user?.name ?? 'Unknown'}
-                verified={user?.verified}
-                {...post}
+                key={activity.recordId}
+                recordId={activity.recordId}
+                name={activity.fullName}
+                verified={activity.identityVerified}
+                organization={activity.activityOrgName ?? activity.activityTitle ?? 'an activity'}
+                hours={activity.hours ?? 0}
+                timeAgo={timeAgo(activity.createdAt)}
+                photoUrl={activity.photoUrl ?? undefined}
+                likeCount={activity.likeCount}
+                commentCount={activity.commentCount}
+                likedByMe={activity.likedByMe}
+                onPress={() => router.push({ pathname: '/activity/[id]/comments', params: { id: activity.recordId } })}
               />
-            );
-          })}
-        </ThemedView>
+            ))}
+          </ThemedView>
+        )}
       </ThemedView>
     </ScreenScrollView>
   );

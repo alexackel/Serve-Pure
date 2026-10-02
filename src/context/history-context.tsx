@@ -24,12 +24,14 @@ export type HistoryRecord = {
   hours?: number;
   category?: string;
   photoUrl?: string;
-  likes?: number;
+  likeCount: number;
+  commentCount: number;
+  visibility: 'everyone' | 'followers' | 'only_me';
   note?: string;
 };
 
 const ATTENDANCE_SELECT =
-  'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, category, photo_url, created_at, events(start_at, organizations(name)), attendance_report_groups(status)';
+  'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, category, photo_url, like_count, comment_count, visibility, created_at, events(start_at, organizations(name)), attendance_report_groups(status)';
 
 type AttendanceSource = 'platform_registration' | 'self_reported';
 type AttendanceStatus = 'pending' | 'verified' | 'partial' | 'no_show' | 'appealed' | 'rejected' | 'cancelled';
@@ -45,6 +47,9 @@ type AttendanceRow = {
   verified_by_role: string | null;
   category: string | null;
   photo_url: string | null;
+  like_count: number;
+  comment_count: number;
+  visibility: 'everyone' | 'followers' | 'only_me';
   created_at: string;
   events: { start_at: string; organizations: { name: string } | null } | null;
   attendance_report_groups: { status: GroupReviewStatus }[] | null;
@@ -103,6 +108,9 @@ function mapHistoryRecord(row: AttendanceRow): HistoryRecord {
     hours: row.hours_awarded ?? row.hours_claimed ?? undefined,
     category: row.category ?? undefined,
     photoUrl: row.photo_url ?? undefined,
+    likeCount: row.like_count,
+    commentCount: row.comment_count,
+    visibility: row.visibility,
     note: status === 'cancelled' ? `You cancelled your registration for ${organization}` : undefined,
   };
 }

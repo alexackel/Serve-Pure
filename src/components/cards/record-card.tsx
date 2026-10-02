@@ -1,20 +1,34 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, Share, StyleSheet, View } from 'react-native';
+
+import { router } from 'expo-router';
 
 import { Avatar } from '@/components/avatar';
 import { PostActions, PostPhoto } from '@/components/cards/post-card-shared';
 import { VerificationBadge, VerificationStatus } from '@/components/cards/verification-badge';
-import { OverflowMenu } from '@/components/overflow-menu';
+import { FilterSheet } from '@/components/find/filter-sheet';
+import { OverflowMenu, type OverflowMenuAction } from '@/components/overflow-menu';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { type ActivityVisibility, useSocial } from '@/context/social-context';
+
+const VISIBILITY_OPTIONS = [
+  { key: 'everyone' as const, label: 'Everyone' },
+  { key: 'followers' as const, label: 'Followers' },
+  { key: 'only_me' as const, label: 'Only Me' },
+];
 
 export type RecordCardProps = {
+  recordId: string;
   organization: string;
   hours?: number;
   date: string;
   status: VerificationStatus;
   photoUrl?: string;
-  likes?: number;
+  likeCount?: number;
+  commentCount?: number;
+  visibility?: ActivityVisibility;
   note?: string;
   onPress?: () => void;
   // Only the record's own submitter can delete it, and only while it's
@@ -24,55 +38,107 @@ export type RecordCardProps = {
   onDelete?: () => void;
 };
 
-export function RecordCard({ organization, hours, date, status, photoUrl, likes, note, onPress, onDelete }: RecordCardProps) {
+export function RecordCard({
+  recordId,
+  organization,
+  hours,
+  date,
+  status,
+  photoUrl,
+  likeCount,
+  commentCount,
+  visibility: initialVisibility,
+  note,
+  onPress,
+  onDelete,
+}: RecordCardProps) {
+  const { setActivityVisibility } = useSocial();
+  const [visibility, setVisibility] = useState(initialVisibility ?? 'everyone');
+  const [visibilitySheetVisible, setVisibilitySheetVisible] = useState(false);
+
+  const menuActions: OverflowMenuAction[] = [
+    { label: 'Change Visibility', onPress: () => setVisibilitySheetVisible(true) },
+    ...(onDelete ? [{ label: 'Delete', destructive: true, onPress: onDelete }] : []),
+  ];
+
+  const handleShare = () => {
+    Share.share({
+      message: `I volunteered at ${organization}${hours !== undefined ? ` for ${hours} hrs` : ''} on ServePure.`,
+    }).catch((error) => console.error('Failed to open share sheet', error));
+  };
+
   return (
-    <Pressable onPress={onPress} disabled={!onPress}>
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Avatar icon="person" iconSize={18} />
-            <VerificationBadge status={status} size="sm" />
+    <>
+      <Pressable onPress={onPress} disabled={!onPress}>
+        <ThemedView type="backgroundElement" style={styles.card}>
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Avatar icon="person" iconSize={18} />
+              <VerificationBadge status={status} size="sm" />
+            </View>
+            <View style={styles.headerRight}>
+              <ThemedText type="caption" themeColor="textSecondary">
+                {date}
+              </ThemedText>
+              <OverflowMenu actions={menuActions} />
+            </View>
           </View>
-          <View style={styles.headerRight}>
-            <ThemedText type="caption" themeColor="textSecondary">
-              {date}
+
+          {status === 'denied' ? (
+            <ThemedText type="body" style={styles.sentence}>
+              Your submission for <ThemedText type="bodyBold">{organization}</ThemedText> was not approved
             </ThemedText>
-            {onDelete && <OverflowMenu actions={[{ label: 'Delete', destructive: true, onPress: onDelete }]} />}
-          </View>
-        </View>
+          ) : status === 'awaiting-resubmission' ? (
+            <ThemedText type="body" style={styles.sentence}>
+              A group asked you to update your submission for <ThemedText type="bodyBold">{organization}</ThemedText>
+            </ThemedText>
+          ) : status === 'no-show' ? (
+            <ThemedText type="body" style={styles.sentence}>
+              You did not check in at <ThemedText type="bodyBold">{organization}</ThemedText>
+            </ThemedText>
+          ) : status === 'appealed' ? (
+            <ThemedText type="body" style={styles.sentence}>
+              Your attendance at <ThemedText type="bodyBold">{organization}</ThemedText> is under appeal
+            </ThemedText>
+          ) : status === 'cancelled' ? (
+            <ThemedText type="body" style={styles.sentence}>
+              {note}
+            </ThemedText>
+          ) : (
+            <ThemedText type="body" style={styles.sentence}>
+              You volunteered at <ThemedText type="bodyBold">{organization}</ThemedText>
+              {hours !== undefined ? ` for ${hours} hrs` : ''}
+            </ThemedText>
+          )}
 
-        {status === 'denied' ? (
-          <ThemedText type="body" style={styles.sentence}>
-            Your submission for <ThemedText type="bodyBold">{organization}</ThemedText> was not approved
-          </ThemedText>
-        ) : status === 'awaiting-resubmission' ? (
-          <ThemedText type="body" style={styles.sentence}>
-            A group asked you to update your submission for <ThemedText type="bodyBold">{organization}</ThemedText>
-          </ThemedText>
-        ) : status === 'no-show' ? (
-          <ThemedText type="body" style={styles.sentence}>
-            You did not check in at <ThemedText type="bodyBold">{organization}</ThemedText>
-          </ThemedText>
-        ) : status === 'appealed' ? (
-          <ThemedText type="body" style={styles.sentence}>
-            Your attendance at <ThemedText type="bodyBold">{organization}</ThemedText> is under appeal
-          </ThemedText>
-        ) : status === 'cancelled' ? (
-          <ThemedText type="body" style={styles.sentence}>
-            {note}
-          </ThemedText>
-        ) : (
-          <ThemedText type="body" style={styles.sentence}>
-            You volunteered at <ThemedText type="bodyBold">{organization}</ThemedText>
-            {hours !== undefined ? ` for ${hours} hrs` : ''}
-          </ThemedText>
-        )}
+          {photoUrl && <PostPhoto uri={photoUrl} />}
 
-        {photoUrl && <PostPhoto uri={photoUrl} />}
+          <PostActions
+            likeCount={likeCount}
+            commentCount={commentCount}
+            onCommentPress={() => router.push({ pathname: '/activity/[id]/comments', params: { id: recordId } })}
+            onSharePress={handleShare}
+          />
+        </ThemedView>
+      </Pressable>
 
-        <PostActions likes={likes} />
-      </ThemedView>
-    </Pressable>
+      <FilterSheet
+        visible={visibilitySheetVisible}
+        title="Who can see this activity?"
+        options={VISIBILITY_OPTIONS}
+        mode="single"
+        selected={visibility}
+        defaultValue={initialVisibility ?? 'everyone'}
+        onApply={(value) => {
+          const next = value as ActivityVisibility;
+          setVisibility(next);
+          setActivityVisibility(recordId, next).then(({ error }) => {
+            if (error) console.error('Failed to update visibility', error);
+          });
+        }}
+        onDismiss={() => setVisibilitySheetVisible(false)}
+      />
+    </>
   );
 }
 

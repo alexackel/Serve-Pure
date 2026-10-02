@@ -9,6 +9,7 @@ import { BackButton } from '@/components/back-button';
 import { CategoryChipRow } from '@/components/find';
 import { FormField } from '@/components/form-field';
 import { GroupMultiSelectList } from '@/components/group-multi-select-list';
+import { MentionInput } from '@/components/mention-input';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -274,13 +275,12 @@ export default function SelfUploadScreen() {
         </View>
       </View>
 
-      <FormField
-        label="What did you do?"
-        value={notes}
-        onChangeText={setNotes}
-        placeholder="Describe what you did"
-        multiline
-      />
+      <View style={styles.field}>
+        <ThemedText type="label" themeColor="textSecondary">
+          What did you do?
+        </ThemedText>
+        <MentionInput value={notes} onChangeText={setNotes} placeholder="Describe what you did" />
+      </View>
 
       <View style={styles.field}>
         <ThemedText type="label" themeColor="textSecondary">

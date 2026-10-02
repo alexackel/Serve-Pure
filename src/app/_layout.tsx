@@ -8,9 +8,11 @@ import { AuthProvider, useSession } from '@/context/auth-context';
 import { DiscoveryProvider } from '@/context/discovery-context';
 import { GroupsProvider } from '@/context/groups-context';
 import { HistoryProvider } from '@/context/history-context';
+import { NotificationsProvider } from '@/context/notifications-context';
 import { OrganizationProvider } from '@/context/organization-context';
 import { OrgHistoryProvider } from '@/context/org-history-context';
 import { RegistrationsProvider } from '@/context/registrations-context';
+import { SocialProvider } from '@/context/social-context';
 import { UserLocationProvider } from '@/hooks/use-user-location';
 
 SplashScreen.preventAutoHideAsync();
@@ -30,23 +32,30 @@ function RootNavigator() {
             <HistoryProvider>
               <OrgHistoryProvider>
                 <GroupsProvider>
-                  <AnimatedSplashOverlay />
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Protected guard={!!session}>
-                      <Stack.Screen name="(tabs)" />
-                      <Stack.Screen name="event/[id]" />
-                      <Stack.Screen name="discovered/ai-org/[id]" />
-                      <Stack.Screen name="discovered/post/[id]" />
-                      <Stack.Screen name="group/[id]" />
-                      <Stack.Screen name="group/[id]/subgroups" />
-                      <Stack.Screen name="group/[id]/member/[memberId]" />
-                      <Stack.Screen name="group/[id]/review/[reviewId]" />
-                      <Stack.Screen name="org-group/[id]" />
-                    </Stack.Protected>
-                    <Stack.Protected guard={!session}>
-                      <Stack.Screen name="sign-in" />
-                    </Stack.Protected>
-                  </Stack>
+                  <SocialProvider>
+                    <NotificationsProvider>
+                      <AnimatedSplashOverlay />
+                      <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Protected guard={!!session}>
+                          <Stack.Screen name="(tabs)" />
+                          <Stack.Screen name="event/[id]" />
+                          <Stack.Screen name="discovered/ai-org/[id]" />
+                          <Stack.Screen name="discovered/post/[id]" />
+                          <Stack.Screen name="group/[id]" />
+                          <Stack.Screen name="group/[id]/subgroups" />
+                          <Stack.Screen name="group/[id]/member/[memberId]" />
+                          <Stack.Screen name="group/[id]/review/[reviewId]" />
+                          <Stack.Screen name="org-group/[id]" />
+                          <Stack.Screen name="profile/[userId]" />
+                          <Stack.Screen name="activity/[id]/comments" />
+                          <Stack.Screen name="notifications" />
+                        </Stack.Protected>
+                        <Stack.Protected guard={!session}>
+                          <Stack.Screen name="sign-in" />
+                        </Stack.Protected>
+                      </Stack>
+                    </NotificationsProvider>
+                  </SocialProvider>
                 </GroupsProvider>
               </OrgHistoryProvider>
             </HistoryProvider>

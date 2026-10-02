@@ -158,6 +158,7 @@ function MemberReportedHoursTab() {
           {selfUploaded.map(({ id, ...record }) => (
             <RecordCard
               key={id}
+              recordId={id}
               {...record}
               onPress={
                 record.status === 'awaiting-resubmission'

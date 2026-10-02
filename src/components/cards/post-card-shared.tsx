@@ -10,31 +10,70 @@ function ActionIcon({
   icon,
   count,
   accessibilityLabel,
+  color,
+  onPress,
+  onCountPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   count?: number;
   accessibilityLabel: string;
+  color?: string;
+  onPress?: () => void;
+  onCountPress?: () => void;
 }) {
   const theme = useTheme();
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={styles.actionButton}>
-      <Ionicons name={icon} size={19} color={theme.textSecondary} />
-      {count !== undefined && (
-        <ThemedText type="caption" themeColor="textSecondary">
-          {count}
-        </ThemedText>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={styles.actionButton}>
+      <Ionicons name={icon} size={19} color={color ?? theme.textSecondary} />
+      {count !== undefined && count > 0 && (
+        <Pressable onPress={onCountPress} disabled={!onCountPress} hitSlop={6}>
+          <ThemedText type="caption" themeColor="textSecondary">
+            {count}
+          </ThemedText>
+        </Pressable>
       )}
     </Pressable>
   );
 }
 
+export type PostActionsProps = {
+  likeCount?: number;
+  commentCount?: number;
+  likedByMe?: boolean;
+  onLikePress?: () => void;
+  onLikeCountPress?: () => void;
+  onCommentPress?: () => void;
+  onSharePress?: () => void;
+};
+
 /** Like/comment/share row shared by ActivityPostCard and RecordCard. */
-export function PostActions({ likes }: { likes?: number }) {
+export function PostActions({
+  likeCount,
+  commentCount,
+  likedByMe,
+  onLikePress,
+  onLikeCountPress,
+  onCommentPress,
+  onSharePress,
+}: PostActionsProps) {
+  const theme = useTheme();
   return (
     <View style={styles.actions}>
-      <ActionIcon icon="heart-outline" count={likes} accessibilityLabel={likes ? `Like, ${likes} likes` : 'Like'} />
-      <ActionIcon icon="chatbubble-outline" accessibilityLabel="Comment" />
-      <ActionIcon icon="share-outline" accessibilityLabel="Share" />
+      <ActionIcon
+        icon={likedByMe ? 'heart' : 'heart-outline'}
+        count={likeCount}
+        color={likedByMe ? theme.error : undefined}
+        accessibilityLabel={likeCount ? `Like, ${likeCount} likes` : 'Like'}
+        onPress={onLikePress}
+        onCountPress={onLikeCountPress}
+      />
+      <ActionIcon icon="chatbubble-outline" count={commentCount} accessibilityLabel="Comment" onPress={onCommentPress} />
+      <ActionIcon icon="share-outline" accessibilityLabel="Share" onPress={onSharePress} />
     </View>
   );
 }
