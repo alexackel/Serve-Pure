@@ -14,43 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useGroups } from '@/context/groups-context';
 import { useTheme } from '@/hooks/use-theme';
-
-type Role = {
-  title: string;
-  organization: string;
-  location: string;
-  hoursPerWeek: number;
-  paid?: boolean;
-};
-
-const SAMPLE_ROLES: Role[] = [
-  {
-    title: 'Weekly Food Pantry Assistant',
-    organization: 'Northside Food Bank',
-    location: 'Northside Food Bank',
-    hoursPerWeek: 3,
-  },
-  {
-    title: 'Peer Tutoring Coordinator',
-    organization: 'Central Public Library',
-    location: 'Central Public Library',
-    hoursPerWeek: 4,
-    paid: true,
-  },
-  {
-    title: 'Trail Maintenance Crew Lead',
-    organization: 'Parks Conservancy',
-    location: 'Blue Ridge Trailhead',
-    hoursPerWeek: 5,
-    paid: true,
-  },
-  {
-    title: 'Animal Shelter Regular Volunteer',
-    organization: 'Furry Friends Rescue',
-    location: 'Furry Friends Rescue',
-    hoursPerWeek: 2,
-  },
-];
+import { SAMPLE_ROLES } from '@/data/roles';
 
 const GROUPS_TABS = [
   { key: 'groups', label: 'Groups' },
@@ -137,7 +101,15 @@ function RolesTab() {
       <SearchBar placeholder="Search roles" value={searchValue} onChangeText={setSearchValue} />
       <ThemedView style={styles.list}>
         {SAMPLE_ROLES.map((role) => (
-          <RoleCard key={role.title} {...role} />
+          <RoleCard
+            key={role.id}
+            title={role.title}
+            organization={role.organization}
+            location={role.location}
+            hoursPerWeek={role.hoursPerWeek}
+            paid={role.paid}
+            onPress={() => router.push({ pathname: '/role/[id]', params: { id: role.id } })}
+          />
         ))}
       </ThemedView>
     </ThemedView>

@@ -39,6 +39,7 @@ function RootNavigator() {
                         <Stack.Protected guard={!!session}>
                           <Stack.Screen name="(tabs)" />
                           <Stack.Screen name="event/[id]" />
+                          <Stack.Screen name="role/[id]" />
                           <Stack.Screen name="discovered/ai-org/[id]" />
                           <Stack.Screen name="discovered/post/[id]" />
                           <Stack.Screen name="group/[id]" />
