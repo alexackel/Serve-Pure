@@ -1,25 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Platform, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
 
+import { createURL } from 'expo-linking';
 import { router, useFocusEffect } from 'expo-router';
 
-import { AccountAvatarButton } from '@/components/account-avatar-button';
 import { EventCard, RecordCard, StatCard } from '@/components/cards';
 import { statusColorKey } from '@/components/cards/verification-badge';
 import { CreateFab } from '@/components/create-fab';
 import { CreatePostSheet } from '@/components/create-post-sheet';
 import { PillIconButton } from '@/components/pill-icon-button';
+import { ProfileHeader } from '@/components/profile-header';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { VerifiedBadge } from '@/components/verified-badge';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
+import { type FollowCounts, useSocial } from '@/context/social-context';
 import { listMyIndividualEvents } from '@/data/events';
 import type { EventDetail } from '@/data/mock-events';
 import { deleteSelfReport } from '@/data/self-reports';
@@ -397,32 +398,57 @@ export default function YouScreen() {
   const [customRange, setCustomRange] = useState<CustomRange | null>(null);
   const { records: historyRecords, reliabilityScore, refetch: refetchHistory } = useHistory();
   const { session } = useSession();
+  const { getFollowCounts } = useSocial();
   const theme = useTheme();
-  const [identityVerified, setIdentityVerified] = useState(false);
+  const [profile, setProfile] = useState<{ fullName: string; avatarUrl: string | null; identityVerified: boolean } | null>(
+    null,
+  );
+  const [followCounts, setFollowCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [createSheetVisible, setCreateSheetVisible] = useState(false);
   const [myPosts, setMyPosts] = useState<EventDetail[]>([]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadProfile() {
-      if (!session) return;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('identity_verified')
-        .eq('id', session.user.id)
-        .maybeSingle();
-      if (cancelled) return;
-      if (error) {
-        console.error('Failed to load identity_verified', error);
-      } else if (data) {
-        setIdentityVerified(data.identity_verified);
-      }
+  // Reloaded on focus, not just on mount, so a photo saved in Edit Profile and
+  // follows made on another profile show up when the volunteer comes back here.
+  const loadProfile = useCallback(async () => {
+    if (!session) return;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url, identity_verified')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    if (error) {
+      console.error('Failed to load profile', error);
+    } else if (data) {
+      setProfile({
+        fullName: data.full_name,
+        avatarUrl: data.avatar_url,
+        identityVerified: data.identity_verified,
+      });
     }
-    loadProfile();
-    return () => {
-      cancelled = true;
-    };
   }, [session]);
+
+  const loadFollowCounts = useCallback(async () => {
+    if (!session) return;
+    setFollowCounts(await getFollowCounts(session.user.id));
+  }, [session, getFollowCounts]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+      loadFollowCounts();
+    }, [loadProfile, loadFollowCounts]),
+  );
+
+  // Shares the profile route the app already uses for other people's profiles
+  // (profile/[userId].tsx). Linking.createURL picks the right scheme for the
+  // build. The name rides along because that screen reads it from params.
+  const handleShareProfile = () => {
+    if (!session || !profile) return;
+    const link = createURL(`/profile/${session.user.id}`, { queryParams: { fullName: profile.fullName } });
+    Share.share({ message: `${profile.fullName} on ServePure: ${link}` }).catch((error) =>
+      console.error('Failed to share profile', error),
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -466,14 +492,34 @@ export default function YouScreen() {
   return (
     <View style={styles.flex}>
       <ScreenScrollView containerStyle={styles.container}>
-        <View style={styles.titleRow}>
-          <View style={styles.identityRow}>
-            <AccountAvatarButton size={32} />
-            <ThemedText type="h1" style={styles.pageTitle}>
-              You
-            </ThemedText>
-            {identityVerified && <VerifiedBadge />}
-          </View>
+        <View style={styles.topRow}>
+          <SwitchViewModeButton target="organization" />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            hitSlop={8}
+            onPress={() => router.push('/settings')}>
+            <Ionicons name="settings-outline" size={24} color={theme.text} />
+          </Pressable>
+        </View>
+
+        {profile && session && (
+          <ProfileHeader
+            fullName={profile.fullName}
+            avatarUrl={profile.avatarUrl}
+            identityVerified={profile.identityVerified}
+            followers={followCounts.followers}
+            following={followCounts.following}
+            onEditPress={() => router.push('/edit-profile')}
+            onSharePress={handleShareProfile}
+            onFollowersPress={() => router.push({ pathname: '/connections', params: { userId: session.user.id, mode: 'followers' } })}
+            onFollowingPress={() => router.push({ pathname: '/connections', params: { userId: session.user.id, mode: 'following' } })}
+          />
+        )}
+
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+        <View style={styles.reliabilityRow}>
           <View style={styles.reliabilityBadge}>
             <Ionicons name="star" size={16} color={theme.warning} />
             <ThemedText type="bodyBold">{reliabilityScore !== null ? reliabilityScore.toFixed(1) : '—'}</ThemedText>
@@ -482,8 +528,6 @@ export default function YouScreen() {
             </ThemedText>
           </View>
         </View>
-
-        <SwitchViewModeButton target="organization" />
 
         <ThemedView style={styles.statsSection}>
           <TimeRangeSelector
@@ -548,21 +592,17 @@ const styles = StyleSheet.create({
   container: {
     gap: Spacing.four,
   },
-  titleRow: {
+  topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    rowGap: Spacing.two,
-    marginBottom: Spacing.one,
+    justifyContent: 'flex-end',
+    gap: Spacing.three,
   },
-  pageTitle: {
-    marginBottom: 0,
+  divider: {
+    height: 1,
   },
-  identityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
+  reliabilityRow: {
+    alignItems: 'flex-start',
   },
   reliabilityBadge: {
     flexDirection: 'row',

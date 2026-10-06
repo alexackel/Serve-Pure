@@ -33,6 +33,15 @@ export type SuggestedPerson = {
   identityVerified: boolean;
 };
 
+export type FollowCounts = { followers: number; following: number };
+
+export type FollowListPerson = {
+  userId: string;
+  fullName: string;
+  avatarUrl: string | null;
+  identityVerified: boolean;
+};
+
 export type FeedActivity = {
   recordId: string;
   userId: string;
@@ -68,6 +77,8 @@ type LikersRow = { user_id: string; full_name: string; liked_at: string; is_foll
 type CommentsRow = { id: string; user_id: string; full_name: string; body: string; mentioned_user_ids: string[]; created_at: string };
 type MentionableRow = { user_id: string; full_name: string };
 type SuggestedRow = { user_id: string; full_name: string; identity_verified: boolean };
+type FollowCountsRow = { followers: number; following: number };
+type FollowListRow = { user_id: string; full_name: string; avatar_url: string | null; identity_verified: boolean };
 type FeedRow = {
   id: string;
   user_id: string;
@@ -103,6 +114,9 @@ type SocialContextValue = {
   setActivityVisibility: (recordId: string, visibility: ActivityVisibility) => Promise<{ error: string | null }>;
   getActivityFeed: (limit?: number, offset?: number) => Promise<FeedActivity[]>;
   getSuggestedPeople: (limit?: number) => Promise<SuggestedPerson[]>;
+  getFollowCounts: (userId: string) => Promise<FollowCounts>;
+  getFollowers: (userId: string, limit?: number, offset?: number) => Promise<FollowListPerson[]>;
+  getFollowing: (userId: string, limit?: number, offset?: number) => Promise<FollowListPerson[]>;
 };
 
 const SocialContext = createContext<SocialContextValue | null>(null);
@@ -308,6 +322,43 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const getFollowCounts = useCallback(async (userId: string): Promise<FollowCounts> => {
+    const { data, error } = await supabase.rpc('get_follow_counts', { p_user_id: userId });
+    if (error) {
+      console.error('Failed to load follow counts', error);
+      return { followers: 0, following: 0 };
+    }
+    const row = (data as FollowCountsRow[])[0];
+    return { followers: row?.followers ?? 0, following: row?.following ?? 0 };
+  }, []);
+
+  const getFollowList = useCallback(
+    async (rpc: 'get_followers' | 'get_following', userId: string, limit: number, offset: number) => {
+      const { data, error } = await supabase.rpc(rpc, { p_user_id: userId, p_limit: limit, p_offset: offset });
+      if (error) {
+        console.error(`Failed to load ${rpc}`, error);
+        return [];
+      }
+      return (data as FollowListRow[]).map((row) => ({
+        userId: row.user_id,
+        fullName: row.full_name,
+        avatarUrl: row.avatar_url,
+        identityVerified: row.identity_verified,
+      }));
+    },
+    [],
+  );
+
+  const getFollowers = useCallback(
+    (userId: string, limit = 20, offset = 0) => getFollowList('get_followers', userId, limit, offset),
+    [getFollowList],
+  );
+
+  const getFollowing = useCallback(
+    (userId: string, limit = 20, offset = 0) => getFollowList('get_following', userId, limit, offset),
+    [getFollowList],
+  );
+
   const value = useMemo(
     () => ({
       followingIds,
@@ -326,6 +377,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       setActivityVisibility,
       getActivityFeed,
       getSuggestedPeople,
+      getFollowCounts,
+      getFollowers,
+      getFollowing,
     }),
     [
       followingIds,
@@ -344,6 +398,9 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       setActivityVisibility,
       getActivityFeed,
       getSuggestedPeople,
+      getFollowCounts,
+      getFollowers,
+      getFollowing,
     ],
   );
 

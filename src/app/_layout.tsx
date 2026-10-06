@@ -47,6 +47,9 @@ function RootNavigator() {
                           <Stack.Screen name="group/[id]/review/[reviewId]" />
                           <Stack.Screen name="org-group/[id]" />
                           <Stack.Screen name="profile/[userId]" />
+                          <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
+                          <Stack.Screen name="settings" />
+                          <Stack.Screen name="connections" />
                           <Stack.Screen name="activity/[id]/comments" />
                           <Stack.Screen name="notifications" />
                         </Stack.Protected>

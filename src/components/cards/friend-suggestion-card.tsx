@@ -13,6 +13,7 @@ export type FriendSuggestionCardProps = {
   verified?: boolean;
   mutualCount?: number;
   volunteeredWith?: string;
+  added?: boolean;
   onPress?: () => void;
   onAddPress?: () => void;
 };
@@ -22,6 +23,7 @@ export function FriendSuggestionCard({
   verified,
   mutualCount,
   volunteeredWith,
+  added,
   onPress,
   onAddPress,
 }: FriendSuggestionCardProps) {
@@ -58,12 +60,21 @@ export function FriendSuggestionCard({
           )}
         </View>
 
-        <Pressable onPress={onAddPress} style={[styles.addButton, { backgroundColor: theme.primaryTint }]}>
-          <Ionicons name="person-add-outline" size={13} color={theme.primary} />
-          <ThemedText type="label" themeColor="primary">
-            Add
-          </ThemedText>
-        </Pressable>
+        {added ? (
+          <View style={[styles.addButton, { backgroundColor: theme.backgroundSelected }]}>
+            <Ionicons name="checkmark" size={13} color={theme.textSecondary} />
+            <ThemedText type="label" themeColor="textSecondary">
+              Added
+            </ThemedText>
+          </View>
+        ) : (
+          <Pressable onPress={onAddPress} style={[styles.addButton, { backgroundColor: theme.primaryTint }]}>
+            <Ionicons name="person-add-outline" size={13} color={theme.primary} />
+            <ThemedText type="label" themeColor="primary">
+              Add
+            </ThemedText>
+          </Pressable>
+        )}
       </ThemedView>
     </Pressable>
   );

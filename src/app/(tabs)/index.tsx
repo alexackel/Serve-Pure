@@ -25,17 +25,26 @@ function timeAgo(isoDate: string): string {
   return formatShortDate(new Date(isoDate));
 }
 
+// `added` is set once Add succeeds and kept for the life of this screen, so the
+// card reads "Added" until the app reloads.
+type SuggestedRow = SuggestedPerson & { added?: boolean };
+
 export default function HomeScreen() {
   const { getActivityFeed, getSuggestedPeople, followUser } = useSocial();
   const [feed, setFeed] = useState<FeedActivity[]>([]);
-  const [suggested, setSuggested] = useState<SuggestedPerson[]>([]);
+  const [suggested, setSuggested] = useState<SuggestedRow[]>([]);
 
   const load = useCallback(async () => {
     const [feedResult, suggestedResult] = await Promise.all([getActivityFeed(), getSuggestedPeople()]);
     setFeed(feedResult);
-    setSuggested(suggestedResult);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setSuggested((current) => {
+      // The suggestions query drops anyone already followed, so re-attach the
+      // people added this session rather than letting them vanish on refocus.
+      const added = current.filter((person) => person.added);
+      const fresh = suggestedResult.filter((person) => !added.some((a) => a.userId === person.userId));
+      return [...added, ...fresh];
+    });
+  }, [getActivityFeed, getSuggestedPeople]);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,7 +58,7 @@ export default function HomeScreen() {
       console.error('Failed to follow user', error);
       return;
     }
-    setSuggested((current) => current.filter((person) => person.userId !== userId));
+    setSuggested((current) => current.map((person) => (person.userId === userId ? { ...person, added: true } : person)));
   };
 
   return (
@@ -65,6 +74,7 @@ export default function HomeScreen() {
                 key={person.userId}
                 name={person.fullName}
                 verified={person.identityVerified}
+                added={person.added}
                 onPress={() => router.push({ pathname: '/profile/[userId]', params: { userId: person.userId, fullName: person.fullName } })}
                 onAddPress={() => handleAddFriend(person.userId)}
               />
