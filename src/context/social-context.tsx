@@ -35,6 +35,14 @@ export type SuggestedPerson = {
 
 export type FollowCounts = { followers: number; following: number };
 
+export type UserProfile = {
+  fullName: string;
+  avatarUrl: string | null;
+  identityVerified: boolean;
+};
+
+type UserProfileRow = { full_name: string; avatar_url: string | null; identity_verified: boolean };
+
 export type FollowListPerson = {
   userId: string;
   fullName: string;
@@ -57,6 +65,8 @@ export type FeedActivity = {
   commentCount: number;
   likedByMe: boolean;
   createdAt: string;
+  notes: string | null;
+  city: string | null;
 };
 
 // Postgres errors from the likes/comments/follow hard-block triggers surface
@@ -95,6 +105,8 @@ type FeedRow = {
   comment_count: number;
   viewer_has_liked: boolean;
   created_at: string;
+  notes: string | null;
+  city: string | null;
 };
 
 type SocialContextValue = {
@@ -113,11 +125,34 @@ type SocialContextValue = {
   getMentionableUsersForComposer: (query: string) => Promise<MentionableUser[]>;
   setActivityVisibility: (recordId: string, visibility: ActivityVisibility) => Promise<{ error: string | null }>;
   getActivityFeed: (limit?: number, offset?: number) => Promise<FeedActivity[]>;
+  getUserProfile: (userId: string) => Promise<UserProfile | null>;
+  getUserActivity: (userId: string, limit?: number, offset?: number) => Promise<FeedActivity[]>;
   getSuggestedPeople: (limit?: number) => Promise<SuggestedPerson[]>;
   getFollowCounts: (userId: string) => Promise<FollowCounts>;
   getFollowers: (userId: string, limit?: number, offset?: number) => Promise<FollowListPerson[]>;
   getFollowing: (userId: string, limit?: number, offset?: number) => Promise<FollowListPerson[]>;
 };
+
+function mapFeedRow(row: FeedRow): FeedActivity {
+  return {
+    recordId: row.id,
+    userId: row.user_id,
+    fullName: row.full_name,
+    identityVerified: row.identity_verified,
+    activityTitle: row.activity_title,
+    activityOrgName: row.activity_org_name,
+    category: row.category,
+    hours: row.hours_awarded ?? row.hours_claimed,
+    photoUrl: row.photo_url,
+    visibility: row.visibility,
+    likeCount: row.like_count,
+    commentCount: row.comment_count,
+    likedByMe: row.viewer_has_liked,
+    createdAt: row.created_at,
+    notes: row.notes,
+    city: row.city,
+  };
+}
 
 const SocialContext = createContext<SocialContextValue | null>(null);
 
@@ -291,22 +326,31 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       console.error('Failed to load activity feed', error);
       return [];
     }
-    return (data as FeedRow[]).map((row) => ({
-      recordId: row.id,
-      userId: row.user_id,
-      fullName: row.full_name,
-      identityVerified: row.identity_verified,
-      activityTitle: row.activity_title,
-      activityOrgName: row.activity_org_name,
-      category: row.category,
-      hours: row.hours_awarded ?? row.hours_claimed,
-      photoUrl: row.photo_url,
-      visibility: row.visibility,
-      likeCount: row.like_count,
-      commentCount: row.comment_count,
-      likedByMe: row.viewer_has_liked,
-      createdAt: row.created_at,
-    }));
+    return (data as FeedRow[]).map(mapFeedRow);
+  }, []);
+
+  const getUserProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    const { data, error } = await supabase.rpc('get_user_profile', { p_user_id: userId });
+    if (error) {
+      console.error('Failed to load user profile', error);
+      return null;
+    }
+    const row = (data as UserProfileRow[])[0];
+    if (!row) return null;
+    return { fullName: row.full_name, avatarUrl: row.avatar_url, identityVerified: row.identity_verified };
+  }, []);
+
+  const getUserActivity = useCallback(async (userId: string, limit = 20, offset = 0): Promise<FeedActivity[]> => {
+    const { data, error } = await supabase.rpc('get_user_activity', {
+      p_user_id: userId,
+      p_limit: limit,
+      p_offset: offset,
+    });
+    if (error) {
+      console.error('Failed to load user activity', error);
+      return [];
+    }
+    return (data as FeedRow[]).map(mapFeedRow);
   }, []);
 
   const getSuggestedPeople = useCallback(async (limit = 5): Promise<SuggestedPerson[]> => {
@@ -376,6 +420,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       getMentionableUsersForComposer,
       setActivityVisibility,
       getActivityFeed,
+      getUserProfile,
+      getUserActivity,
       getSuggestedPeople,
       getFollowCounts,
       getFollowers,
@@ -397,6 +443,8 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       getMentionableUsersForComposer,
       setActivityVisibility,
       getActivityFeed,
+      getUserProfile,
+      getUserActivity,
       getSuggestedPeople,
       getFollowCounts,
       getFollowers,

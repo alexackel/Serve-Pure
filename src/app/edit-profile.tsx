@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image } from 'expo-image';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { router } from 'expo-router';
 
@@ -12,7 +12,7 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
-import { setAvatarUrl } from '@/data/profile';
+import { setAvatarUrl, setCity } from '@/data/profile';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
 import { cropSquare, pickPhoto, type PickedPhoto, type SquareCrop, uploadPhoto } from '@/utils/photo-upload';
@@ -24,6 +24,8 @@ export default function EditProfileScreen() {
   const { session } = useSession();
   const [fullName, setFullName] = useState('');
   const [savedAvatarUrl, setSavedAvatarUrl] = useState<string | null>(null);
+  const [savedCity, setSavedCity] = useState('');
+  const [city, setCityDraft] = useState('');
   // A raw pick waiting for the volunteer to choose the crop circle…
   const [draft, setDraft] = useState<PickedPhoto | null>(null);
   // …and the cropped square that Save will upload.
@@ -37,7 +39,7 @@ export default function EditProfileScreen() {
     let cancelled = false;
     supabase
       .from('profiles')
-      .select('full_name, avatar_url')
+      .select('full_name, avatar_url, city')
       .eq('id', session.user.id)
       .maybeSingle()
       .then(({ data, error }) => {
@@ -48,6 +50,8 @@ export default function EditProfileScreen() {
         } else if (data) {
           setFullName(data.full_name);
           setSavedAvatarUrl(data.avatar_url);
+          setSavedCity(data.city ?? '');
+          setCityDraft(data.city ?? '');
         }
         setIsLoading(false);
       });
@@ -77,16 +81,25 @@ export default function EditProfileScreen() {
     }
   };
 
+  const trimmedCity = city.trim();
+  const cityChanged = trimmedCity !== savedCity;
+  const canSave = (!!photo || cityChanged) && !isSaving && !isLoading;
+
   const handleSave = async () => {
-    if (!session || !photo) return;
+    if (!session || !canSave) return;
     setError(null);
     setIsSaving(true);
     try {
-      const url = await uploadPhoto(session.user.id, photo);
-      await setAvatarUrl(session.user.id, url);
+      if (photo) {
+        const url = await uploadPhoto(session.user.id, photo);
+        await setAvatarUrl(session.user.id, url);
+      }
+      if (cityChanged) {
+        await setCity(session.user.id, trimmedCity || null);
+      }
       router.back();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save your photo.');
+      setError(e instanceof Error ? e.message : 'Failed to save your profile.');
     } finally {
       setIsSaving(false);
     }
@@ -106,7 +119,6 @@ export default function EditProfileScreen() {
   }
 
   const previewUri = photo?.uri ?? savedAvatarUrl;
-  const canSave = !!photo && !isSaving && !isLoading;
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -130,6 +142,24 @@ export default function EditProfileScreen() {
         <ThemedText type="bodyBold">{fullName || '—'}</ThemedText>
         <ThemedText type="caption" themeColor="textSecondary">
           Your name is tied to identity verification and to your volunteer records, so it cannot be changed here.
+        </ThemedText>
+      </View>
+
+      <View style={[styles.nameBlock, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+        <ThemedText type="caption" themeColor="textSecondary">
+          City
+        </ThemedText>
+        <TextInput
+          value={city}
+          onChangeText={setCityDraft}
+          placeholder="e.g. Austin, TX"
+          placeholderTextColor={theme.textSecondary}
+          maxLength={80}
+          editable={!isLoading}
+          style={[styles.cityInput, { color: theme.text }]}
+        />
+        <ThemedText type="caption" themeColor="textSecondary">
+          Shown under your volunteer posts. Leave blank to hide it.
         </ThemedText>
       </View>
 
@@ -169,6 +199,11 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: Spacing.three,
     gap: Spacing.one,
+  },
+  cityInput: {
+    fontSize: 16,
+    lineHeight: 24,
+    paddingVertical: Spacing.one,
   },
   saveButton: {
     alignItems: 'center',

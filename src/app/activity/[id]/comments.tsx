@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { BackButton } from '@/components/back-button';
-import { PostPhoto } from '@/components/cards/post-card-shared';
+import { formatPostAge, formatPostMeta, PostPhoto } from '@/components/cards/post-card-shared';
 import { InitialsAvatar } from '@/components/initials-avatar';
 import { MentionInput } from '@/components/mention-input';
 import { MentionText } from '@/components/mention-text';
@@ -24,14 +24,20 @@ type ActivityHeader = {
   ownerId: string;
   ownerName: string;
   identityVerified: boolean;
-  organization: string;
+  organization: string | null;
+  activityTitle: string | null;
   hours: number | null;
-  notes: string | null;
+  description: string | null;
   createdAt: string;
   photoUrl: string | null;
+  city: string | null;
   address: string | null;
+  website: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
 };
 
+// Compact label for comment rows, where "3 days ago" would crowd the line.
 function timeAgo(isoDate: string): string {
   const minutes = Math.floor((Date.now() - new Date(isoDate).getTime()) / 60000);
   if (minutes < 1) return 'Just now';
@@ -39,6 +45,11 @@ function timeAgo(isoDate: string): string {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}d`;
+}
+
+// Website may be saved without a scheme ("example.org"), so Linking needs one added.
+function toWebUrl(website: string): string {
+  return /^https?:\/\//i.test(website) ? website : `https://${website}`;
 }
 
 export default function ActivityCommentsScreen() {
@@ -65,7 +76,7 @@ export default function ActivityCommentsScreen() {
       const { data, error } = await supabase
         .from('attendance_records')
         .select(
-          'user_id, activity_title, activity_org_name, hours_claimed, hours_awarded, notes, created_at, photo_url, event_id, events(address), profiles!user_id(full_name, identity_verified)',
+          'user_id, activity_title, activity_org_name, hours_claimed, hours_awarded, notes, created_at, photo_url, org_contact_email, org_contact_phone, events(address, website, contact_email, contact_phone), profiles!user_id(full_name, identity_verified, city)',
         )
         .eq('id', id)
         .single();
@@ -74,18 +85,33 @@ export default function ActivityCommentsScreen() {
         console.error('Failed to load activity', error);
         return;
       }
-      const profile = data.profiles as unknown as { full_name: string; identity_verified: boolean } | null;
-      const event = data.events as unknown as { address: string | null } | null;
+      const profile = data.profiles as unknown as {
+        full_name: string;
+        identity_verified: boolean;
+        city: string | null;
+      } | null;
+      const event = data.events as unknown as {
+        address: string | null;
+        website: string | null;
+        contact_email: string | null;
+        contact_phone: string | null;
+      } | null;
       setHeader({
         ownerId: data.user_id,
         ownerName: profile?.full_name ?? 'Unknown',
         identityVerified: profile?.identity_verified ?? false,
-        organization: data.activity_org_name ?? data.activity_title ?? 'an activity',
+        organization: data.activity_org_name,
+        activityTitle: data.activity_title,
         hours: data.hours_awarded ?? data.hours_claimed,
-        notes: data.notes,
+        description: data.notes,
         createdAt: data.created_at,
         photoUrl: data.photo_url,
+        city: profile?.city ?? null,
         address: event?.address ?? null,
+        website: event?.website ?? null,
+        // The volunteer's own org contact (self-reports) wins over the event's.
+        contactEmail: data.org_contact_email ?? event?.contact_email ?? null,
+        contactPhone: data.org_contact_phone ?? event?.contact_phone ?? null,
       });
     }
     async function load() {
@@ -121,47 +147,105 @@ export default function ActivityCommentsScreen() {
     loadComments();
   };
 
+  const hasOrgDetails =
+    !!header?.organization && !!(header.address || header.website || header.contactEmail || header.contactPhone);
+
   return (
     <View style={styles.flex}>
       <ScreenScrollView containerStyle={styles.container}>
         <BackButton fallbackHref="/" />
 
         {header && (
-          <ThemedView style={[styles.postHeader, { borderColor: theme.border }]}>
+          <ThemedView style={styles.postHeader}>
             <View style={styles.identityRow}>
               <InitialsAvatar fullName={header.ownerName} size={48} />
               <View style={styles.identityText}>
-                <View style={styles.nameRow}>
-                  <ThemedText type="bodyBold">{header.ownerName}</ThemedText>
-                  {header.identityVerified && <VerifiedBadge size="sm" />}
-                </View>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() =>
+                    router.push({ pathname: '/profile/[userId]', params: { userId: header.ownerId, fullName: header.ownerName } })
+                  }>
+                  <View style={styles.nameRow}>
+                    <ThemedText type="bodyBold">{header.ownerName}</ThemedText>
+                    {header.identityVerified && <VerifiedBadge size="sm" />}
+                  </View>
+                </Pressable>
                 <ThemedText type="caption" themeColor="textSecondary">
-                  {timeAgo(header.createdAt)}
+                  {formatPostMeta(header.city, formatPostAge(header.createdAt))}
                 </ThemedText>
               </View>
             </View>
 
-            <ThemedText type="body">
-              Volunteered at <ThemedText type="bodyBold">{header.organization}</ThemedText>
-              {header.hours !== null ? ` for ${header.hours} hrs` : ''}
-            </ThemedText>
-
-            {header.address && (
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={15} color={theme.textSecondary} />
-                <ThemedText type="caption" themeColor="textSecondary">
-                  {header.address}
-                </ThemedText>
-              </View>
+            {header.organization ? (
+              <ThemedText type="h3">
+                Volunteered at {header.organization}
+                {header.hours !== null ? ` for ${header.hours} ${header.hours === 1 ? 'hour' : 'hours'}` : ''}
+              </ThemedText>
+            ) : (
+              <ThemedText type="h2">{header.activityTitle ?? 'An activity'}</ThemedText>
             )}
 
-            {header.notes && <MentionText type="body" body={header.notes} />}
-
             {header.photoUrl && <PostPhoto uri={header.photoUrl} />}
+
+            {header.description && <MentionText type="body" body={header.description} />}
+
+            {hasOrgDetails && (
+              <View style={[styles.orgBlock, { borderColor: theme.border, backgroundColor: theme.backgroundElement }]}>
+                <ThemedText type="label" themeColor="textSecondary">
+                  Organization
+                </ThemedText>
+                <ThemedText type="bodyBold">{header.organization}</ThemedText>
+
+                {header.address && (
+                  <View style={styles.detailRow}>
+                    <Ionicons name="location-outline" size={16} color={theme.textSecondary} />
+                    <ThemedText type="body" themeColor="textSecondary" style={styles.detailText}>
+                      {header.address}
+                    </ThemedText>
+                  </View>
+                )}
+
+                {header.contactEmail && (
+                  <Pressable
+                    style={styles.detailRow}
+                    onPress={() => Linking.openURL(`mailto:${header.contactEmail}`).catch((e) => console.error('Failed to open mail', e))}
+                    accessibilityRole="link">
+                    <Ionicons name="mail-outline" size={16} color={theme.primary} />
+                    <ThemedText type="body" themeColor="primary" style={styles.detailText}>
+                      {header.contactEmail}
+                    </ThemedText>
+                  </Pressable>
+                )}
+
+                {header.contactPhone && (
+                  <Pressable
+                    style={styles.detailRow}
+                    onPress={() => Linking.openURL(`tel:${header.contactPhone}`).catch((e) => console.error('Failed to open phone', e))}
+                    accessibilityRole="link">
+                    <Ionicons name="call-outline" size={16} color={theme.primary} />
+                    <ThemedText type="body" themeColor="primary" style={styles.detailText}>
+                      {header.contactPhone}
+                    </ThemedText>
+                  </Pressable>
+                )}
+
+                {header.website && (
+                  <Pressable
+                    style={styles.detailRow}
+                    onPress={() => Linking.openURL(toWebUrl(header.website!)).catch((e) => console.error('Failed to open website', e))}
+                    accessibilityRole="link">
+                    <Ionicons name="globe-outline" size={16} color={theme.primary} />
+                    <ThemedText type="body" themeColor="primary" style={styles.detailText}>
+                      {header.website}
+                    </ThemedText>
+                  </Pressable>
+                )}
+              </View>
+            )}
           </ThemedView>
         )}
 
-        <ThemedText type="bodyBold">Comments</ThemedText>
+        <ThemedText type="h3">Comments</ThemedText>
 
         <ThemedView style={styles.list}>
           {comments.length === 0 ? (
@@ -215,9 +299,8 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   postHeader: {
-    gap: Spacing.two,
+    gap: Spacing.three,
     paddingBottom: Spacing.four,
-    borderBottomWidth: 1,
   },
   identityRow: {
     flexDirection: 'row',
@@ -226,16 +309,26 @@ const styles = StyleSheet.create({
   },
   identityText: {
     gap: Spacing.half,
+    flex: 1,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,
   },
-  locationRow: {
+  orgBlock: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.one,
+    gap: Spacing.two,
+  },
+  detailText: {
+    flex: 1,
   },
   list: {
     gap: Spacing.four,

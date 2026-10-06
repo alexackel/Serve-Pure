@@ -4,9 +4,10 @@ import { Pressable, Share, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { Avatar } from '@/components/avatar';
-import { PostActions, PostPhoto } from '@/components/cards/post-card-shared';
+import { formatPostAge, formatPostMeta, PostActions, PostPhoto } from '@/components/cards/post-card-shared';
 import { VerificationBadge, VerificationStatus } from '@/components/cards/verification-badge';
 import { FilterSheet } from '@/components/find/filter-sheet';
+import { MentionText } from '@/components/mention-text';
 import { OverflowMenu, type OverflowMenuAction } from '@/components/overflow-menu';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -23,7 +24,11 @@ export type RecordCardProps = {
   recordId: string;
   organization: string;
   hours?: number;
+  // Fallback label for the footer when createdAt isn't passed (group screens).
   date: string;
+  createdAt?: string;
+  city?: string | null;
+  description?: string;
   status: VerificationStatus;
   photoUrl?: string;
   likeCount?: number;
@@ -43,6 +48,9 @@ export function RecordCard({
   organization,
   hours,
   date,
+  createdAt,
+  city,
+  description,
   status,
   photoUrl,
   likeCount,
@@ -67,6 +75,8 @@ export function RecordCard({
     }).catch((error) => console.error('Failed to open share sheet', error));
   };
 
+  const footer = formatPostMeta(city, createdAt ? formatPostAge(createdAt) : date);
+
   return (
     <>
       <Pressable onPress={onPress} disabled={!onPress}>
@@ -76,12 +86,7 @@ export function RecordCard({
               <Avatar icon="person" iconSize={18} />
               <VerificationBadge status={status} size="sm" />
             </View>
-            <View style={styles.headerRight}>
-              <ThemedText type="caption" themeColor="textSecondary">
-                {date}
-              </ThemedText>
-              <OverflowMenu actions={menuActions} />
-            </View>
+            <OverflowMenu actions={menuActions} />
           </View>
 
           {status === 'denied' ? (
@@ -112,6 +117,12 @@ export function RecordCard({
           )}
 
           {photoUrl && <PostPhoto uri={photoUrl} />}
+
+          {description && status !== 'cancelled' && <MentionText type="body" body={description} />}
+
+          <ThemedText type="caption" themeColor="textSecondary">
+            {footer}
+          </ThemedText>
 
           <PostActions
             likeCount={likeCount}
@@ -146,7 +157,7 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: BorderRadius.lg,
     padding: Spacing.four,
-    gap: Spacing.two,
+    gap: Spacing.three,
   },
   header: {
     flexDirection: 'row',
@@ -157,11 +168,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
   },
   sentence: {},
 });

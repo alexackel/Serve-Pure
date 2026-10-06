@@ -28,10 +28,13 @@ export type HistoryRecord = {
   commentCount: number;
   visibility: 'everyone' | 'followers' | 'only_me';
   note?: string;
+  // The volunteer's own description of the activity (attendance_records.notes).
+  description?: string;
+  createdAt: string;
 };
 
 const ATTENDANCE_SELECT =
-  'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, category, photo_url, like_count, comment_count, visibility, created_at, events(start_at, organizations(name)), attendance_report_groups(status)';
+  'id, source, status, activity_org_name, hours_claimed, hours_awarded, verified_by_role, category, photo_url, like_count, comment_count, visibility, notes, created_at, events(start_at, organizations(name)), attendance_report_groups(status)';
 
 type AttendanceSource = 'platform_registration' | 'self_reported';
 type AttendanceStatus = 'pending' | 'verified' | 'partial' | 'no_show' | 'appealed' | 'rejected' | 'cancelled';
@@ -50,6 +53,7 @@ type AttendanceRow = {
   like_count: number;
   comment_count: number;
   visibility: 'everyone' | 'followers' | 'only_me';
+  notes: string | null;
   created_at: string;
   events: { start_at: string; organizations: { name: string } | null } | null;
   attendance_report_groups: { status: GroupReviewStatus }[] | null;
@@ -112,6 +116,8 @@ function mapHistoryRecord(row: AttendanceRow): HistoryRecord {
     commentCount: row.comment_count,
     visibility: row.visibility,
     note: status === 'cancelled' ? `You cancelled your registration for ${organization}` : undefined,
+    description: row.notes ?? undefined,
+    createdAt: row.created_at,
   };
 }
 

@@ -16,8 +16,9 @@ export type ProfileHeaderProps = {
   identityVerified: boolean;
   followers: number;
   following: number;
-  onEditPress: () => void;
-  onSharePress: () => void;
+  // Omit both on someone else's profile; the action row is then not rendered.
+  onEditPress?: () => void;
+  onSharePress?: () => void;
   onFollowersPress: () => void;
   onFollowingPress: () => void;
 };
@@ -62,10 +63,12 @@ export function ProfileHeader({
         <Count value={following} label="Following" onPress={onFollowingPress} />
       </View>
 
-      <View style={styles.actionRow}>
-        <PillIconButton icon="create-outline" label="Edit Profile" onPress={onEditPress} />
-        <PillIconButton icon="share-outline" label="Share Profile" onPress={onSharePress} />
-      </View>
+      {onEditPress && onSharePress && (
+        <View style={styles.actionRow}>
+          <PillIconButton icon="create-outline" label="Edit Profile" onPress={onEditPress} />
+          <PillIconButton icon="share-outline" label="Share Profile" onPress={onSharePress} />
+        </View>
+      )}
     </View>
   );
 }

@@ -357,7 +357,15 @@ function HistoryStatusDropdown({
   );
 }
 
-function HistoryTab({ records, onDeleteRecord }: { records: HistoryRecord[]; onDeleteRecord: (id: string) => void }) {
+function HistoryTab({
+  records,
+  city,
+  onDeleteRecord,
+}: {
+  records: HistoryRecord[];
+  city: string | null;
+  onDeleteRecord: (id: string) => void;
+}) {
   const [statusFilter, setStatusFilter] = useState<HistoryFilterKey | 'all'>('all');
 
   const visibleRecords =
@@ -379,6 +387,7 @@ function HistoryTab({ records, onDeleteRecord }: { records: HistoryRecord[]; onD
             key={id}
             recordId={id}
             {...record}
+            city={city}
             onPress={
               record.status === 'awaiting-resubmission'
                 ? () => router.push({ pathname: '/self-upload', params: { editRecordId: id } })
@@ -400,9 +409,12 @@ export default function YouScreen() {
   const { session } = useSession();
   const { getFollowCounts } = useSocial();
   const theme = useTheme();
-  const [profile, setProfile] = useState<{ fullName: string; avatarUrl: string | null; identityVerified: boolean } | null>(
-    null,
-  );
+  const [profile, setProfile] = useState<{
+    fullName: string;
+    avatarUrl: string | null;
+    identityVerified: boolean;
+    city: string | null;
+  } | null>(null);
   const [followCounts, setFollowCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
   const [createSheetVisible, setCreateSheetVisible] = useState(false);
   const [myPosts, setMyPosts] = useState<EventDetail[]>([]);
@@ -413,7 +425,7 @@ export default function YouScreen() {
     if (!session) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('full_name, avatar_url, identity_verified')
+      .select('full_name, avatar_url, identity_verified, city')
       .eq('id', session.user.id)
       .maybeSingle();
     if (error) {
@@ -423,6 +435,7 @@ export default function YouScreen() {
         fullName: data.full_name,
         avatarUrl: data.avatar_url,
         identityVerified: data.identity_verified,
+        city: data.city,
       });
     }
   }, [session]);
@@ -565,6 +578,7 @@ export default function YouScreen() {
         {activeTab === 'history' && (
           <HistoryTab
             records={rangeRecords}
+            city={profile?.city ?? null}
             onDeleteRecord={(id) => {
               deleteSelfReport(id)
                 .then(refetchHistory)
