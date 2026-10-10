@@ -50,6 +50,8 @@ function RootNavigator() {
                           <Stack.Screen name="profile/[userId]" />
                           <Stack.Screen name="edit-profile" options={{ presentation: 'modal' }} />
                           <Stack.Screen name="settings" />
+                          <Stack.Screen name="organization-signup" />
+                          <Stack.Screen name="add-account" options={{ presentation: 'modal' }} />
                           <Stack.Screen name="connections" />
                           <Stack.Screen name="activity/[id]/comments" />
                           <Stack.Screen name="notifications" />

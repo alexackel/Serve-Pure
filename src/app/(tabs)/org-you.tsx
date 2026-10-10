@@ -11,7 +11,7 @@ import { HistoryFilterChips } from '@/components/history-filter-chips';
 import { MetaRow } from '@/components/meta-row';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
-import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
+import { AccountSwitcher } from '@/components/account-switcher';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
@@ -578,7 +578,7 @@ export default function OrgYouScreen() {
         <ThemedText type="h1" style={styles.pageTitle}>
           Organization
         </ThemedText>
-        <SwitchViewModeButton target="personal" />
+        <AccountSwitcher current="organization" />
         <ThemedText type="body" themeColor="textSecondary">
           You don&apos;t admin any organizations yet.
         </ThemedText>
@@ -596,7 +596,7 @@ export default function OrgYouScreen() {
         </ThemedText>
       </View>
 
-      <SwitchViewModeButton target="personal" />
+      <AccountSwitcher current="organization" />
 
       <SegmentedTabs tabs={ORG_YOU_TABS} activeKey={activeTab} onChange={setActiveTab} />
 

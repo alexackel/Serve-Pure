@@ -13,7 +13,7 @@ import { PillIconButton } from '@/components/pill-icon-button';
 import { ProfileHeader } from '@/components/profile-header';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { SegmentedTabs } from '@/components/segmented-tabs';
-import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
+import { AccountSwitcher } from '@/components/account-switcher';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
@@ -506,7 +506,7 @@ export default function YouScreen() {
     <View style={styles.flex}>
       <ScreenScrollView containerStyle={styles.container}>
         <View style={styles.topRow}>
-          <SwitchViewModeButton target="organization" />
+          <AccountSwitcher current="personal" />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Settings"

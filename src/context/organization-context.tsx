@@ -24,8 +24,11 @@ const OrganizationContext = createContext<OrganizationContextValue | null>(null)
 type OrgAdminRow = { organizations: Organization | null };
 
 export function OrganizationProvider({ children }: { children: ReactNode }) {
-  const { session } = useSession();
-  const [viewMode, setViewMode] = useState<ViewMode>('personal');
+  const { session, activeAccountType } = useSession();
+  // Legacy path: a personal login that admins orgs can toggle into org mode.
+  // An organization login is always in org mode.
+  const [manualViewMode, setViewMode] = useState<ViewMode>('personal');
+  const viewMode: ViewMode = activeAccountType === 'organization' ? 'organization' : manualViewMode;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);

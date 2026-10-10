@@ -18,6 +18,19 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   },
 });
 
+// A client that keeps its session in memory only. Used to sign up or sign in a
+// second login (for example an organization login from Settings) without
+// replacing the session on the main client.
+export function createTemporaryAuthClient() {
+  return createClient(supabaseUrl, supabasePublishableKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
 // Supabase's auth refresh loop runs continuously on Android/iOS unless tied to
 // app foreground/background state.
 AppState.addEventListener('change', (state) => {

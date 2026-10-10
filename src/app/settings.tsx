@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { BackButton } from '@/components/back-button';
@@ -11,7 +12,8 @@ import { useTheme } from '@/hooks/use-theme';
 
 export default function SettingsScreen() {
   const theme = useTheme();
-  const { signOut } = useSession();
+  const router = useRouter();
+  const { signOut, activeAccountType } = useSession();
 
   return (
     <ScreenScrollView containerStyle={styles.container}>
@@ -20,6 +22,17 @@ export default function SettingsScreen() {
       <ThemedText type="h1">Settings</ThemedText>
 
       <ThemedView style={[styles.card, CardShadow, { borderColor: theme.border }]}>
+        {activeAccountType === 'personal' && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/organization-signup')}
+            style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+            <Ionicons name="business-outline" size={18} color={theme.primary} />
+            <ThemedText type="bodyBold" themeColor="primary">
+              Set up organization account
+            </ThemedText>
+          </Pressable>
+        )}
         <Pressable
           accessibilityRole="button"
           onPress={() => signOut()}
