@@ -163,7 +163,7 @@ export default function EventDetailScreen() {
   const now = new Date();
   const eventStart = parseEventDateTime(event.date, event.startTime, now);
   const hoursUntilEvent = (eventStart.getTime() - now.getTime()) / (1000 * 60 * 60);
-  const isLateCancellation = signedUp && hoursUntilEvent >= 0 && hoursUntilEvent < 24;
+  const isLateCancellation = signedUp && !event.isFriendEvent && hoursUntilEvent >= 0 && hoursUntilEvent < 24;
 
   const handleSignUpPress = async () => {
     if (signedUp) {

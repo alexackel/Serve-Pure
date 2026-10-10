@@ -22,6 +22,10 @@ export type EventDetail = {
   // 'Individual' for these so cards/lists never leak the creator's name;
   // only the event detail screen reads this field to show "Posted by X".
   creatorName?: string;
+  // "Volunteer with Friends" post (see supabase/migrations/0053) — org_id is
+  // still null like any casual event, but visibility is restricted to
+  // followers/shared groups and cancelling it never penalizes reliability.
+  isFriendEvent?: boolean;
   category?: string;
   date: string;
   startTime?: string;

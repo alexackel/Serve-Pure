@@ -594,6 +594,7 @@ export default function YouScreen() {
         onDismiss={() => setCreateSheetVisible(false)}
         showSelfUpload
         showDiscoveredPost
+        showFriendEvent
       />
     </View>
   );

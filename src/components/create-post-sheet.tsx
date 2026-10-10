@@ -13,12 +13,19 @@ export type CreatePostSheetProps = {
   onDismiss: () => void;
   showSelfUpload: boolean;
   showDiscoveredPost: boolean;
+  showFriendEvent: boolean;
 };
 
 // Same Modal pattern as FilterSheet (see that file's comment): conditionally
 // mounted rather than toggling `visible`, since RN Web ignores `visible`
 // prop changes on an already-mounted Modal.
-export function CreatePostSheet({ visible, onDismiss, showSelfUpload, showDiscoveredPost }: CreatePostSheetProps) {
+export function CreatePostSheet({
+  visible,
+  onDismiss,
+  showSelfUpload,
+  showDiscoveredPost,
+  showFriendEvent,
+}: CreatePostSheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -26,7 +33,7 @@ export function CreatePostSheet({ visible, onDismiss, showSelfUpload, showDiscov
     return null;
   }
 
-  const go = (pathname: '/create-event' | '/self-upload' | '/discovered-post') => {
+  const go = (pathname: '/create-event' | '/self-upload' | '/discovered-post' | '/create-friend-event') => {
     onDismiss();
     router.push(pathname);
   };
@@ -64,6 +71,21 @@ export function CreatePostSheet({ visible, onDismiss, showSelfUpload, showDiscov
               <ThemedText type="bodyBold">Self Upload</ThemedText>
               <ThemedText type="caption" themeColor="textSecondary">
                 Log volunteer hours from outside the app
+              </ThemedText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
+          </Pressable>
+        )}
+
+        {showFriendEvent && (
+          <Pressable
+            onPress={() => go('/create-friend-event')}
+            style={[styles.option, { backgroundColor: theme.backgroundElement }]}>
+            <Ionicons name="people-outline" size={22} color={theme.primary} />
+            <View style={styles.optionText}>
+              <ThemedText type="bodyBold">Volunteer with Friends</ThemedText>
+              <ThemedText type="caption" themeColor="textSecondary">
+                Invite friends to join you at an organization
               </ThemedText>
             </View>
             <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />

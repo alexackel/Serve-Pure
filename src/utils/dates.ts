@@ -105,6 +105,17 @@ export function formatShortDate(date: Date) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// Calendar-day difference (not a raw ms/24h divide, so an event at 11pm
+// "tomorrow" doesn't read as "today" just because it's under 24h away).
+export function formatDaysUntil(target: Date, now: Date = new Date()): string {
+  const startOfTarget = startOfDay(target);
+  const startOfNow = startOfDay(now);
+  const days = Math.round((startOfTarget.getTime() - startOfNow.getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  return `in ${days} days`;
+}
+
 export function addDays(date: Date, days: number) {
   const result = new Date(date);
   result.setDate(result.getDate() + days);

@@ -22,6 +22,8 @@ import type { EventDetail } from '@/data/mock-events';
 import { listEvents } from '@/data/events';
 import { hasSeenDiscoveredIntro, markDiscoveredIntroSeen } from '@/utils/discovered-intro-seen';
 import { discoveredItemCategory, mergeDiscoveredItems, sortDiscoveredPostsByDistance } from '@/utils/discovered';
+import { parseEventDateTime } from '@/utils/dates';
+import { buildFriendEventHeadline } from '@/utils/friend-events';
 import { useFindFilters, type FindFiltersAction } from '@/hooks/use-find-filters';
 import { useTheme } from '@/hooks/use-theme';
 import { useUserLocation } from '@/hooks/use-user-location';
@@ -331,11 +333,27 @@ export default function FindScreen() {
 
   const now = useMemo(() => new Date(), []);
   const upcomingEvents = useMemo(() => excludePastEvents(events, now), [events, now]);
+  // "Volunteer with Friends" posts have no address, so they'd be silently
+  // dropped by applyMaxRadius/filterByDistance the moment the user's
+  // location resolves — they skip the whole distance-driven pipeline below
+  // and are surfaced unconditionally (sorted soonest-first) instead.
+  // Audience is already restricted server-side (events_select_friend_event,
+  // 0053), so nothing extra to filter here.
+  const friendEvents = useMemo(
+    () =>
+      upcomingEvents
+        .filter((event) => event.isFriendEvent)
+        .sort(
+          (a, b) => parseEventDateTime(a.date, a.startTime, now).getTime() - parseEventDateTime(b.date, b.startTime, now).getTime(),
+        ),
+    [upcomingEvents, now],
+  );
+  const discoverableEvents = useMemo(() => upcomingEvents.filter((event) => !event.isFriendEvent), [upcomingEvents]);
   // Applied before category derivation too, same as excludePastEvents above
   // — a mandatory baseline rule, not a user-adjustable facet, so the
   // Category sheet never offers a chip the volunteer could never actually
   // select from the (radius-capped) list underneath.
-  const nearbyEvents = useMemo(() => applyMaxRadius(upcomingEvents, userLocation), [upcomingEvents, userLocation]);
+  const nearbyEvents = useMemo(() => applyMaxRadius(discoverableEvents, userLocation), [discoverableEvents, userLocation]);
   const categoryOptions = useMemo(() => getCategoryOptions(nearbyEvents), [nearbyEvents]);
   const pills = useMemo(() => buildFindPillDescriptors(state), [state]);
 
@@ -344,8 +362,8 @@ export default function FindScreen() {
     [nearbyEvents, state.filters, userLocation],
   );
   const visibleEvents = useMemo(
-    () => sortEvents(filteredEvents, state.sort, userLocation),
-    [filteredEvents, state.sort, userLocation],
+    () => [...friendEvents, ...sortEvents(filteredEvents, state.sort, userLocation)],
+    [friendEvents, filteredEvents, state.sort, userLocation],
   );
 
   const sheetConfig = getSheetConfig(lastSheetKey, state, categoryOptions, dispatch);
@@ -395,14 +413,30 @@ export default function FindScreen() {
                     : 'No events match your filters.'}
                 </ThemedText>
               ) : (
-                visibleEvents.map((event) => (
-                  <EventCard
-                    key={event.id}
-                    {...event}
-                    status={isRegistered(event.id) ? 'registered' : event.status}
-                    onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
-                  />
-                ))
+                visibleEvents.map((event) =>
+                  event.isFriendEvent ? (
+                    <EventCard
+                      key={event.id}
+                      title={buildFriendEventHeadline(event, now)}
+                      organization={event.creatorName ?? 'A friend'}
+                      withFriends
+                      date={event.date}
+                      time={event.startTime}
+                      hours={event.hours}
+                      location={event.location === 'Location TBD' ? undefined : event.location}
+                      description={event.description}
+                      status={isRegistered(event.id) ? 'registered' : event.status}
+                      onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+                    />
+                  ) : (
+                    <EventCard
+                      key={event.id}
+                      {...event}
+                      status={isRegistered(event.id) ? 'registered' : event.status}
+                      onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+                    />
+                  ),
+                )
               )}
             </ThemedView>
           </>
@@ -430,6 +464,7 @@ export default function FindScreen() {
         onDismiss={() => setCreateSheetVisible(false)}
         showSelfUpload={viewMode === 'personal'}
         showDiscoveredPost={viewMode === 'personal'}
+        showFriendEvent={viewMode === 'personal'}
       />
     </View>
   );

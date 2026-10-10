@@ -4,18 +4,22 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { ActivityPostCard, FriendSuggestionCard } from '@/components/cards';
+import { FriendEventFollowupModal } from '@/components/friend-event-followup-modal';
 import { HomeHeader } from '@/components/home-header';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { type FeedActivity, type SuggestedPerson, useSocial } from '@/context/social-context';
+import { useRegistrations } from '@/context/registrations-context';
+import { formatDateInput, parseEventDateTime } from '@/utils/dates';
 // `added` is set once Add succeeds and kept for the life of this screen, so the
 // card reads "Added" until the app reloads.
 type SuggestedRow = SuggestedPerson & { added?: boolean };
 
 export default function HomeScreen() {
   const { getActivityFeed, getSuggestedPeople, followUser } = useSocial();
+  const { pendingFriendFollowups, resolveFriendEventAttended, resolveFriendEventMissed } = useRegistrations();
   const [feed, setFeed] = useState<FeedActivity[]>([]);
   const [suggested, setSuggested] = useState<SuggestedRow[]>([]);
 
@@ -46,7 +50,25 @@ export default function HomeScreen() {
     setSuggested((current) => current.map((person) => (person.userId === userId ? { ...person, added: true } : person)));
   };
 
+  const handleFriendEventAttended = async (registration: (typeof pendingFriendFollowups)[number], photoUrl?: string) => {
+    await resolveFriendEventAttended(registration.id);
+    const { event } = registration;
+    const eventDate = parseEventDateTime(event.date, event.startTime, new Date());
+    router.push({
+      pathname: '/self-upload',
+      params: {
+        prefillTitle: event.title,
+        prefillOrgName: event.organization,
+        prefillOrgEmail: event.contactInfo ?? '',
+        prefillDate: formatDateInput(eventDate),
+        prefillHours: event.hours !== undefined ? String(event.hours) : '',
+        prefillPhotoUrl: photoUrl ?? '',
+      },
+    });
+  };
+
   return (
+    <>
     <ScreenScrollView containerStyle={styles.container}>
       <HomeHeader />
 
@@ -99,6 +121,12 @@ export default function HomeScreen() {
         )}
       </ThemedView>
     </ScreenScrollView>
+    <FriendEventFollowupModal
+      pending={pendingFriendFollowups}
+      onAttended={handleFriendEventAttended}
+      onMissed={(registration) => resolveFriendEventMissed(registration.id)}
+    />
+    </>
   );
 }
 

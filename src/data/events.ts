@@ -27,6 +27,8 @@ export type EventRow = {
   min_age: number | null;
   requirements: { skills?: string[]; physical?: string; what_to_bring?: string[] } | null;
   photo_url: string | null;
+  org_name: string | null;
+  is_friend_event: boolean;
   organizations: { name: string; verification_status: string } | null;
   profiles: { full_name: string } | null;
 };
@@ -67,11 +69,12 @@ export function mapEventRow(row: EventRow): EventDetail {
   return {
     id: row.id,
     title: row.title,
-    organization: row.organizations?.name ?? 'Individual',
+    organization: row.organizations?.name ?? (row.is_friend_event ? row.org_name ?? 'Individual' : 'Individual'),
     organizationId: row.org_id ?? undefined,
     organizationVerified: row.organizations?.verification_status === 'verified',
     createdBy: row.created_by,
     creatorName: row.org_id ? undefined : (row.profiles?.full_name ?? undefined),
+    isFriendEvent: row.is_friend_event,
     category: row.category ?? undefined,
     date: formatShortDate(start),
     startTime: formatEventTime(row.start_at),
@@ -201,6 +204,58 @@ export async function createEvent(userId: string, input: CreateEventInput): Prom
     .single();
 
   if (error) throw error;
+  return mapEventRow(data as unknown as EventRow);
+}
+
+export type CreateFriendEventInput = {
+  activityTitle: string;
+  orgName: string;
+  orgContactEmail?: string;
+  website?: string;
+  description?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  startAt: string;
+  endAt: string;
+  sharedGroupIds: string[];
+};
+
+// "Volunteer with Friends" — same events table and org_id-null shape as any
+// casual post (createEvent above), plus is_friend_event: true, which is what
+// restricts visibility (events_select_friend_event, 0053) to the poster's
+// followers and whichever groups are listed in event_shared_groups.
+export async function createFriendEvent(userId: string, input: CreateFriendEventInput): Promise<EventDetail> {
+  const { data, error } = await supabase
+    .from('events')
+    .insert({
+      org_id: null,
+      created_by: userId,
+      title: input.activityTitle,
+      description: input.description ?? null,
+      org_name: input.orgName,
+      contact_email: input.orgContactEmail ?? null,
+      website: input.website ?? null,
+      address: input.address ?? null,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      start_at: input.startAt,
+      end_at: input.endAt,
+      is_friend_event: true,
+      is_recurring: false,
+      status: 'available',
+    })
+    .select(EVENT_SELECT)
+    .single();
+
+  if (error) throw error;
+
+  if (input.sharedGroupIds.length > 0) {
+    const shareRows = input.sharedGroupIds.map((groupId) => ({ event_id: data.id, group_id: groupId }));
+    const { error: shareError } = await supabase.from('event_shared_groups').insert(shareRows);
+    if (shareError) throw shareError;
+  }
+
   return mapEventRow(data as unknown as EventRow);
 }
 

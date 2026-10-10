@@ -29,12 +29,18 @@ export type EventCardProps = {
   organization: string;
   date: string;
   time?: string;
-  location: string;
+  location?: string;
   hours?: number;
   volunteers?: number;
   maxVolunteers?: number;
   status: EventStatus;
   onPress?: () => void;
+  // Secondary text below the meta rows — used by "Volunteer with Friends"
+  // posts to show the activity description on the card itself.
+  description?: string;
+  // Appends "· with friends" after the organization text instead of a
+  // colored badge, for the same posts.
+  withFriends?: boolean;
 };
 
 function StatusIndicator({ status }: { status: EventStatus }) {
@@ -93,6 +99,8 @@ export function EventCard({
   maxVolunteers,
   status,
   onPress,
+  description,
+  withFriends,
 }: EventCardProps) {
   const theme = useTheme();
 
@@ -101,9 +109,10 @@ export function EventCard({
       <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
         <View style={styles.header}>
           <View style={styles.orgRow}>
-            <Avatar icon="business-outline" iconSize={18} />
+            <Avatar icon={withFriends ? 'person-outline' : 'business-outline'} iconSize={18} />
             <ThemedText type="caption" themeColor="textSecondary" style={styles.orgText} numberOfLines={1}>
               {organization}
+              {withFriends ? ' · with friends' : ''}
             </ThemedText>
           </View>
           <StatusIndicator status={status} />
@@ -115,12 +124,18 @@ export function EventCard({
 
         <View style={styles.metaList}>
           <MetaRow icon="calendar-outline" text={time ? `${date} · ${time}` : date} />
-          <MetaRow icon="location-outline" text={location} />
+          {location && <MetaRow icon="location-outline" text={location} />}
           {hours !== undefined && <MetaRow icon="time-outline" text={`${hours} hrs`} />}
           {volunteers !== undefined && maxVolunteers !== undefined && (
             <MetaRow icon="people-outline" text={`${volunteers}/${maxVolunteers} volunteers`} />
           )}
         </View>
+
+        {description && (
+          <ThemedText type="body" themeColor="textSecondary" numberOfLines={3} style={styles.description}>
+            {description}
+          </ThemedText>
+        )}
       </ThemedView>
     </Pressable>
   );
@@ -155,6 +170,9 @@ const styles = StyleSheet.create({
   },
   metaList: {
     gap: Spacing.one,
+  },
+  description: {
+    marginTop: Spacing.one,
   },
   neutralPill: {
     paddingHorizontal: Spacing.two,

@@ -5,8 +5,9 @@ import { useSession } from '@/context/auth-context';
 import { EVENT_SELECT, mapEventRow, type EventRow } from '@/data/events';
 import type { EventDetail } from '@/data/mock-events';
 import { supabase } from '@/lib/supabase';
+import { parseEventDateTime } from '@/utils/dates';
 
-const REGISTRATION_SELECT = `id, event_id, status, registered_at, penalized, events(${EVENT_SELECT})`;
+const REGISTRATION_SELECT = `id, event_id, status, registered_at, penalized, friend_followup_resolved_at, events(${EVENT_SELECT})`;
 
 type RegistrationStatus = 'pending_confirmation' | 'confirmed' | 'cancelled';
 
@@ -16,6 +17,7 @@ type RegistrationRow = {
   status: RegistrationStatus;
   registered_at: string;
   penalized: boolean;
+  friend_followup_resolved_at: string | null;
   events: EventRow;
 };
 
@@ -25,6 +27,7 @@ export type RegistrationWithEvent = {
   status: RegistrationStatus;
   registeredAt: string;
   penalized: boolean;
+  friendFollowupResolvedAt: string | null;
   event: EventDetail;
 };
 
@@ -35,6 +38,7 @@ function mapRegistrationRow(row: RegistrationRow): RegistrationWithEvent {
     status: row.status,
     registeredAt: row.registered_at,
     penalized: row.penalized,
+    friendFollowupResolvedAt: row.friend_followup_resolved_at,
     event: mapEventRow(row.events),
   };
 }
@@ -61,6 +65,12 @@ type RegistrationsContextValue = {
   isRegistered: (eventId: string) => boolean;
   register: (eventId: string) => Promise<{ error: string | null }>;
   unregister: (eventId: string) => Promise<{ error: string | null }>;
+  // "Volunteer with Friends" registrations whose event has passed and the
+  // registrant hasn't yet answered "did you make it" — surfaced on Home via
+  // FriendEventFollowupModal.
+  pendingFriendFollowups: RegistrationWithEvent[];
+  resolveFriendEventAttended: (registrationId: string) => Promise<{ error: string | null }>;
+  resolveFriendEventMissed: (registrationId: string) => Promise<{ error: string | null }>;
 };
 
 const RegistrationsContext = createContext<RegistrationsContextValue | null>(null);
@@ -179,9 +189,84 @@ export function RegistrationsProvider({ children }: { children: ReactNode }) {
     [registrations],
   );
 
+  const pendingFriendFollowups = useMemo(() => {
+    const now = new Date();
+    return registrations.filter((registration) => {
+      if (!registration.event.isFriendEvent) return false;
+      if (registration.status === 'cancelled') return false;
+      if (registration.friendFollowupResolvedAt) return false;
+      const end = parseEventDateTime(registration.event.date, registration.event.endTime ?? registration.event.startTime, now);
+      return end < now;
+    });
+  }, [registrations]);
+
+  // Marks the "did you make it" prompt answered without touching `status` —
+  // the registration itself stays as-is; Self Upload (opened right after
+  // this, pre-filled) is what actually records the volunteer's hours.
+  const resolveFriendEventAttended = useCallback(
+    async (registrationId: string) => {
+      const { data, error } = await supabase
+        .from('registrations')
+        .update({ friend_followup_resolved_at: new Date().toISOString() })
+        .eq('id', registrationId)
+        .select(REGISTRATION_SELECT)
+        .single();
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      const updated = mapRegistrationRow(data as unknown as RegistrationRow);
+      setRegistrations((current) => current.map((registration) => (registration.id === updated.id ? updated : registration)));
+      return { error: null };
+    },
+    [],
+  );
+
+  // "No, I couldn't make it" — cancels with no penalty (fn_registration_cancel,
+  // 0053, never penalizes a friend event regardless of timing) and marks the
+  // prompt resolved in the same update.
+  const resolveFriendEventMissed = useCallback(
+    async (registrationId: string) => {
+      if (!session) {
+        return { error: 'You must be signed in to manage registrations.' };
+      }
+
+      const { data, error } = await supabase
+        .from('registrations')
+        .update({
+          status: 'cancelled',
+          cancelled_by_type: 'volunteer',
+          cancelled_by_user_id: session.user.id,
+          friend_followup_resolved_at: new Date().toISOString(),
+        })
+        .eq('id', registrationId)
+        .select(REGISTRATION_SELECT)
+        .single();
+
+      if (error) {
+        return { error: error.message };
+      }
+
+      const updated = mapRegistrationRow(data as unknown as RegistrationRow);
+      setRegistrations((current) => current.map((registration) => (registration.id === updated.id ? updated : registration)));
+      return { error: null };
+    },
+    [session],
+  );
+
   const value = useMemo(
-    () => ({ registrations, isLoading, isRegistered, register, unregister }),
-    [registrations, isLoading, isRegistered, register, unregister],
+    () => ({
+      registrations,
+      isLoading,
+      isRegistered,
+      register,
+      unregister,
+      pendingFriendFollowups,
+      resolveFriendEventAttended,
+      resolveFriendEventMissed,
+    }),
+    [registrations, isLoading, isRegistered, register, unregister, pendingFriendFollowups, resolveFriendEventAttended, resolveFriendEventMissed],
   );
 
   return <RegistrationsContext.Provider value={value}>{children}</RegistrationsContext.Provider>;

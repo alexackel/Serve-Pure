@@ -41,17 +41,38 @@ export default function SelfUploadScreen() {
   const { session } = useSession();
   const { viewMode } = useOrganization();
   const { groups, myGroupIds, isAdmin } = useGroups();
-  const { editRecordId } = useLocalSearchParams<{ editRecordId?: string }>();
+  const {
+    editRecordId,
+    prefillTitle,
+    prefillOrgName,
+    prefillOrgEmail,
+    prefillDate,
+    prefillHours,
+    prefillPhotoUrl,
+  } = useLocalSearchParams<{
+    editRecordId?: string;
+    prefillTitle?: string;
+    prefillOrgName?: string;
+    prefillOrgEmail?: string;
+    prefillDate?: string;
+    prefillHours?: string;
+    prefillPhotoUrl?: string;
+  }>();
   const isEditMode = !!editRecordId;
 
-  const [activityTitle, setActivityTitle] = useState('');
-  const [activityOrgName, setActivityOrgName] = useState('');
-  const [date, setDate] = useState('');
-  const [hours, setHours] = useState('');
+  // Arriving from the "Volunteer with Friends" post-event prompt
+  // (src/components/friend-event-followup-modal.tsx) seeds these from nav
+  // params — read once as lazy initial state, since isEditMode/prefill* are
+  // stable for the life of this screen and the edit-mode load effect below
+  // overwrites them anyway once it resolves.
+  const [activityTitle, setActivityTitle] = useState(() => (isEditMode ? '' : prefillTitle ?? ''));
+  const [activityOrgName, setActivityOrgName] = useState(() => (isEditMode ? '' : prefillOrgName ?? ''));
+  const [date, setDate] = useState(() => (isEditMode ? '' : prefillDate ?? ''));
+  const [hours, setHours] = useState(() => (isEditMode ? '' : prefillHours ?? ''));
   const [notes, setNotes] = useState('');
-  const [photoUrl, setPhotoUrl] = useState<string | undefined>(undefined);
-  const [workedThroughOrg, setWorkedThroughOrg] = useState<YesNo>('');
-  const [orgContactEmail, setOrgContactEmail] = useState('');
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>(() => (isEditMode ? undefined : prefillPhotoUrl || undefined));
+  const [workedThroughOrg, setWorkedThroughOrg] = useState<YesNo>(() => (!isEditMode && prefillOrgName ? 'yes' : ''));
+  const [orgContactEmail, setOrgContactEmail] = useState(() => (isEditMode ? '' : prefillOrgEmail ?? ''));
   const [orgContactPhone, setOrgContactPhone] = useState('');
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   const [existingGroups, setExistingGroups] = useState<SelfReportGroupStatus[]>([]);
