@@ -137,6 +137,9 @@ export function OrganizationSignupForm({ onDone }: Props) {
         hint={usernameStatusMessage(usernameStatus)}
         error={usernameStatus === 'taken' ? 'That username is taken.' : null}
       />
+      <ThemedText type="h3" style={styles.sectionHeading}>
+        Organization Details
+      </ThemedText>
       <AuthField
         label="Organization name"
         value={organizationName}
@@ -208,6 +211,9 @@ export function OrganizationSignupForm({ onDone }: Props) {
       />
       <AuthField label="Address" value={address} onChangeText={setAddress} placeholder="123 Main St, Springfield" />
 
+      <ThemedText type="h3" style={styles.sectionHeading}>
+        Account
+      </ThemedText>
       <AuthField
         label="Business email"
         value={email}
@@ -224,6 +230,9 @@ export function OrganizationSignupForm({ onDone }: Props) {
         placeholder="At least 8 characters"
         secureTextEntry
       />
+      <ThemedText type="h3" style={styles.sectionHeading}>
+        About You
+      </ThemedText>
       <AuthField
         label="Mobile number (required, we'll text a code)"
         value={phone}
@@ -294,6 +303,9 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: Spacing.one,
+  },
+  sectionHeading: {
+    marginTop: Spacing.two,
   },
   chips: {
     flexDirection: 'row',

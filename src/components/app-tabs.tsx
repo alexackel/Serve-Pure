@@ -7,9 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { BottomBarShadow, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useOrganization, type ViewMode } from '@/context/organization-context';
-import { useTheme } from '@/hooks/use-theme';
+import { useBottomBarShadow, useTheme } from '@/hooks/use-theme';
 
 type TabDef = {
   name: string;
@@ -144,12 +144,13 @@ export function TabButton({ isFocused, icon, activeIcon, label, hidden, ...props
 
 export function CustomTabList(props: TabListProps) {
   const insets = useSafeAreaInsets();
+  const bottomBarShadow = useBottomBarShadow();
 
   return (
     <ThemedView
       type="backgroundElement"
       {...props}
-      style={[styles.tabListContainer, { paddingBottom: insets.bottom }]}
+      style={[styles.tabListContainer, bottomBarShadow, { paddingBottom: insets.bottom }]}
     >
       {props.children}
     </ThemedView>
@@ -167,7 +168,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'center',
     flexDirection: 'row',
-    ...BottomBarShadow,
   },
   pressed: {
     opacity: 0.7,

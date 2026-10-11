@@ -3,8 +3,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 export type StatCardProps = {
   label: string;
@@ -16,12 +16,13 @@ export type StatCardProps = {
 
 export function StatCard({ label, value, icon, accentColor = 'primary', variant = 'default' }: StatCardProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const iconColor = theme[accentColor];
   const iconBackground = accentColor === 'primary' ? theme.primaryTint : theme[`${accentColor}Background`];
 
   if (variant === 'headline') {
     return (
-      <ThemedView style={[styles.card, styles.headlineCard, { borderColor: theme.border }, CardShadow]}>
+      <ThemedView style={[styles.card, styles.headlineCard, { borderColor: theme.border }, cardShadow]}>
         {icon && (
           <View style={[styles.iconCircle, styles.headlineIconCircle, { backgroundColor: iconBackground }]}>
             <Ionicons name={icon} size={22} color={iconColor} />
@@ -40,7 +41,7 @@ export function StatCard({ label, value, icon, accentColor = 'primary', variant 
   }
 
   return (
-    <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
+    <ThemedView style={[styles.card, { borderColor: theme.border }, cardShadow]}>
       {icon && (
         <View style={[styles.iconCircle, { backgroundColor: iconBackground }]}>
           <Ionicons name={icon} size={18} color={iconColor} />

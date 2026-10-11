@@ -6,12 +6,13 @@ import { BackButton } from '@/components/back-button';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const router = useRouter();
   const { signOut, activeAccountType } = useSession();
 
@@ -21,7 +22,7 @@ export default function SettingsScreen() {
 
       <ThemedText type="h1">Settings</ThemedText>
 
-      <ThemedView style={[styles.card, CardShadow, { borderColor: theme.border }]}>
+      <ThemedView style={[styles.card, cardShadow, { borderColor: theme.border }]}>
         {activeAccountType === 'personal' && (
           <Pressable
             accessibilityRole="button"

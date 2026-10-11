@@ -13,7 +13,7 @@ import { SearchBar } from '@/components/search-bar';
 import { SegmentedTabs } from '@/components/segmented-tabs';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Overlay, Spacing } from '@/constants/theme';
 import { useDiscovery } from '@/context/discovery-context';
 import { useOrganization } from '@/context/organization-context';
 import { useRegistrations } from '@/context/registrations-context';
@@ -25,7 +25,7 @@ import { discoveredItemCategory, mergeDiscoveredItems, sortDiscoveredPostsByDist
 import { parseEventDateTime } from '@/utils/dates';
 import { buildFriendEventHeadline } from '@/utils/friend-events';
 import { useFindFilters, type FindFiltersAction } from '@/hooks/use-find-filters';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import { useUserLocation } from '@/hooks/use-user-location';
 import { AI_ORG_CATEGORY_OPTIONS, sortAiOrgsByDistance } from '@/utils/ai-orgs';
 import {
@@ -66,6 +66,7 @@ const DISCOVERY_CATEGORY_CHIPS: readonly { key: DiscoveryCategoryKey; label: str
 // CreatePostSheet (transparent, fade, backdrop-tap dismiss).
 function DiscoveredIntroModal({ visible, onDismiss }: { visible: boolean; onDismiss: () => void }) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   if (!visible) {
     return null;
@@ -77,7 +78,7 @@ function DiscoveredIntroModal({ visible, onDismiss }: { visible: boolean; onDism
         <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
       </View>
       <View style={styles.introCenterer}>
-        <ThemedView style={[styles.introCard, CardShadow]}>
+        <ThemedView style={[styles.introCard, cardShadow]}>
           <ThemedText type="h2">Discovered</ThemedText>
           <ThemedText type="body" themeColor="textSecondary">
             Beyond ServePure&apos;s own events, Discovered surfaces volunteer opportunities from elsewhere —
@@ -507,7 +508,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   introBackdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: Overlay.backdrop,
   },
   introCenterer: {
     flex: 1,

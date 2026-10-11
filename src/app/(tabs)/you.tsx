@@ -16,7 +16,7 @@ import { SegmentedTabs } from '@/components/segmented-tabs';
 import { AccountSwitcher } from '@/components/account-switcher';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
 import { type HistoryRecord, useHistory } from '@/context/history-context';
 import { useRegistrations } from '@/context/registrations-context';
@@ -25,7 +25,7 @@ import { listMyIndividualEvents } from '@/data/events';
 import type { EventDetail } from '@/data/mock-events';
 import { deleteSelfReport } from '@/data/self-reports';
 import { supabase } from '@/lib/supabase';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import {
   endOfDay,
   formatDateInput,
@@ -135,6 +135,7 @@ function TimeRangeSelector({
   const [endText, setEndText] = useState(customRange ? formatDateInput(customRange.end) : '');
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   const close = () => {
     setExpanded(false);
@@ -176,7 +177,7 @@ function TimeRangeSelector({
       </Pressable>
 
       {expanded && (
-        <ThemedView style={[CardShadow, styles.rangeOptions, { borderColor: theme.border }]}>
+        <ThemedView style={[cardShadow, styles.rangeOptions, { borderColor: theme.border }]}>
           {TIME_RANGES.map((range) => (
             <Pressable
               key={range}
@@ -262,17 +263,23 @@ function UpcomingTab() {
   return (
     <ThemedView style={styles.section}>
       <ThemedText type="h3">Upcoming Events</ThemedText>
-      <ThemedView style={styles.list}>
-        {upcomingEvents.map((event) => (
-          <EventCard
-            key={event.id}
-            {...event}
-            time={event.startTime}
-            status="registered"
-            onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
-          />
-        ))}
-      </ThemedView>
+      {upcomingEvents.length === 0 ? (
+        <ThemedText type="body" themeColor="textSecondary">
+          You have no upcoming events.
+        </ThemedText>
+      ) : (
+        <ThemedView style={styles.list}>
+          {upcomingEvents.map((event) => (
+            <EventCard
+              key={event.id}
+              {...event}
+              time={event.startTime}
+              status="registered"
+              onPress={() => router.push({ pathname: '/event/[id]', params: { id: event.id } })}
+            />
+          ))}
+        </ThemedView>
+      )}
     </ThemedView>
   );
 }
@@ -314,6 +321,7 @@ function HistoryStatusDropdown({
 }) {
   const [expanded, setExpanded] = useState(false);
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   const options: { key: HistoryFilterKey | 'all'; label: string }[] = [{ key: 'all', label: 'All' }, ...HISTORY_FILTERS];
   const buttonLabel = selected === 'all' ? 'All' : HISTORY_FILTERS.find((filter) => filter.key === selected)!.label;
@@ -331,7 +339,7 @@ function HistoryStatusDropdown({
       </Pressable>
 
       {expanded && (
-        <ThemedView style={[CardShadow, styles.rangeOptions, styles.statusOptionsPanel, { borderColor: theme.border }]}>
+        <ThemedView style={[cardShadow, styles.rangeOptions, styles.statusOptionsPanel, { borderColor: theme.border }]}>
           {options.map((option) => (
             <Pressable
               key={option.key}
@@ -381,22 +389,28 @@ function HistoryTab({
     <ThemedView style={styles.section}>
       <ThemedText type="h3">Your Volunteer History</ThemedText>
       <HistoryStatusDropdown selected={statusFilter} onSelect={setStatusFilter} />
-      <ThemedView style={styles.list}>
-        {visibleRecords.map(({ id, ...record }) => (
-          <RecordCard
-            key={id}
-            recordId={id}
-            {...record}
-            city={city}
-            onPress={
-              record.status === 'awaiting-resubmission'
-                ? () => router.push({ pathname: '/self-upload', params: { editRecordId: id } })
-                : undefined
-            }
-            onDelete={record.status === 'self-uploaded' ? () => onDeleteRecord(id) : undefined}
-          />
-        ))}
-      </ThemedView>
+      {visibleRecords.length === 0 ? (
+        <ThemedText type="body" themeColor="textSecondary">
+          No volunteer history to show.
+        </ThemedText>
+      ) : (
+        <ThemedView style={styles.list}>
+          {visibleRecords.map(({ id, ...record }) => (
+            <RecordCard
+              key={id}
+              recordId={id}
+              {...record}
+              city={city}
+              onPress={
+                record.status === 'awaiting-resubmission'
+                  ? () => router.push({ pathname: '/self-upload', params: { editRecordId: id } })
+                  : undefined
+              }
+              onDelete={record.status === 'self-uploaded' ? () => onDeleteRecord(id) : undefined}
+            />
+          ))}
+        </ThemedView>
+      )}
     </ThemedView>
   );
 }
@@ -535,10 +549,18 @@ export default function YouScreen() {
         <View style={styles.reliabilityRow}>
           <View style={styles.reliabilityBadge}>
             <Ionicons name="star" size={16} color={theme.warning} />
-            <ThemedText type="bodyBold">{reliabilityScore !== null ? reliabilityScore.toFixed(1) : '—'}</ThemedText>
-            <ThemedText type="caption" themeColor="textSecondary">
-              Reliability
-            </ThemedText>
+            {reliabilityScore !== null ? (
+              <>
+                <ThemedText type="bodyBold">{reliabilityScore.toFixed(1)}</ThemedText>
+                <ThemedText type="caption" themeColor="textSecondary">
+                  Reliability
+                </ThemedText>
+              </>
+            ) : (
+              <ThemedText type="caption" themeColor="textSecondary">
+                Not yet rated
+              </ThemedText>
+            )}
           </View>
         </View>
 

@@ -147,6 +147,9 @@ export default function DiscoveredPostScreen() {
           <CategoryChipRow chips={CATEGORY_OPTIONS} activeKey={category} onChange={setCategory} />
         </View>
 
+        <ThemedText type="h3" style={styles.sectionHeading}>
+          Location
+        </ThemedText>
         <FormField label="Street address" value={street} onChangeText={setStreet} placeholder="400 River Rd" required />
         <View style={styles.row}>
           <View style={[styles.rowField, { flex: 2 }]}>
@@ -168,6 +171,9 @@ export default function DiscoveredPostScreen() {
           </View>
         )}
 
+        <ThemedText type="h3" style={styles.sectionHeading}>
+          Contact
+        </ThemedText>
         <FormField
           label="Website or signup link"
           value={website}
@@ -243,6 +249,9 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: Spacing.one,
+  },
+  sectionHeading: {
+    marginTop: Spacing.two,
   },
   photoButton: {
     flexDirection: 'row',

@@ -3,8 +3,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Overlay, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import { addDays, startOfDay } from '@/utils/dates';
 
 export type DatePickerFieldProps = {
@@ -27,6 +27,7 @@ function isSameDay(a: Date, b: Date) {
 // sheets: mounted only while open, `visible` never toggled after mount.
 export function DatePickerField({ label, value, onChange, placeholder = 'Select a date', required }: DatePickerFieldProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const [open, setOpen] = useState(false);
   // Events can't be posted for the same day they happen — only tomorrow and
   // later is selectable.
@@ -76,7 +77,7 @@ export function DatePickerField({ label, value, onChange, placeholder = 'Select 
             <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpen(false)} />
           </View>
           <View style={styles.centerWrap}>
-            <View style={[styles.card, CardShadow, { backgroundColor: theme.background }]}>
+            <View style={[styles.card, cardShadow, { backgroundColor: theme.background }]}>
               <View style={styles.monthRow}>
                 <Pressable
                   onPress={() => setViewMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1))}
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.one,
   },
   backdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: Overlay.backdrop,
   },
   centerWrap: {
     flex: 1,

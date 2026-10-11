@@ -103,7 +103,10 @@ export function ActivityPostCard({
               {organization ? (
                 <ThemedText type="body">
                   <ThemedText type="bodyBold">{name}</ThemedText> volunteered at{' '}
-                  <ThemedText type="bodyBold">{organization}</ThemedText> for {hours} {hours === 1 ? 'hour' : 'hours'}
+                  <ThemedText type="bodyBold">{organization}</ThemedText> for{' '}
+                  <ThemedText type="bodyBold">
+                    {hours} {hours === 1 ? 'hour' : 'hours'}
+                  </ThemedText>
                 </ThemedText>
               ) : (
                 <>

@@ -7,10 +7,10 @@ import { Modal, Pressable, StyleSheet } from 'react-native';
 import { PillIconButton } from '@/components/pill-icon-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
 import { useOrganization } from '@/context/organization-context';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import type { DeviceAccount } from '@/lib/device-accounts';
 
 import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
@@ -20,6 +20,7 @@ import { SwitchViewModeButton } from '@/components/switch-view-mode-button';
 // login on the device (their org access comes from org_admins).
 export function AccountSwitcher({ current }: { current: 'personal' | 'organization' }) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const router = useRouter();
   const { deviceAccounts, activeUserId, switchAccount } = useSession();
   const { activeOrganization } = useOrganization();
@@ -61,7 +62,7 @@ export function AccountSwitcher({ current }: { current: 'personal' | 'organizati
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable onPress={() => undefined}>
-            <ThemedView style={[styles.menu, CardShadow, { borderColor: theme.border }]}>
+            <ThemedView style={[styles.menu, cardShadow, { borderColor: theme.border }]}>
               {deviceAccounts.map((account) => {
                 const selected = account.userId === activeUserId;
                 return (

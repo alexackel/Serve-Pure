@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Image, type ImageStyle } from 'expo-image';
 import { Modal, Pressable, StyleSheet, type StyleProp } from 'react-native';
 
+import { Overlay } from '@/constants/theme';
+
 // A square post photo that opens full-screen on tap — same conditionally-
 // mounted Modal convention as the rest of the codebase's sheets (see
 // date-picker-field.tsx), dismissed by tapping anywhere on the backdrop.
@@ -28,7 +30,7 @@ export function ExpandablePhoto({ uri, style }: { uri: string; style?: StyleProp
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.92)',
+    backgroundColor: Overlay.scrim,
     alignItems: 'center',
     justifyContent: 'center',
   },

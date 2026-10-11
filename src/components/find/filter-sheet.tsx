@@ -4,8 +4,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Overlay, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 export type FilterSheetOption<V extends string> = { key: V; label: string };
 
@@ -47,6 +47,7 @@ export function FilterSheet<V extends string>({
   onDismiss,
 }: FilterSheetProps<V>) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<V | Set<V>>(selected);
   // Re-seed the draft every time the sheet transitions to open, discarding
@@ -97,7 +98,7 @@ export function FilterSheet<V extends string>({
       <View
         style={[
           styles.sheet,
-          CardShadow,
+          cardShadow,
           { backgroundColor: theme.background, paddingBottom: insets.bottom + Spacing.three },
         ]}>
         <ThemedText type="h3" style={styles.title}>
@@ -152,7 +153,7 @@ export function FilterSheet<V extends string>({
 
 const styles = StyleSheet.create({
   backdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: Overlay.backdrop,
   },
   sheet: {
     position: 'absolute',

@@ -159,6 +159,9 @@ export default function CreateFriendEventScreen() {
         />
         <FormField label="Organization website" value={website} onChangeText={setWebsite} placeholder="https://…" keyboardType="url" />
 
+        <ThemedText type="h3" style={styles.sectionHeading}>
+          Location
+        </ThemedText>
         <FormField label="Street address" value={street} onChangeText={setStreet} placeholder="400 River Rd (optional)" />
         <View style={styles.row}>
           <View style={[styles.rowField, { flex: 2 }]}>
@@ -180,6 +183,9 @@ export default function CreateFriendEventScreen() {
           </View>
         )}
 
+        <ThemedText type="h3" style={styles.sectionHeading}>
+          Schedule
+        </ThemedText>
         <DatePickerField label="Date" value={date} onChange={setDate} required />
         <View style={styles.row}>
           <View style={styles.rowField}>
@@ -249,6 +255,9 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: Spacing.one,
+  },
+  sectionHeading: {
+    marginTop: Spacing.two,
   },
   errorBanner: {
     flexDirection: 'row',

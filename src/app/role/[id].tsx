@@ -63,9 +63,12 @@ export default function RoleDetailScreen() {
 
       <SectionDivider />
 
-      <View style={styles.infoList}>
-        <InfoRow icon="time-outline" text={`Ongoing · ${role.hoursPerWeek} hrs/week`} />
-      </View>
+      <ThemedView style={styles.section}>
+        <ThemedText type="h3">Schedule</ThemedText>
+        <View style={styles.infoList}>
+          <InfoRow icon="time-outline" text={`Ongoing · ${role.hoursPerWeek} hrs/week`} />
+        </View>
+      </ThemedView>
 
       <ThemedView style={styles.section}>
         <ThemedText type="h3">Location</ThemedText>

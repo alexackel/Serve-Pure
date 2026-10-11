@@ -5,8 +5,8 @@ import { VerificationBadge } from '@/components/cards/verification-badge';
 import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 // 'available'/'full' describe open-registration events (used on Find, driven by
 // volunteer capacity). The remaining states describe a specific volunteer's
@@ -103,10 +103,11 @@ export function EventCard({
   withFriends,
 }: EventCardProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
-      <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
+      <ThemedView style={[styles.card, { borderColor: theme.border }, cardShadow]}>
         <View style={styles.header}>
           <View style={styles.orgRow}>
             <Avatar icon={withFriends ? 'person-outline' : 'business-outline'} iconSize={18} />

@@ -4,8 +4,8 @@ import { Avatar } from '@/components/avatar';
 import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 // Same shell, header, and meta-row layout as EventCard so a role reads like a
 // Find post. The status slot carries Paid or Available instead of an event's
@@ -33,10 +33,11 @@ function StatusPill({ label }: { label: string }) {
 
 export function RoleCard({ title, organization, location, hoursPerWeek, paid, onPress }: RoleCardProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
-      <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
+      <ThemedView style={[styles.card, { borderColor: theme.border }, cardShadow]}>
         <View style={styles.header}>
           <View style={styles.orgRow}>
             <Avatar icon="business-outline" iconSize={18} />

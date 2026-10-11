@@ -5,8 +5,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ConfirmCancelRow } from '@/components/confirm-cancel-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 export type OverflowMenuAction = {
   label: string;
@@ -21,6 +21,7 @@ export type OverflowMenuAction = {
 // measurement/portal needed — rather than FilterSheet's Modal pattern.
 export function OverflowMenu({ actions }: { actions: OverflowMenuAction[] }) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState<OverflowMenuAction | null>(null);
 
@@ -50,7 +51,7 @@ export function OverflowMenu({ actions }: { actions: OverflowMenuAction[] }) {
       </Pressable>
 
       {open && (
-        <ThemedView style={[CardShadow, styles.menu, { borderColor: theme.border }]}>
+        <ThemedView style={[cardShadow, styles.menu, { borderColor: theme.border }]}>
           {confirming ? (
             <View style={styles.confirm}>
               <ThemedText type="body">Are you sure?</ThemedText>

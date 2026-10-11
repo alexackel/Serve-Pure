@@ -21,16 +21,22 @@ export default function OrgGroupsScreen() {
         Groups in your area
       </ThemedText>
 
-      <ThemedView style={styles.list}>
-        {groups.map((group) => (
-          <GroupCard
-            key={group.id}
-            name={group.name}
-            memberCount={group.memberCount}
-            onPress={() => router.push({ pathname: '/org-group/[id]', params: { id: group.id } })}
-          />
-        ))}
-      </ThemedView>
+      {groups.length === 0 ? (
+        <ThemedText type="body" themeColor="textSecondary">
+          No groups to show yet.
+        </ThemedText>
+      ) : (
+        <ThemedView style={styles.list}>
+          {groups.map((group) => (
+            <GroupCard
+              key={group.id}
+              name={group.name}
+              memberCount={group.memberCount}
+              onPress={() => router.push({ pathname: '/org-group/[id]', params: { id: group.id } })}
+            />
+          ))}
+        </ThemedView>
+      )}
     </ScreenScrollView>
   );
 }

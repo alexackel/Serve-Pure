@@ -3,14 +3,15 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 // Matches AiOrgCard's card shell dimensions so a real card doesn't visually
 // jump in once it replaces this. No shimmer/skeleton pattern existed
 // anywhere else in the app to reuse — this is a minimal opacity pulse.
 export function AiOrgCardSkeleton() {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const opacity = useSharedValue(0.4);
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export function AiOrgCardSkeleton() {
   const blockStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
-    <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
+    <ThemedView style={[styles.card, { borderColor: theme.border }, cardShadow]}>
       <View style={styles.header}>
         <Animated.View style={[styles.block, styles.avatar, { backgroundColor: theme.backgroundSelected }, blockStyle]} />
         <Animated.View style={[styles.block, styles.pill, { backgroundColor: theme.backgroundSelected }, blockStyle]} />

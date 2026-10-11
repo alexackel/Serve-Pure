@@ -5,8 +5,8 @@ import { Avatar } from '@/components/avatar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 export type FriendSuggestionCardProps = {
   name: string;
@@ -28,10 +28,11 @@ export function FriendSuggestionCard({
   onAddPress,
 }: FriendSuggestionCardProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
-      <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
+      <ThemedView style={[styles.card, { borderColor: theme.border }, cardShadow]}>
         <Avatar size={56} icon="person" iconSize={26} style={styles.avatarSpacing} />
 
         <View style={styles.nameRow}>
@@ -41,24 +42,26 @@ export function FriendSuggestionCard({
           {verified && <VerifiedBadge size="sm" />}
         </View>
 
-        <View style={styles.reasons}>
-          {mutualCount !== undefined && mutualCount > 0 && (
-            <View style={styles.reasonRow}>
-              <Ionicons name="people-outline" size={12} color={theme.textSecondary} />
-              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
-                {mutualCount} mutual{mutualCount === 1 ? '' : 's'}
-              </ThemedText>
-            </View>
-          )}
-          {volunteeredWith && (
-            <View style={styles.reasonRow}>
-              <Ionicons name="heart-outline" size={12} color={theme.textSecondary} />
-              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1} style={styles.reasonText}>
-                Collaborated
-              </ThemedText>
-            </View>
-          )}
-        </View>
+        {(mutualCount !== undefined && mutualCount > 0) || volunteeredWith ? (
+          <View style={styles.reasons}>
+            {mutualCount !== undefined && mutualCount > 0 && (
+              <View style={styles.reasonRow}>
+                <Ionicons name="people-outline" size={12} color={theme.textSecondary} />
+                <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                  {mutualCount} mutual{mutualCount === 1 ? '' : 's'}
+                </ThemedText>
+              </View>
+            )}
+            {volunteeredWith && (
+              <View style={styles.reasonRow}>
+                <Ionicons name="heart-outline" size={12} color={theme.textSecondary} />
+                <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1} style={styles.reasonText}>
+                  Collaborated
+                </ThemedText>
+              </View>
+            )}
+          </View>
+        ) : null}
 
         {added ? (
           <View style={[styles.addButton, { backgroundColor: theme.backgroundSelected }]}>
@@ -104,7 +107,6 @@ const styles = StyleSheet.create({
   },
   reasons: {
     width: '100%',
-    minHeight: 38,
     gap: Spacing.half,
     alignItems: 'center',
   },

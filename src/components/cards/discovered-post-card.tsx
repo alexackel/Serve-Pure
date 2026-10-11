@@ -4,9 +4,9 @@ import { DiscoverySourceTag } from '@/components/discovery-source-tag';
 import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import type { AiOrgCategory } from '@/data/ai-orgs';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import { aiOrgCategoryLabel } from '@/utils/ai-orgs';
 
 export type DiscoveredPostCardProps = {
@@ -20,10 +20,11 @@ export type DiscoveredPostCardProps = {
 
 export function DiscoveredPostCard({ name, address, category, description, distanceMiles, onPress }: DiscoveredPostCardProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   return (
     <Pressable onPress={onPress} disabled={!onPress}>
-      <ThemedView style={[styles.card, { borderColor: theme.border }, CardShadow]}>
+      <ThemedView style={[styles.card, { borderColor: theme.border }, cardShadow]}>
         <View style={styles.header}>
           <DiscoverySourceTag source="community" />
           {category !== 'other' && (

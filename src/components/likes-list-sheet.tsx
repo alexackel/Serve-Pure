@@ -6,10 +6,10 @@ import { router } from 'expo-router';
 
 import { InitialsAvatar } from '@/components/initials-avatar';
 import { ThemedText } from '@/components/themed-text';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Overlay, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
 import { type ActivityLiker, useSocial } from '@/context/social-context';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 const PAGE_SIZE = 20;
 
@@ -27,6 +27,7 @@ export function LikesListSheet({
   onDismiss: () => void;
 }) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const insets = useSafeAreaInsets();
   const { session } = useSession();
   const { getActivityLikers, followUser, unfollowUser } = useSocial();
@@ -72,7 +73,7 @@ export function LikesListSheet({
       <View
         style={[
           styles.sheet,
-          CardShadow,
+          cardShadow,
           { backgroundColor: theme.background, paddingBottom: insets.bottom + Spacing.three },
         ]}>
         <ThemedText type="h3" style={styles.title}>
@@ -132,7 +133,7 @@ export function LikesListSheet({
 
 const styles = StyleSheet.create({
   backdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: Overlay.backdrop,
   },
   sheet: {
     position: 'absolute',

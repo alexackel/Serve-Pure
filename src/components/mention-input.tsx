@@ -4,9 +4,9 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { InitialsAvatar } from '@/components/initials-avatar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { type MentionableUser, useSocial } from '@/context/social-context';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 // Finds the `@query` the cursor is currently inside of, if any — the text
 // since the nearest preceding `@` that isn't already part of a finished
@@ -39,6 +39,7 @@ export function MentionInput({
   placeholder?: string;
 }) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const { getMentionableUsers, getMentionableUsersForComposer } = useSocial();
   const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [suggestions, setSuggestions] = useState<MentionableUser[]>([]);
@@ -75,7 +76,7 @@ export function MentionInput({
   return (
     <View style={styles.container}>
       {suggestions.length > 0 && (
-        <ThemedView style={[styles.suggestions, CardShadow, { borderColor: theme.border }]}>
+        <ThemedView style={[styles.suggestions, cardShadow, { borderColor: theme.border }]}>
           {suggestions.map((user) => (
             <Pressable key={user.userId} onPress={() => insertMention(user)} style={styles.suggestionRow}>
               <InitialsAvatar fullName={user.fullName} size={28} />

@@ -62,7 +62,7 @@ function GroupsTab() {
     <ThemedView style={styles.section}>
       <ThemedText type="h3">My Groups</ThemedText>
 
-      {myGroups.length > 0 && (
+      {myGroups.length > 0 ? (
         <ThemedView style={styles.list}>
           {myGroups.map((group) => (
             <GroupCard
@@ -73,6 +73,10 @@ function GroupsTab() {
             />
           ))}
         </ThemedView>
+      ) : (
+        <ThemedText type="body" themeColor="textSecondary">
+          You haven&apos;t joined or created a group yet.
+        </ThemedText>
       )}
 
       {isCreating ? (

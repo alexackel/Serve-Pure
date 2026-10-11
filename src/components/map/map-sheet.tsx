@@ -6,8 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MapPinRow } from '@/components/map/map-pin-row';
 import { EXPANDED_RATIO, PEEK_HEIGHT } from '@/components/map/sheet-layout';
 import { ThemedText } from '@/components/themed-text';
-import { BorderRadius, BottomTabInset, CardShadow, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import type { MapPin } from '@/utils/map-pins';
 
 // Drives translateY via a continuous gesture-driven transform, never
@@ -18,6 +18,7 @@ import type { MapPin } from '@/utils/map-pins';
 // value doesn't hit that bug and is exactly what a drag gesture needs anyway.
 export function MapSheet({ pins, onPressPin }: { pins: MapPin[]; onPressPin: (pin: MapPin) => void }) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -51,7 +52,7 @@ export function MapSheet({ pins, onPressPin }: { pins: MapPin[]; onPressPin: (pi
       <View
         style={[
           styles.sheet,
-          CardShadow,
+          cardShadow,
           { backgroundColor: theme.background, borderColor: theme.border },
         ]}>
         <GestureDetector gesture={Gesture.Race(panGesture, tap)}>

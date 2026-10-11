@@ -9,51 +9,56 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#0B1220',
-    textSecondary: '#5B6472',
-    background: '#FFFFFF',
-    backgroundElement: '#F3F6FC',
-    backgroundSelected: '#E3ECFC',
-    border: '#E2E8F0',
+    text: '#1C2421',
+    textSecondary: '#5E6B62',
+    background: '#F7F5F0',
+    backgroundElement: '#E3E8E1',
+    backgroundSelected: '#CFDAD9',
+    border: '#C7D1C2',
 
-    primary: '#2F6FEF',
-    primaryTint: '#EAF1FE',
+    primary: '#2B5B7E',
+    primaryTint: '#DCE6E4',
 
-    success: '#1E9E5A',
-    successBackground: '#E4F8ED',
-    warning: '#C98A02',
-    warningBackground: '#FFF4D6',
-    error: '#D92D20',
-    errorBackground: '#FDEAEA',
+    success: '#4A7A52',
+    successBackground: '#E1EADF',
+    warning: '#7D6929',
+    warningBackground: '#EDE8D2',
+    error: '#9C5A52',
+    errorBackground: '#EDDAD6',
 
-    chartSuccess: '#7FDDA8',
-    chartWarning: '#FFCF66',
-    chartPrimary: '#8FB4FF',
-    chartError: '#F3A399',
+    chartSuccess: '#9CC2A0',
+    chartWarning: '#D6C27A',
+    chartPrimary: '#8DAAB8',
+    chartError: '#C99892',
   },
   dark: {
-    text: '#F5F7FA',
-    textSecondary: '#9AA4B2',
-    background: '#0B0F14',
-    backgroundElement: '#171B21',
-    backgroundSelected: '#232A33',
-    border: '#2A313B',
+    text: '#F0F4F1',
+    textSecondary: '#9DAAA3',
+    background: '#1A1F1C',
+    backgroundElement: '#242B27',
+    backgroundSelected: '#2B3A3F',
+    border: '#36413B',
 
-    primary: '#5B9BFF',
-    primaryTint: '#152238',
+    primary: '#5C8AAB',
+    primaryTint: '#223942',
 
-    success: '#3BC584',
-    successBackground: '#123324',
-    warning: '#E8B93B',
-    warningBackground: '#3A2E0D',
-    error: '#F26B5E',
-    errorBackground: '#3A1613',
+    success: '#7FAE87',
+    successBackground: '#23302A',
+    warning: '#C2AE6C',
+    warningBackground: '#332E1E',
+    error: '#BC8079',
+    errorBackground: '#332420',
 
-    chartSuccess: '#5EDBA0',
-    chartWarning: '#F4CE73',
-    chartPrimary: '#8CB6FF',
-    chartError: '#F5978A',
+    chartSuccess: '#8FC093',
+    chartWarning: '#D4C184',
+    chartPrimary: '#8FB2C4',
+    chartError: '#CB9A93',
   },
+} as const;
+
+export const Overlay = {
+  backdrop: 'rgba(28, 36, 33, 0.45)',
+  scrim: 'rgba(20, 26, 24, 0.92)',
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
@@ -85,29 +90,43 @@ export const Typography = {
   statValue: { fontSize: 28, lineHeight: 34, fontWeight: '700' },
 } as const;
 
-export const BorderRadius = { sm: 8, md: 12, lg: 16, xl: 24, pill: 999 } as const;
+export const BorderRadius = { sm: 8, md: 12, lg: 18, xl: 26, pill: 999 } as const;
 
-export const CardShadow = Platform.select({
-  web: { boxShadow: '0px 1px 3px rgba(15, 23, 42, 0.08)' },
-  ios: {
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  default: { elevation: 2 },
-});
+// Shadow color/opacity is scheme-aware: the old static #0F172A tint read as
+// cold slate in light mode and was nearly invisible against dark
+// backgrounds, so each scheme gets its own tuning (same approach as
+// create-fab.tsx's getFabShadow).
+export function getCardShadow(scheme: 'light' | 'dark') {
+  const isDark = scheme === 'dark';
+  return Platform.select({
+    web: {
+      boxShadow: isDark ? '0px 1px 3px rgba(0, 0, 0, 0.3)' : '0px 1px 3px rgba(28, 36, 33, 0.06)',
+    },
+    ios: {
+      shadowColor: isDark ? '#000000' : '#1C2421',
+      shadowOpacity: isDark ? 0.3 : 0.06,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    default: { elevation: 2 },
+  });
+}
 
 // Negative/upward offset since this bar sits flush against the bottom edge —
 // the shadow needs to read on its top edge, not underneath it, to separate
 // it from content scrolling behind it.
-export const BottomBarShadow = Platform.select({
-  web: { boxShadow: '0px -2px 6px rgba(15, 23, 42, 0.12)' },
-  ios: {
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.12,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: -2 },
-  },
-  default: { elevation: 8 },
-});
+export function getBottomBarShadow(scheme: 'light' | 'dark') {
+  const isDark = scheme === 'dark';
+  return Platform.select({
+    web: {
+      boxShadow: isDark ? '0px -2px 6px rgba(0, 0, 0, 0.4)' : '0px -2px 6px rgba(28, 36, 33, 0.1)',
+    },
+    ios: {
+      shadowColor: isDark ? '#000000' : '#1C2421',
+      shadowOpacity: isDark ? 0.4 : 0.1,
+      shadowRadius: 4,
+      shadowOffset: { width: 0, height: -2 },
+    },
+    default: { elevation: 8 },
+  });
+}

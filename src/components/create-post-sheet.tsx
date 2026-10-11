@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
 import { ThemedText } from '@/components/themed-text';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Overlay, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 export type CreatePostSheetProps = {
   visible: boolean;
@@ -27,6 +27,7 @@ export function CreatePostSheet({
   showFriendEvent,
 }: CreatePostSheetProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const insets = useSafeAreaInsets();
 
   if (!visible) {
@@ -46,7 +47,7 @@ export function CreatePostSheet({
       <View
         style={[
           styles.sheet,
-          CardShadow,
+          cardShadow,
           { backgroundColor: theme.background, paddingBottom: insets.bottom + Spacing.three },
         ]}>
         <Pressable
@@ -113,7 +114,7 @@ export function CreatePostSheet({
 
 const styles = StyleSheet.create({
   backdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: Overlay.backdrop,
   },
   sheet: {
     position: 'absolute',

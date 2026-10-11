@@ -4,8 +4,8 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Overlay, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import {
   PERIOD_OPTIONS,
   composeTimeLabel,
@@ -87,6 +87,7 @@ function TimePickerSheet({
   onDismiss: () => void;
 }) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const insets = useSafeAreaInsets();
   const seed = useMemo(() => parseTimeLabel(value), [value]);
 
@@ -106,7 +107,7 @@ function TimePickerSheet({
       <View
         style={[
           styles.sheet,
-          CardShadow,
+          cardShadow,
           { backgroundColor: theme.background, paddingBottom: insets.bottom + Spacing.three },
         ]}>
         <ThemedText type="h3" style={styles.title}>
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.one,
   },
   backdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: Overlay.backdrop,
   },
   sheet: {
     position: 'absolute',

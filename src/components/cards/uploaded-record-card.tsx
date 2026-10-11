@@ -7,9 +7,9 @@ import { MetaRow } from '@/components/meta-row';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import type { GroupMemberRecord } from '@/context/groups-context';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 export type UploadedRecordCardProps = {
   memberName: string;
@@ -24,10 +24,11 @@ export type UploadedRecordCardProps = {
 // decide).
 export function UploadedRecordCard({ memberName, memberVerified, record, onPress }: UploadedRecordCardProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   return (
     <Pressable onPress={onPress}>
-      <ThemedView type="backgroundElement" style={[styles.card, CardShadow]}>
+      <ThemedView type="backgroundElement" style={[styles.card, cardShadow]}>
         <View style={styles.header}>
           <Avatar size={40} icon="person" iconSize={18} />
           <View style={styles.headerInfo}>

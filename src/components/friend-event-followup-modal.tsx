@@ -3,10 +3,10 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Overlay, Spacing } from '@/constants/theme';
 import { useSession } from '@/context/auth-context';
 import type { RegistrationWithEvent } from '@/context/registrations-context';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import { pickAndUploadPhoto } from '@/utils/photo-upload';
 
 type Step = 'ask' | 'photo';
@@ -23,6 +23,7 @@ export type FriendEventFollowupModalProps = {
 // Self Upload pre-filled with everything already known.
 export function FriendEventFollowupModal({ pending, onAttended, onMissed }: FriendEventFollowupModalProps) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
   const { session } = useSession();
   const current = pending[0] ?? null;
 
@@ -68,7 +69,7 @@ export function FriendEventFollowupModal({ pending, onAttended, onMissed }: Frie
     <Modal transparent visible animationType="fade">
       <View style={[StyleSheet.absoluteFill, styles.backdrop]} />
       <View style={styles.center}>
-        <ThemedView style={[styles.card, CardShadow]}>
+        <ThemedView style={[styles.card, cardShadow]}>
           {step === 'ask' ? (
             <>
               <ThemedText type="h3">Did you make it to {title}?</ThemedText>
@@ -125,7 +126,7 @@ export function FriendEventFollowupModal({ pending, onAttended, onMissed }: Frie
 
 const styles = StyleSheet.create({
   backdrop: {
-    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+    backgroundColor: Overlay.backdrop,
   },
   center: {
     flex: 1,

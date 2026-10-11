@@ -192,6 +192,9 @@ export default function CreateEventScreen() {
         multiline
       />
 
+      <ThemedText type="h3" style={styles.sectionHeading}>
+        Location
+      </ThemedText>
       <FormField label="Street address" value={street} onChangeText={setStreet} placeholder="400 River Rd" required />
       <View style={styles.row}>
         <View style={[styles.rowField, { flex: 2 }]}>
@@ -213,6 +216,9 @@ export default function CreateEventScreen() {
         </View>
       )}
 
+      <ThemedText type="h3" style={styles.sectionHeading}>
+        Schedule
+      </ThemedText>
       <DatePickerField label="Date" value={date} onChange={setDate} required />
       <View style={styles.row}>
         <View style={styles.rowField}>
@@ -238,6 +244,9 @@ export default function CreateEventScreen() {
         </View>
       </View>
 
+      <ThemedText type="h3" style={styles.sectionHeading}>
+        Requirements
+      </ThemedText>
       <FormField label="Skills needed" value={skills} onChangeText={setSkills} placeholder="Comma-separated" />
       <View style={styles.field}>
         <ThemedText type="label" themeColor="textSecondary">
@@ -247,6 +256,9 @@ export default function CreateEventScreen() {
       </View>
       <FormField label="What to bring" value={whatToBring} onChangeText={setWhatToBring} placeholder="Comma-separated" />
 
+      <ThemedText type="h3" style={styles.sectionHeading}>
+        Contact
+      </ThemedText>
       <FormField label="Contact email" value={contactEmail} onChangeText={setContactEmail} keyboardType="email-address" required />
       <FormField label="Contact phone" value={contactPhone} onChangeText={setContactPhone} keyboardType="phone-pad" />
       <FormField label="Website" value={website} onChangeText={setWebsite} placeholder="https://…" keyboardType="url" />
@@ -315,6 +327,9 @@ const styles = StyleSheet.create({
   },
   field: {
     gap: Spacing.one,
+  },
+  sectionHeading: {
+    marginTop: Spacing.two,
   },
   photoButton: {
     flexDirection: 'row',

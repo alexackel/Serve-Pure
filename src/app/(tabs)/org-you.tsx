@@ -15,12 +15,12 @@ import { AccountSwitcher } from '@/components/account-switcher';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VerifiedBadge } from '@/components/verified-badge';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { type HistoryStatus } from '@/context/history-context';
 import { type NewEventDraft, type OrgHistoryRecord, useOrgHistory } from '@/context/org-history-context';
 import { useOrganization } from '@/context/organization-context';
 import type { EventDetail } from '@/data/mock-events';
-import { useTheme } from '@/hooks/use-theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 import { useToggleSet } from '@/hooks/use-toggle-set';
 import { parseEventDateTime } from '@/utils/dates';
 
@@ -330,9 +330,10 @@ function ApprovalCard({
   onCreateEvent: (id: string, draft: NewEventDraft) => void;
 }) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   return (
-    <ThemedView type="backgroundElement" style={[styles.approveCard, CardShadow]}>
+    <ThemedView type="backgroundElement" style={[styles.approveCard, cardShadow]}>
       <View style={styles.approveHeader}>
         <Avatar size={40} icon="person" iconSize={18} />
         <View style={styles.approveHeaderInfo}>

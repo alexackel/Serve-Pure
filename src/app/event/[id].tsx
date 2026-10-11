@@ -256,15 +256,18 @@ export default function EventDetailScreen() {
 
       <SectionDivider />
 
-      <View style={styles.infoList}>
-        <InfoRow icon="calendar-outline" text={event.date} />
-        {(event.startTime || event.endTime) && (
-          <InfoRow icon="time-outline" text={[event.startTime, event.endTime].filter(Boolean).join(' – ')} />
-        )}
-        {event.hours !== undefined && (
-          <InfoRow icon="hourglass-outline" text={`${event.hours} hrs`} />
-        )}
-      </View>
+      <ThemedView style={styles.section}>
+        <ThemedText type="h3">Schedule</ThemedText>
+        <View style={styles.infoList}>
+          <InfoRow icon="calendar-outline" text={event.date} />
+          {(event.startTime || event.endTime) && (
+            <InfoRow icon="time-outline" text={[event.startTime, event.endTime].filter(Boolean).join(' – ')} />
+          )}
+          {event.hours !== undefined && (
+            <InfoRow icon="hourglass-outline" text={`${event.hours} hrs`} />
+          )}
+        </View>
+      </ThemedView>
 
       {event.photoUrl && <ExpandablePhoto uri={event.photoUrl} style={styles.photo} />}
       <ThemedView style={styles.section}>

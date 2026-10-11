@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { BorderRadius, CardShadow, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useCardShadow, useTheme } from '@/hooks/use-theme';
 
 export type SegmentedTabsProps<Key extends string> = {
   tabs: readonly { key: Key; label: string }[];
@@ -12,6 +12,7 @@ export type SegmentedTabsProps<Key extends string> = {
 
 export function SegmentedTabs<Key extends string>({ tabs, activeKey, onChange }: SegmentedTabsProps<Key>) {
   const theme = useTheme();
+  const cardShadow = useCardShadow();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundElement }]}>
@@ -21,7 +22,7 @@ export function SegmentedTabs<Key extends string>({ tabs, activeKey, onChange }:
           <Pressable
             key={tab.key}
             onPress={() => onChange(tab.key)}
-            style={[styles.segment, isActive && { backgroundColor: theme.background }, isActive && CardShadow]}>
+            style={[styles.segment, isActive && { backgroundColor: theme.background }, isActive && cardShadow]}>
             <ThemedText
               type={isActive ? 'bodyBold' : 'body'}
               themeColor={isActive ? 'primary' : 'textSecondary'}
