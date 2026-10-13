@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.four,
   },
   activityList: {
-    gap: Spacing.three,
+    gap: Spacing.two,
     marginHorizontal: -Spacing.four,
   },
 });
