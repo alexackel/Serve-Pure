@@ -12,6 +12,7 @@ const AVATAR_SIZE = 72;
 
 export type ProfileHeaderProps = {
   fullName: string;
+  username?: string | null;
   avatarUrl: string | null;
   identityVerified: boolean;
   followers: number;
@@ -25,6 +26,7 @@ export type ProfileHeaderProps = {
 
 export function ProfileHeader({
   fullName,
+  username,
   avatarUrl,
   identityVerified,
   followers,
@@ -51,10 +53,19 @@ export function ProfileHeader({
         )}
 
         <View style={styles.nameRow}>
-          <ThemedText type="h2" numberOfLines={1} style={styles.name}>
-            {fullName}
-          </ThemedText>
-          {identityVerified && <VerifiedBadge />}
+          <View style={styles.nameColumn}>
+            <View style={styles.nameTextRow}>
+              <ThemedText type="h2" numberOfLines={1} style={styles.name}>
+                {fullName}
+              </ThemedText>
+              {identityVerified && <VerifiedBadge />}
+            </View>
+            {username && (
+              <ThemedText type="caption" themeColor="textSecondary" numberOfLines={1}>
+                @{username}
+              </ThemedText>
+            )}
+          </View>
         </View>
       </View>
 
@@ -100,6 +111,11 @@ const styles = StyleSheet.create({
   },
   nameRow: {
     flex: 1,
+  },
+  nameColumn: {
+    gap: Spacing.half,
+  },
+  nameTextRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.one,

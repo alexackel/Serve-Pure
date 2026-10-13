@@ -425,6 +425,7 @@ export default function YouScreen() {
   const theme = useTheme();
   const [profile, setProfile] = useState<{
     fullName: string;
+    username: string | null;
     avatarUrl: string | null;
     identityVerified: boolean;
     city: string | null;
@@ -439,7 +440,7 @@ export default function YouScreen() {
     if (!session) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('full_name, avatar_url, identity_verified, city')
+      .select('full_name, username, avatar_url, identity_verified, city')
       .eq('id', session.user.id)
       .maybeSingle();
     if (error) {
@@ -447,6 +448,7 @@ export default function YouScreen() {
     } else if (data) {
       setProfile({
         fullName: data.full_name,
+        username: data.username,
         avatarUrl: data.avatar_url,
         identityVerified: data.identity_verified,
         city: data.city,
@@ -533,6 +535,7 @@ export default function YouScreen() {
         {profile && session && (
           <ProfileHeader
             fullName={profile.fullName}
+            username={profile.username}
             avatarUrl={profile.avatarUrl}
             identityVerified={profile.identityVerified}
             followers={followCounts.followers}
