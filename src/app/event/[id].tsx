@@ -334,10 +334,10 @@ export default function EventDetailScreen() {
         )
       )}
 
-      {!event.organizationId && (
-        <View style={[styles.warningBanner, { backgroundColor: theme.errorBackground }]}>
-          <Ionicons name="warning-outline" size={16} color={theme.error} />
-          <ThemedText type="body" themeColor="error" style={styles.warningText}>
+      {!event.organizationId && !event.isFriendEvent && event.createdBy !== session?.user.id && (
+        <View style={[styles.warningBanner, { backgroundColor: theme.warningBackground }]}>
+          <Ionicons name="warning-outline" size={16} color={theme.warning} />
+          <ThemedText type="body" themeColor="warning" style={styles.warningText}>
             This event was posted by an individual volunteer, not a verified organization. Use caution and meet in
             public places.
           </ThemedText>
