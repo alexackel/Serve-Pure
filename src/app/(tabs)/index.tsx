@@ -7,7 +7,6 @@ import { ActivityPostCard, FriendSuggestionCard, PersonSearchRow } from '@/compo
 import { FriendEventFollowupModal } from '@/components/friend-event-followup-modal';
 import { HomeHeader } from '@/components/home-header';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
-import { SearchBar } from '@/components/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -25,6 +24,7 @@ export default function HomeScreen() {
   const { pendingFriendFollowups, resolveFriendEventAttended, resolveFriendEventMissed } = useRegistrations();
   const [feed, setFeed] = useState<FeedActivity[]>([]);
   const [suggested, setSuggested] = useState<SuggestedRow[]>([]);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchedPerson[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -45,6 +45,7 @@ export default function HomeScreen() {
     useCallback(() => {
       load();
       return () => {
+        setSearchExpanded(false);
         setSearchQuery('');
         setSearchResults([]);
         setIsSearching(false);
@@ -61,6 +62,11 @@ export default function HomeScreen() {
       setSearchResults([]);
       setIsSearching(false);
     }
+  };
+
+  const handleSearchCancel = () => {
+    setSearchExpanded(false);
+    handleSearchChange('');
   };
 
   useEffect(() => {
@@ -114,13 +120,12 @@ export default function HomeScreen() {
   return (
     <>
     <ScreenScrollView containerStyle={styles.container}>
-      <HomeHeader />
-
-      <SearchBar
-        placeholder="Search friends"
-        value={searchQuery}
-        onChangeText={handleSearchChange}
-        containerStyle={styles.searchBar}
+      <HomeHeader
+        searchExpanded={searchExpanded}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onSearchPress={() => setSearchExpanded(true)}
+        onSearchCancel={handleSearchCancel}
       />
 
       {searchQuery.trim() ? (
@@ -216,9 +221,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
-  },
-  searchBar: {
-    marginTop: Spacing.two,
   },
   searchResults: {
     gap: Spacing.two,

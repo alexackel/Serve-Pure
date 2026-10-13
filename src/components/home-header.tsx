@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import { router } from 'expo-router';
 
 import { AccountAvatarButton } from '@/components/account-avatar-button';
+import { SearchBar } from '@/components/search-bar';
 import { ThemedText } from '@/components/themed-text';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useNotifications } from '@/context/notifications-context';
@@ -33,15 +35,36 @@ function IconButton({ icon, accessibilityLabel, hasUnread, onPress }: IconButton
   );
 }
 
-export function HomeHeader() {
+export type HomeHeaderProps = {
+  searchExpanded: boolean;
+  searchQuery: string;
+  onSearchChange: (text: string) => void;
+  onSearchPress: () => void;
+  onSearchCancel: () => void;
+};
+
+export function HomeHeader({ searchExpanded, searchQuery, onSearchChange, onSearchPress, onSearchCancel }: HomeHeaderProps) {
   const theme = useTheme();
   const { unseenCount } = useNotifications();
 
+  if (searchExpanded) {
+    return (
+      <Animated.View key="search" entering={FadeIn} exiting={FadeOut} style={styles.searchRow}>
+        <SearchBar placeholder="Search friends" value={searchQuery} onChangeText={onSearchChange} autoFocus />
+        <Pressable onPress={onSearchCancel} accessibilityRole="button" hitSlop={8}>
+          <ThemedText type="bodyBold" themeColor="primary">
+            Cancel
+          </ThemedText>
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
   return (
-    <View style={styles.row}>
+    <Animated.View key="default" entering={FadeIn} exiting={FadeOut} style={styles.row}>
       <View style={styles.icons}>
         <AccountAvatarButton />
-        <IconButton icon="search-outline" accessibilityLabel="Search" />
+        <IconButton icon="search-outline" accessibilityLabel="Search" onPress={onSearchPress} />
       </View>
 
       <View style={styles.upgradeSlot}>
@@ -60,12 +83,17 @@ export function HomeHeader() {
           onPress={() => router.push('/notifications')}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
