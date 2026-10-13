@@ -59,7 +59,6 @@ export function HomeHeader() {
           hasUnread={unseenCount > 0}
           onPress={() => router.push('/notifications')}
         />
-        <IconButton icon="chatbubble-outline" accessibilityLabel="Messages" hasUnread />
       </View>
     </View>
   );

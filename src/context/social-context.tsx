@@ -50,6 +50,14 @@ export type FollowListPerson = {
   identityVerified: boolean;
 };
 
+export type SearchedPerson = {
+  userId: string;
+  fullName: string;
+  username: string | null;
+  avatarUrl: string | null;
+  identityVerified: boolean;
+};
+
 export type FeedActivity = {
   recordId: string;
   userId: string;
@@ -89,6 +97,13 @@ type MentionableRow = { user_id: string; full_name: string };
 type SuggestedRow = { user_id: string; full_name: string; identity_verified: boolean };
 type FollowCountsRow = { followers: number; following: number };
 type FollowListRow = { user_id: string; full_name: string; avatar_url: string | null; identity_verified: boolean };
+type SearchPeopleRow = {
+  user_id: string;
+  full_name: string;
+  username: string | null;
+  avatar_url: string | null;
+  identity_verified: boolean;
+};
 type FeedRow = {
   id: string;
   user_id: string;
@@ -128,6 +143,7 @@ type SocialContextValue = {
   getUserProfile: (userId: string) => Promise<UserProfile | null>;
   getUserActivity: (userId: string, limit?: number, offset?: number) => Promise<FeedActivity[]>;
   getSuggestedPeople: (limit?: number) => Promise<SuggestedPerson[]>;
+  searchPeople: (query: string, limit?: number) => Promise<SearchedPerson[]>;
   getFollowCounts: (userId: string) => Promise<FollowCounts>;
   getFollowers: (userId: string, limit?: number, offset?: number) => Promise<FollowListPerson[]>;
   getFollowing: (userId: string, limit?: number, offset?: number) => Promise<FollowListPerson[]>;
@@ -366,6 +382,21 @@ export function SocialProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const searchPeople = useCallback(async (query: string, limit = 20): Promise<SearchedPerson[]> => {
+    const { data, error } = await supabase.rpc('search_people', { p_query: query, p_limit: limit });
+    if (error) {
+      console.error('Failed to search people', error);
+      return [];
+    }
+    return (data as SearchPeopleRow[]).map((row) => ({
+      userId: row.user_id,
+      fullName: row.full_name,
+      username: row.username,
+      avatarUrl: row.avatar_url,
+      identityVerified: row.identity_verified,
+    }));
+  }, []);
+
   const getFollowCounts = useCallback(async (userId: string): Promise<FollowCounts> => {
     const { data, error } = await supabase.rpc('get_follow_counts', { p_user_id: userId });
     if (error) {
@@ -423,6 +454,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       getUserProfile,
       getUserActivity,
       getSuggestedPeople,
+      searchPeople,
       getFollowCounts,
       getFollowers,
       getFollowing,
@@ -446,6 +478,7 @@ export function SocialProvider({ children }: { children: ReactNode }) {
       getUserProfile,
       getUserActivity,
       getSuggestedPeople,
+      searchPeople,
       getFollowCounts,
       getFollowers,
       getFollowing,

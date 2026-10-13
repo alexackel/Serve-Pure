@@ -41,6 +41,7 @@ import {
   applyMaxRadius,
   buildFindPillDescriptors,
   excludePastEvents,
+  filterBySearch,
   getCategoryOptions,
   sortEvents,
   type FindFiltersState,
@@ -366,6 +367,7 @@ export default function FindScreen() {
     () => [...friendEvents, ...sortEvents(filteredEvents, state.sort, userLocation)],
     [friendEvents, filteredEvents, state.sort, userLocation],
   );
+  const searchedEvents = useMemo(() => filterBySearch(visibleEvents, searchValue), [visibleEvents, searchValue]);
 
   const sheetConfig = getSheetConfig(lastSheetKey, state, categoryOptions, dispatch);
   // Org/Organizer context keeps Find exactly as it is today — no segmented
@@ -407,14 +409,14 @@ export default function FindScreen() {
                 <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
                   Loading events…
                 </ThemedText>
-              ) : visibleEvents.length === 0 ? (
+              ) : searchedEvents.length === 0 ? (
                 <ThemedText type="body" themeColor="textSecondary" style={styles.emptyState}>
                   {viewMode === 'personal'
                     ? 'No events match your filters. Check out Discovered for more nearby organizations.'
                     : 'No events match your filters.'}
                 </ThemedText>
               ) : (
-                visibleEvents.map((event) =>
+                searchedEvents.map((event) =>
                   event.isFriendEvent ? (
                     <EventCard
                       key={event.id}

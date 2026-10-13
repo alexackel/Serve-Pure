@@ -194,6 +194,19 @@ export function filterByRecurrence(events: EventDetail[], key: RecurrenceKey): E
   return events.filter((event) => (key === 'recurring' ? event.recurring : !event.recurring));
 }
 
+export function filterBySearch(events: EventDetail[], query: string): EventDetail[] {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    return events;
+  }
+
+  return events.filter((event) =>
+    [event.title, event.description, event.category, event.location, event.organization, event.creatorName].some(
+      (field) => field?.toLowerCase().includes(q),
+    ),
+  );
+}
+
 export function applyFindFilters(events: EventDetail[], filters: FindFilters, userLocation: UserCoordinates, now?: Date): EventDetail[] {
   let result = applyMaxRadius(events, userLocation);
   result = filterByDistance(result, filters.distance, userLocation);
