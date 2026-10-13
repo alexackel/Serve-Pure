@@ -49,7 +49,7 @@ export function HomeHeader({ searchExpanded, searchQuery, onSearchChange, onSear
 
   if (searchExpanded) {
     return (
-      <Animated.View key="search" entering={FadeIn} exiting={FadeOut} style={styles.searchRow}>
+      <Animated.View key="search" entering={FadeIn.duration(220)} exiting={FadeOut.duration(220)} style={styles.searchRow}>
         <SearchBar placeholder="Search friends" value={searchQuery} onChangeText={onSearchChange} autoFocus />
         <Pressable onPress={onSearchCancel} accessibilityRole="button" hitSlop={8}>
           <ThemedText type="bodyBold" themeColor="primary">
@@ -61,7 +61,7 @@ export function HomeHeader({ searchExpanded, searchQuery, onSearchChange, onSear
   }
 
   return (
-    <Animated.View key="default" entering={FadeIn} exiting={FadeOut} style={styles.row}>
+    <Animated.View key="default" entering={FadeIn.duration(220)} exiting={FadeOut.duration(220)} style={styles.row}>
       <View style={styles.icons}>
         <AccountAvatarButton />
         <IconButton icon="search-outline" accessibilityLabel="Search" onPress={onSearchPress} />

@@ -16,6 +16,7 @@ export type FriendSuggestionCardProps = {
   added?: boolean;
   onPress?: () => void;
   onAddPress?: () => void;
+  onRemovePress?: () => void;
 };
 
 export function FriendSuggestionCard({
@@ -26,6 +27,7 @@ export function FriendSuggestionCard({
   added,
   onPress,
   onAddPress,
+  onRemovePress,
 }: FriendSuggestionCardProps) {
   const theme = useTheme();
   const cardShadow = useCardShadow();
@@ -64,12 +66,15 @@ export function FriendSuggestionCard({
         ) : null}
 
         {added ? (
-          <View style={[styles.addButton, { backgroundColor: theme.backgroundSelected }]}>
+          <Pressable
+            onPress={onRemovePress}
+            disabled={!onRemovePress}
+            style={[styles.addButton, { backgroundColor: theme.backgroundSelected }]}>
             <Ionicons name="checkmark" size={13} color={theme.textSecondary} />
             <ThemedText type="label" themeColor="textSecondary">
               Added
             </ThemedText>
-          </View>
+          </Pressable>
         ) : (
           <Pressable onPress={onAddPress} style={[styles.addButton, { backgroundColor: theme.primaryTint }]}>
             <Ionicons name="person-add-outline" size={13} color={theme.primary} />

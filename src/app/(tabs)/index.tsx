@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, Keyboard, ScrollView, StyleSheet } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
@@ -14,16 +14,13 @@ import { type FeedActivity, type SearchedPerson, type SuggestedPerson, useSocial
 import { useRegistrations } from '@/context/registrations-context';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDateInput, parseEventDateTime } from '@/utils/dates';
-// `added` is set once Add succeeds and kept for the life of this screen, so the
-// card reads "Added" until the app reloads.
-type SuggestedRow = SuggestedPerson & { added?: boolean };
 
 export default function HomeScreen() {
   const theme = useTheme();
-  const { getActivityFeed, getSuggestedPeople, followUser, searchPeople, followingIds } = useSocial();
+  const { getActivityFeed, getSuggestedPeople, followUser, unfollowUser, searchPeople, followingIds } = useSocial();
   const { pendingFriendFollowups, resolveFriendEventAttended, resolveFriendEventMissed } = useRegistrations();
   const [feed, setFeed] = useState<FeedActivity[]>([]);
-  const [suggested, setSuggested] = useState<SuggestedRow[]>([]);
+  const [suggested, setSuggested] = useState<SuggestedPerson[]>([]);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchedPerson[]>([]);
@@ -34,12 +31,12 @@ export default function HomeScreen() {
     setFeed(feedResult);
     setSuggested((current) => {
       // The suggestions query drops anyone already followed, so re-attach the
-      // people added this session rather than letting them vanish on refocus.
-      const added = current.filter((person) => person.added);
-      const fresh = suggestedResult.filter((person) => !added.some((a) => a.userId === person.userId));
-      return [...added, ...fresh];
+      // still-followed people rather than letting them vanish on refocus.
+      const stillFollowed = current.filter((person) => followingIds.has(person.userId));
+      const fresh = suggestedResult.filter((person) => !stillFollowed.some((a) => a.userId === person.userId));
+      return [...stillFollowed, ...fresh];
     });
-  }, [getActivityFeed, getSuggestedPeople]);
+  }, [getActivityFeed, getSuggestedPeople, followingIds]);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,8 +62,9 @@ export default function HomeScreen() {
   };
 
   const handleSearchCancel = () => {
-    setSearchExpanded(false);
     handleSearchChange('');
+    Keyboard.dismiss();
+    setSearchExpanded(false);
   };
 
   useEffect(() => {
@@ -95,9 +93,14 @@ export default function HomeScreen() {
     const { error } = await followUser(userId);
     if (error) {
       console.error('Failed to follow user', error);
-      return;
     }
-    setSuggested((current) => current.map((person) => (person.userId === userId ? { ...person, added: true } : person)));
+  };
+
+  const handleRemoveFriend = async (userId: string) => {
+    const { error } = await unfollowUser(userId);
+    if (error) {
+      console.error('Failed to unfollow user', error);
+    }
   };
 
   const handleFriendEventAttended = async (registration: (typeof pendingFriendFollowups)[number], photoUrl?: string) => {
@@ -119,7 +122,7 @@ export default function HomeScreen() {
 
   return (
     <>
-    <ScreenScrollView containerStyle={styles.container}>
+    <ScreenScrollView containerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <HomeHeader
         searchExpanded={searchExpanded}
         searchQuery={searchQuery}
@@ -148,6 +151,7 @@ export default function HomeScreen() {
                   added={followingIds.has(person.userId)}
                   onPress={() => router.push({ pathname: '/profile/[userId]', params: { userId: person.userId, fullName: person.fullName } })}
                   onAddPress={() => followUser(person.userId)}
+                  onRemovePress={() => unfollowUser(person.userId)}
                 />
               ))}
             </ThemedView>
@@ -164,9 +168,10 @@ export default function HomeScreen() {
                     key={person.userId}
                     name={person.fullName}
                     verified={person.identityVerified}
-                    added={person.added || followingIds.has(person.userId)}
+                    added={followingIds.has(person.userId)}
                     onPress={() => router.push({ pathname: '/profile/[userId]', params: { userId: person.userId, fullName: person.fullName } })}
                     onAddPress={() => handleAddFriend(person.userId)}
+                    onRemovePress={() => handleRemoveFriend(person.userId)}
                   />
                 ))}
               </ScrollView>

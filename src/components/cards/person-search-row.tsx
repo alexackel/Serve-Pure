@@ -18,9 +18,19 @@ export type PersonSearchRowProps = {
   added?: boolean;
   onPress?: () => void;
   onAddPress?: () => void;
+  onRemovePress?: () => void;
 };
 
-export function PersonSearchRow({ fullName, username, avatarUrl, verified, added, onPress, onAddPress }: PersonSearchRowProps) {
+export function PersonSearchRow({
+  fullName,
+  username,
+  avatarUrl,
+  verified,
+  added,
+  onPress,
+  onAddPress,
+  onRemovePress,
+}: PersonSearchRowProps) {
   const theme = useTheme();
 
   return (
@@ -51,12 +61,15 @@ export function PersonSearchRow({ fullName, username, avatarUrl, verified, added
         </View>
 
         {added ? (
-          <View style={[styles.addButton, { backgroundColor: theme.backgroundSelected }]}>
+          <Pressable
+            onPress={onRemovePress}
+            disabled={!onRemovePress}
+            style={[styles.addButton, { backgroundColor: theme.backgroundSelected }]}>
             <Ionicons name="checkmark" size={13} color={theme.textSecondary} />
             <ThemedText type="label" themeColor="textSecondary">
               Added
             </ThemedText>
-          </View>
+          </Pressable>
         ) : (
           <Pressable onPress={onAddPress} style={[styles.addButton, { backgroundColor: theme.primaryTint }]}>
             <Ionicons name="person-add-outline" size={13} color={theme.primary} />
