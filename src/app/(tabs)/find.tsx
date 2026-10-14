@@ -82,10 +82,8 @@ function DiscoveredIntroModal({ visible, onDismiss }: { visible: boolean; onDism
         <ThemedView style={[styles.introCard, cardShadow]}>
           <ThemedText type="h2">Discovered</ThemedText>
           <ThemedText type="body" themeColor="textSecondary">
-            Beyond ServePure&apos;s own events, Discovered surfaces volunteer opportunities from elsewhere —
-            organizations our AI found searching the web, and off-platform opportunities other volunteers have
-            personally come across and shared. Tap through to visit each one&apos;s own site or contact info directly
-            — there&apos;s no in-app registration here, just a pointer to get you started.
+            Opportunities beyond ServePure — found by AI web search or shared by other volunteers. Tap through to
+            the organization&apos;s own site or contact info; there&apos;s no in-app registration here.
           </ThemedText>
           <Pressable onPress={onDismiss} style={[styles.introButton, { backgroundColor: theme.primary }]}>
             <ThemedText type="bodyBold" themeColor="background">

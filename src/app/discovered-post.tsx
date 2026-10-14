@@ -127,8 +127,7 @@ export default function DiscoveredPostScreen() {
 
         <ThemedText type="h1">Share an Opportunity</ThemedText>
         <ThemedText type="body" themeColor="textSecondary">
-          Know an organization off ServePure that&apos;s worth a look? Post it here so other volunteers can find it and
-          sign up directly on their site.
+          For organizations off ServePure — volunteers sign up directly on their site.
         </ThemedText>
 
         <FormField label="Name" value={name} onChangeText={setName} placeholder="Riverside Food Pantry" required />

@@ -137,8 +137,7 @@ export default function CreateFriendEventScreen() {
 
         <ThemedText type="h1">Volunteer with Friends</ThemedText>
         <ThemedText type="body" themeColor="textSecondary">
-          Invite your friends to join you at an organization. No proof photo needed up front — everyone who joins
-          confirms afterward.
+          Post for your friends to join you the next time you volunteer!
         </ThemedText>
 
         <FormField label="Activity title" value={activityTitle} onChangeText={setActivityTitle} placeholder="Beach cleanup" required />

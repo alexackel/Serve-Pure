@@ -125,10 +125,7 @@ export default function SignInScreen() {
 
         {mode === 'sign-in' && (
           <>
-            <ThemedText type="body" themeColor="textSecondary" style={styles.subtitle}>
-              Sign in to track your volunteer hours.
-            </ThemedText>
-            <ThemedView style={styles.form}>
+            <ThemedView style={[styles.form, styles.formTop]}>
               <AuthField
                 label="Email"
                 value={email}
@@ -172,20 +169,14 @@ export default function SignInScreen() {
 
         {mode === 'sign-up' && path === null && (
           <>
-            <ThemedText type="body" themeColor="textSecondary" style={styles.subtitle}>
-              Are you here to help, or do you need volunteers?
-            </ThemedText>
-            <ThemedView style={styles.form}>
+            <ThemedView style={[styles.form, styles.formTop]}>
               <Pressable onPress={() => setPath('volunteer')} style={[styles.pathCard, { borderColor: theme.border }]}>
                 <ThemedText type="bodyBold">I&apos;m here to help</ThemedText>
-                <ThemedText type="caption" themeColor="textSecondary">
-                  Find events, track your hours, and build your record.
-                </ThemedText>
               </Pressable>
               <Pressable onPress={() => setPath('organization')} style={[styles.pathCard, { borderColor: theme.border }]}>
                 <ThemedText type="bodyBold">I need volunteers</ThemedText>
                 <ThemedText type="caption" themeColor="textSecondary">
-                  Post events and confirm the hours volunteers worked. Needs a business email.
+                  Needs a business email.
                 </ThemedText>
               </Pressable>
               <Pressable
@@ -316,6 +307,9 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: Spacing.three,
+  },
+  formTop: {
+    marginTop: Spacing.five,
   },
   pathCard: {
     borderWidth: 1,

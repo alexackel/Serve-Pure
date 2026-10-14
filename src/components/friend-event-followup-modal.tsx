@@ -73,9 +73,6 @@ export function FriendEventFollowupModal({ pending, onAttended, onMissed }: Frie
           {step === 'ask' ? (
             <>
               <ThemedText type="h3">Did you make it to {title}?</ThemedText>
-              <ThemedText type="body" themeColor="textSecondary">
-                Let us know so we can wrap this one up.
-              </ThemedText>
               <View style={styles.actions}>
                 <Pressable
                   onPress={handleMissed}
