@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
@@ -14,6 +15,7 @@ import { OrgHistoryProvider } from '@/context/org-history-context';
 import { RegistrationsProvider } from '@/context/registrations-context';
 import { SocialProvider } from '@/context/social-context';
 import { UserLocationProvider } from '@/hooks/use-user-location';
+import { queryClient } from '@/lib/query-client';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -80,9 +82,11 @@ export default function RootLayout() {
     // sheet, the app's first real gesture-driven interaction.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthProvider>
-          <RootNavigator />
-        </AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <RootNavigator />
+          </AuthProvider>
+        </QueryClientProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

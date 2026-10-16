@@ -78,6 +78,9 @@ export const Spacing = {
 // safe-area bottom separately.
 export const BottomTabInset = 60;
 export const MaxContentWidth = 800;
+// The org Analytics dashboard's multi-column KPI/chart grid needs more room
+// than the app's standard centered-column pages.
+export const AnalyticsMaxContentWidth = 1200;
 
 export const Typography = {
   h1: { fontSize: 32, lineHeight: 40, fontWeight: '700' },

@@ -175,6 +175,21 @@ export function timeLabelToMinutes(label: string): number | null {
   return hours * 60 + minutes;
 }
 
+// Postgres `date` param format (YYYY-MM-DD), in the local calendar day —
+// never toISOString(), which shifts to UTC and can land on the wrong day.
+export function formatISODate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function addMonths(date: Date, months: number) {
+  const result = new Date(date);
+  result.setMonth(result.getMonth() + months);
+  return result;
+}
+
 export function endOfDay(date: Date) {
   const end = new Date(date);
   end.setHours(23, 59, 59, 999);
