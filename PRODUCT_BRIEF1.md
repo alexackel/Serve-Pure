@@ -135,3 +135,29 @@ Scope: account types, usernames, org logins, device account switching (see `docs
 4. **Clean up before release:** confirm `.env.local` has no `EXPO_PUBLIC_SKIP_PHONE_VERIFICATION` line (already removed), and fix the 3 lint errors.
 5. **Update `docs/handoff-accounts.md`.** Sections 4 and 5 still describe the removed SMS gate and bypass flag.
 6. **Restore phone verification** when a provider is chosen (see the future phone-check entry above). Then set `phone_verified_at` through the real flow and re-run the self-dealing tests.
+
+## Org Analytics Dashboard: Phase 1 Status and Next Steps (as of 2026-10-16)
+
+Scope: the org-admin Analytics tab's first phase — KPI row, hours-over-time chart, and the volunteer roster with CSV export. Covers 6 of the brief's 12 charts plus the roster; the remaining charts and the PDF report are Phases 2–3, not yet planned in detail.
+
+**Done and verified**
+- Migrations `0058`–`0061` are applied to production: `organizations.volunteer_hour_rate`, `profiles.contact_export_consent`, `fn_age_bracket()`, and the four admin-gated RPCs (`get_org_analytics_kpis`, `get_org_hours_trend`, `get_org_roster`, `get_org_roster_export`).
+- Two real bugs were caught and fixed post-deploy, both now live: (1) bare column references inside the roster RPCs collided with their own `RETURNS TABLE` names and raised ambiguous-column errors; (2) `events_attended` was declared `int` but `count(distinct ...)` returns `bigint`, which `RETURN QUERY` won't implicitly narrow — fixed with an explicit `::int` cast in both roster functions.
+- The seed script (`supabase/seed/2026-10-15_analytics_phase1_seed.sql`) is applied: 300 fake volunteers (30 minors, 240 consenting), 40 events, 1,875 registrations, and a verified/partial/no-show/appealed/pending attendance mix, all against the real **GreenFuture Coalition** org.
+- All four RPCs were called end-to-end (impersonating the GreenFuture admin via the SQL editor) and returned sane, correctly-shaped data; a non-admin call was confirmed to raise "not authorized."
+- `npx tsc --noEmit` and `npx expo lint` both pass (lint's remaining 3 errors are the pre-existing ones noted above, untouched by this work). Fresh `expo export` bundles succeed for both web and iOS.
+- Fixed an unrelated but blocking Metro issue: `@tanstack/react-query`'s `package.json` has no subpath `exports` entry for its own internal relative imports, which Expo SDK 57's `unstable_enablePackageExports` (on by default) refused to resolve. Added `metro.config.js` disabling that flag.
+- Committed as `fb430a1` on `profile-header-social-lists` (3 commits ahead of `origin/profile-header-social-lists` as of this writing — not yet pushed).
+
+**Known gaps**
+- No manual on-device/simulator walkthrough yet. KPI deltas across all 5 range presets, the event filter, phone-width card-list fallback, dark mode, and CSV export (web Blob download vs. native share sheet) are all unverified in the actual running app — only RPC- and bundler-level checks have been done.
+- `scripts/record-walkthrough.mjs` hasn't been extended to cover the Analytics screen yet.
+- The RLS "non-admin is rejected" spot-check was only re-confirmed for `get_org_analytics_kpis` after the roster-RPC fixes; the roster RPCs share the identical guard but weren't individually re-tested for that case.
+- No accessibility pass (screen reader / touch-target spot check) has been done.
+
+**Next steps, in order**
+1. **Manual walkthrough.** Run `npx expo start`, sign in as `alex.ackel45@gmail.com`, switch to GreenFuture Coalition, and open Analytics. Check each date-range preset, the event filter, roster search/sort/filter/pagination, CSV export on web and (if available) a device/simulator, dark mode, and phone-width layout.
+2. **Extend `scripts/record-walkthrough.mjs`** to cover Analytics (empty-org state, zero-events state, each range preset, roster interactions, CSV download, one forced per-section error+retry) — the closest thing to repeatable regression coverage without a simulator harness.
+3. **Push the branch** (or open a PR) once the manual walkthrough looks right.
+4. **Plan and build Phase 2:** charts B (active vs. new volunteers), C (recruitment funnel — starts at Signups, not event views, per the decision already made), D (new vs. returning donut), F (top events), K (fill/no-show rate), L (avg. time to verify).
+5. **Plan and build Phase 3:** heatmaps (E, G), the ZIP-level volunteer map (J — needs a new `profiles` location field, flagged as a schema gap in the Phase 1 plan), the hours-per-volunteer histogram (I), the PDF impact report (`expo-print`), and Pro-plan gating. The last one needs a product decision first: there's no billing system at all, so "Pro plan" would start as a bare schema flag with no real payment flow behind it.
