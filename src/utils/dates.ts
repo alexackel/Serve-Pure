@@ -122,6 +122,10 @@ export function addDays(date: Date, days: number) {
   return result;
 }
 
+export function addHours(date: Date, hours: number) {
+  return new Date(date.getTime() + hours * 60 * 60 * 1000);
+}
+
 export function startOfDay(date: Date) {
   const start = new Date(date);
   start.setHours(0, 0, 0, 0);

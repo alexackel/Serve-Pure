@@ -1,33 +1,45 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Keyboard, ScrollView, StyleSheet } from 'react-native';
 
 import { router, useFocusEffect } from 'expo-router';
 
 import { ActivityPostCard, FriendSuggestionCard, PersonSearchRow } from '@/components/cards';
-import { FriendEventFollowupModal } from '@/components/friend-event-followup-modal';
+import { FriendEventFollowupModal, type FriendFollowupItem } from '@/components/friend-event-followup-modal';
 import { HomeHeader } from '@/components/home-header';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useSession } from '@/context/auth-context';
+import { useGroups } from '@/context/groups-context';
 import { type FeedActivity, type SearchedPerson, type SuggestedPerson, useSocial } from '@/context/social-context';
 import { useRegistrations } from '@/context/registrations-context';
+import { listMyIndividualEvents, resolveCreatorFollowup } from '@/data/events';
+import type { EventDetail } from '@/data/mock-events';
+import { createSelfReport } from '@/data/self-reports';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDateInput, parseEventDateTime } from '@/utils/dates';
+import { parseEventDateTime } from '@/utils/dates';
 
 export default function HomeScreen() {
   const theme = useTheme();
+  const { session } = useSession();
   const { getActivityFeed, getSuggestedPeople, followUser, unfollowUser, searchPeople, followingIds } = useSocial();
   const { pendingFriendFollowups, resolveFriendEventAttended, resolveFriendEventMissed } = useRegistrations();
+  const { groups, myGroupIds, isAdmin } = useGroups();
   const [feed, setFeed] = useState<FeedActivity[]>([]);
   const [suggested, setSuggested] = useState<SuggestedPerson[]>([]);
+  const [createdEvents, setCreatedEvents] = useState<EventDetail[]>([]);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchedPerson[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const load = useCallback(async () => {
-    const [feedResult, suggestedResult] = await Promise.all([getActivityFeed(), getSuggestedPeople()]);
+    const [feedResult, suggestedResult, createdEventsResult] = await Promise.all([
+      getActivityFeed(),
+      getSuggestedPeople(),
+      session ? listMyIndividualEvents(session.user.id) : Promise.resolve([]),
+    ]);
     setFeed(feedResult);
     setSuggested((current) => {
       // The suggestions query drops anyone already followed, so re-attach the
@@ -36,7 +48,8 @@ export default function HomeScreen() {
       const fresh = suggestedResult.filter((person) => !stillFollowed.some((a) => a.userId === person.userId));
       return [...stillFollowed, ...fresh];
     });
-  }, [getActivityFeed, getSuggestedPeople, followingIds]);
+    setCreatedEvents(createdEventsResult);
+  }, [getActivityFeed, getSuggestedPeople, followingIds, session]);
 
   useFocusEffect(
     useCallback(() => {
@@ -103,22 +116,77 @@ export default function HomeScreen() {
     }
   };
 
-  const handleFriendEventAttended = async (registration: (typeof pendingFriendFollowups)[number], photoUrl?: string) => {
-    await resolveFriendEventAttended(registration.id);
-    const { event } = registration;
-    const eventDate = parseEventDateTime(event.date, event.startTime, new Date());
-    router.push({
-      pathname: '/self-upload',
-      params: {
-        prefillTitle: event.title,
-        prefillOrgName: event.organization,
-        prefillOrgEmail: event.contactInfo ?? '',
-        prefillDate: formatDateInput(eventDate),
-        prefillHours: event.hours !== undefined ? String(event.hours) : '',
-        prefillPhotoUrl: photoUrl ?? '',
-      },
+  const eligibleGroups = useMemo(
+    () =>
+      groups.filter((group) => myGroupIds.includes(group.id) && !isAdmin(group.id)).map((group) => ({ id: group.id, name: group.name })),
+    [groups, myGroupIds, isAdmin],
+  );
+
+  const pendingCreatorFollowups = useMemo(() => {
+    const now = new Date();
+    return createdEvents.filter((event) => {
+      if (!event.isFriendEvent) return false;
+      if (event.status === 'cancelled') return false;
+      if (event.creatorFollowupResolvedAt) return false;
+      const end = parseEventDateTime(event.date, event.endTime ?? event.startTime, now);
+      return end < now;
     });
-  };
+  }, [createdEvents]);
+
+  // Logs the hours directly from whatever the new photo+groups sheet
+  // collected — no detour through the full Self Upload screen, since title/
+  // org/date/hours are already known from the event itself.
+  const submitSelfReportForEvent = useCallback(async (event: EventDetail, input: { photoUrl?: string; groupIds: string[] }) => {
+    if (!session) return;
+    const eventDate = parseEventDateTime(event.date, event.endTime ?? event.startTime, new Date());
+    await createSelfReport(session.user.id, {
+      activityTitle: event.title,
+      activityOrgName: event.organization,
+      date: eventDate.toISOString(),
+      hoursClaimed: event.hours ?? 0,
+      photoUrl: input.photoUrl,
+      orgContactEmail: event.contactInfo,
+      groupIds: input.groupIds,
+    });
+  }, [session]);
+
+  const followupItems = useMemo<FriendFollowupItem[]>(() => {
+    const now = new Date();
+    const eventEnd = (event: EventDetail) => parseEventDateTime(event.date, event.endTime ?? event.startTime, now).getTime();
+
+    const fromRegistrations = pendingFriendFollowups.map((registration) => ({
+      endAt: eventEnd(registration.event),
+      item: {
+        id: `registration:${registration.id}`,
+        title: registration.event.title,
+        onMissed: async () => {
+          await resolveFriendEventMissed(registration.id);
+        },
+        onResolve: async (input: { photoUrl?: string; groupIds: string[] }) => {
+          await resolveFriendEventAttended(registration.id);
+          await submitSelfReportForEvent(registration.event, input);
+        },
+      } satisfies FriendFollowupItem,
+    }));
+    const fromCreatedEvents = pendingCreatorFollowups.map((event) => ({
+      endAt: eventEnd(event),
+      item: {
+        id: `event:${event.id}`,
+        title: event.title,
+        onMissed: async () => {
+          await resolveCreatorFollowup(event.id);
+          setCreatedEvents((current) => current.filter((e) => e.id !== event.id));
+        },
+        onResolve: async (input: { photoUrl?: string; groupIds: string[] }) => {
+          await resolveCreatorFollowup(event.id);
+          await submitSelfReportForEvent(event, input);
+          setCreatedEvents((current) => current.filter((e) => e.id !== event.id));
+        },
+      } satisfies FriendFollowupItem,
+    }));
+
+    return [...fromRegistrations, ...fromCreatedEvents].sort((a, b) => a.endAt - b.endAt).map(({ item }) => item);
+  }, [pendingFriendFollowups, pendingCreatorFollowups, resolveFriendEventMissed, resolveFriendEventAttended, submitSelfReportForEvent]);
 
   return (
     <>
@@ -211,11 +279,7 @@ export default function HomeScreen() {
         </>
       )}
     </ScreenScrollView>
-    <FriendEventFollowupModal
-      pending={pendingFriendFollowups}
-      onAttended={handleFriendEventAttended}
-      onMissed={(registration) => resolveFriendEventMissed(registration.id)}
-    />
+    <FriendEventFollowupModal pending={followupItems} eligibleGroups={eligibleGroups} />
     </>
   );
 }

@@ -26,6 +26,11 @@ export type EventDetail = {
   // still null like any casual event, but visibility is restricted to
   // followers/shared groups and cancelling it never penalizes reliability.
   isFriendEvent?: boolean;
+  // Set once the creator has answered the post-event "did you make it" prompt
+  // for their own friend event (see supabase/migrations/0057) — the creator-
+  // side counterpart to a registration's friendFollowupResolvedAt, since the
+  // creator never has a registration row of their own to hang that flag off.
+  creatorFollowupResolvedAt?: string | null;
   category?: string;
   date: string;
   startTime?: string;

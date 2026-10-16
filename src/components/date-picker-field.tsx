@@ -13,6 +13,10 @@ export type DatePickerFieldProps = {
   onChange: (date: Date) => void;
   placeholder?: string;
   required?: boolean;
+  // Friend events are allowed to start the same day they're posted (guarded
+  // instead by a minimum lead time at submit time) — every other caller
+  // leaves this unset and keeps the "tomorrow or later" rule below.
+  allowToday?: boolean;
 };
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -25,13 +29,16 @@ function isSameDay(a: Date, b: Date) {
 // FilterSheet/TimePickerField — a fixed-size grid isn't a scrollable list).
 // Same conditionally-mounted Modal convention as the rest of this codebase's
 // sheets: mounted only while open, `visible` never toggled after mount.
-export function DatePickerField({ label, value, onChange, placeholder = 'Select a date', required }: DatePickerFieldProps) {
+export function DatePickerField({ label, value, onChange, placeholder = 'Select a date', required, allowToday }: DatePickerFieldProps) {
   const theme = useTheme();
   const cardShadow = useCardShadow();
   const [open, setOpen] = useState(false);
   // Events can't be posted for the same day they happen — only tomorrow and
-  // later is selectable.
-  const minSelectableDate = useMemo(() => startOfDay(addDays(new Date(), 1)), []);
+  // later is selectable — unless the caller opts into same-day (allowToday).
+  const minSelectableDate = useMemo(
+    () => (allowToday ? startOfDay(new Date()) : startOfDay(addDays(new Date(), 1))),
+    [allowToday],
+  );
   const [viewMonth, setViewMonth] = useState(() => {
     const base = value ?? new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);

@@ -16,7 +16,7 @@ import { useSession } from '@/context/auth-context';
 import { useGroups } from '@/context/groups-context';
 import { createFriendEvent, geocodeAddress } from '@/data/events';
 import { useTheme } from '@/hooks/use-theme';
-import { parseTimeInput } from '@/utils/dates';
+import { addHours, parseTimeInput } from '@/utils/dates';
 import { loadLastAddress, saveLastAddress } from '@/utils/last-address';
 
 export default function CreateFriendEventScreen() {
@@ -77,8 +77,8 @@ export default function CreateFriendEventScreen() {
       setError('Enter a valid start time.');
       return;
     }
-    if (start <= new Date()) {
-      setError('Pick a date and time in the future.');
+    if (start < addHours(new Date(), 1)) {
+      setError('Pick a start time at least an hour from now.');
       return;
     }
 
@@ -185,7 +185,7 @@ export default function CreateFriendEventScreen() {
         <ThemedText type="h3" style={styles.sectionHeading}>
           Schedule
         </ThemedText>
-        <DatePickerField label="Date" value={date} onChange={setDate} required />
+        <DatePickerField label="Date" value={date} onChange={setDate} required allowToday />
         <View style={styles.row}>
           <View style={styles.rowField}>
             <TimePickerField label="Start time" value={startTime} onChange={setStartTime} required />

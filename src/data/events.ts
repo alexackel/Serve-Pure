@@ -29,6 +29,7 @@ export type EventRow = {
   photo_url: string | null;
   org_name: string | null;
   is_friend_event: boolean;
+  creator_followup_resolved_at: string | null;
   organizations: { name: string; verification_status: string } | null;
   profiles: { full_name: string } | null;
 };
@@ -75,6 +76,7 @@ export function mapEventRow(row: EventRow): EventDetail {
     createdBy: row.created_by,
     creatorName: row.org_id ? undefined : (row.profiles?.full_name ?? undefined),
     isFriendEvent: row.is_friend_event,
+    creatorFollowupResolvedAt: row.creator_followup_resolved_at,
     category: row.category ?? undefined,
     date: formatShortDate(start),
     startTime: formatEventTime(row.start_at),
@@ -143,6 +145,19 @@ export async function listMyIndividualEvents(userId: string): Promise<EventDetai
 
   if (error) throw error;
   return ((data ?? []) as unknown as EventRow[]).map(mapEventRow);
+}
+
+// Marks a friend event's post-event prompt answered for its creator — the
+// creator-side counterpart to resolveFriendEventAttended/Missed in
+// registrations-context.tsx, which only cover registrants. events_update_owner
+// (0006_rls_policies.sql) already lets created_by = auth.uid() update this row.
+export async function resolveCreatorFollowup(eventId: string): Promise<void> {
+  const { error } = await supabase
+    .from('events')
+    .update({ creator_followup_resolved_at: new Date().toISOString() })
+    .eq('id', eventId);
+
+  if (error) throw error;
 }
 
 export type CreateEventInput = {
