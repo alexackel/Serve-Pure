@@ -41,6 +41,16 @@ export function HoursTrendChart({ data }: { data: HoursTrendPoint[] }) {
     ],
   }));
 
+  // gifted-charts' default y-axis labels truncate (not round) fractional step
+  // values, so an evenly-spaced scale like 0/2.5/5/7.5/10 renders as the
+  // uneven-looking 0/2/5/7/10. Supplying explicit, correctly-rounded labels
+  // alongside a matching maxValue sidesteps that.
+  const noOfSections = 4;
+  const maxBucketTotal = Math.max(1, ...data.map((point) => point.verifiedHours + point.pendingHours));
+  const yAxisLabelTexts = Array.from({ length: noOfSections + 1 }, (_, i) =>
+    abbreviateNumber(Math.round((maxBucketTotal * i) / noOfSections)),
+  );
+
   return (
     <View onLayout={handleLayout} accessible accessibilityLabel={summary}>
       <View style={styles.legend}>
@@ -60,7 +70,9 @@ export function HoursTrendChart({ data }: { data: HoursTrendPoint[] }) {
           yAxisColor={theme.border}
           yAxisTextStyle={{ color: theme.textSecondary, fontSize: 11 }}
           xAxisLabelTextStyle={{ color: theme.textSecondary, fontSize: 11 }}
-          noOfSections={4}
+          noOfSections={noOfSections}
+          maxValue={maxBucketTotal}
+          yAxisLabelTexts={yAxisLabelTexts}
           disableScroll
           isAnimated
           renderTooltip={(item: { stacks: { value: number }[] }) => (
