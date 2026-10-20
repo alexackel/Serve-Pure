@@ -71,3 +71,44 @@ export type AnalyticsEventOption = {
   id: string;
   title: string;
 };
+
+export type ActiveNewTrendPoint = {
+  bucketStart: string; // ISO date (YYYY-MM-DD)
+  bucketGranularity: HoursTrendBucketGranularity;
+  newVolunteers: number;
+  returningVolunteers: number;
+};
+
+export type NewReturningSplit = {
+  newVolunteers: number;
+  returningVolunteers: number;
+};
+
+export type FunnelStageName = 'Signed up' | 'Attended' | 'Verified';
+
+export type FunnelStage = {
+  stage: FunnelStageName;
+  stageOrder: number;
+  volunteerCount: number;
+};
+
+export type TopEventRow = {
+  eventId: string;
+  title: string;
+  startAt: string;
+  verifiedHours: number;
+  attendeeCount: number;
+  capacity: number | null;
+};
+
+export type FillNoShowRates = {
+  fillRate: number | null;
+  noShowRate: number | null;
+  eventsWithCapacity: number;
+  eventsTotal: number;
+};
+
+export type AvgTimeToVerifyStat = {
+  avgHoursToVerify: number | null;
+  sampleSize: number;
+};
